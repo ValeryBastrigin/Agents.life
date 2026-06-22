@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: lifeagent-db
+    environment:
+      POSTGRES_USER: lifeagent
+      POSTGRES_PASSWORD: lifeagent_password
+      POSTGRES_DB: lifeagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lifeagent -d lifeagent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: lifeagent-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@lifeagent.com
+      PGADMIN_DEFAULT_PASSWORD: pgadmin_password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lifeagent-app
+    ports:
+      - "3000:3000"
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://lifeagent:lifeagent_password@db:5432/lifeagent
+      FRONTEND_URL: http://localhost:3000
+      BACKEND_URL: http://localhost:8001
+      PYTHONPATH: /app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  pgadmin_data:
