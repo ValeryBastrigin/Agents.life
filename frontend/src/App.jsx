@@ -6,6 +6,7 @@ import { User, Menu, Sun, Moon, ArrowLeft } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Profile from './pages/Profile';
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:8001';
@@ -63,21 +64,24 @@ function App() {
   };
 
   return (
-    <Router>
-      <AppContent
-        theme={theme}
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        userProfile={userProfile}
-        handleThemeToggle={handleThemeToggle}
-      />
-    </Router>
+    <LanguageProvider>
+      <Router>
+        <AppContent
+          theme={theme}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          userProfile={userProfile}
+          handleThemeToggle={handleThemeToggle}
+        />
+      </Router>
+    </LanguageProvider>
   );
 }
 
 function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThemeToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { language, changeLanguage, t } = useLanguage();
   const [chats, setChats] = useState([]);
   const [userId] = useState(1);
 
@@ -154,17 +158,6 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleThemeToggle}
-            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-          >
-            {theme === 'light' ? (
-              <Moon size={20} className="text-gray-600 dark:text-gray-400" />
-            ) : (
-              <Sun size={20} className="text-gray-600 dark:text-gray-400" />
-            )}
-          </button>
-          <button
             onClick={() => navigate('/profile')}
             className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"
           >
@@ -194,6 +187,7 @@ function Home({ onChatCreated }) {
   const messagesEndRef = React.useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -275,7 +269,7 @@ function Home({ onChatCreated }) {
           <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
             <div className="text-6xl mb-4">💬</div>
             <p className="text-lg">
-              Chat with your AI Assistant
+              {t('chatWithAgents')}
             </p>
           </div>
         ) : (

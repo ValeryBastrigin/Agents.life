@@ -2,15 +2,31 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Calendar, Wallet, MessageSquare, Plus, X as DeleteIcon } from 'lucide-react';
 import axios from 'axios';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const API_URL = 'http://localhost:8001';
 
 const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDeleteChat }) => {
+  const { t, language } = useLanguage();
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const menuItems = [
-    { id: 'secretary', name: 'Secretary', icon: Calendar, path: '/secretary', description: 'Personal assistant for scheduling and organization' },
-    { id: 'accountant', name: 'Accountant', icon: Wallet, path: '/accountant', description: 'Financial assistant for budgeting and expenses' },
+    { 
+      id: 'secretary', 
+      name: t('secretary'), 
+      icon: '📅', 
+      path: '/secretary', 
+      description: t('secretaryDesc'),
+      gradient: 'from-purple-500 to-pink-500'
+    },
+    { 
+      id: 'accountant', 
+      name: t('accountant'), 
+      icon: '💰', 
+      path: '/accountant', 
+      description: t('accountantDesc'),
+      gradient: 'from-green-500 to-emerald-500'
+    },
   ];
 
   const handleDeleteClick = (e, chatId) => {
@@ -54,7 +70,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-gray-700/50">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-              AI Agents
+              {t('agents')}
             </h2>
             <button
               onClick={onClose}
@@ -69,36 +85,35 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
             {/* Agents Section */}
             <div className="mb-6">
               <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
-                Агенты
+                {t('agents')}
               </h3>
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.id}
-                    to={item.path}
-                    onClick={() => {
-                      onClose();
-                    }}
-                    className="w-full flex items-center gap-3 p-4 rounded-xl mb-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-                  >
-                    <Icon size={20} />
-                    <div className="text-left flex-1">
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                        {item.description}
-                      </div>
+              {menuItems.map((item) => (
+                <Link
+                  key={item.id}
+                  to={item.path}
+                  onClick={() => {
+                    onClose();
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl mb-2 transition-all hover:scale-[1.02] hover:shadow-lg text-gray-700 dark:text-gray-300 group"
+                >
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center text-2xl shadow-md group-hover:shadow-xl transition-all duration-300 animate-pulse-slow`}>
+                    {item.icon}
+                  </div>
+                  <div className="text-left flex-1">
+                    <div className="font-semibold">{item.name}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                      {item.description}
                     </div>
-                  </Link>
-                );
-              })}
+                  </div>
+                </Link>
+              ))}
             </div>
 
             {/* Chats Section */}
             <div>
               <div className="flex items-center justify-between px-2 mb-3">
                 <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Ваши диалоги с Agents
+                  {t('yourChats')}
                 </h3>
                 <button
                   onClick={() => {
@@ -124,7 +139,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{chat.title}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(chat.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                        {new Date(chat.created_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' })}
                       </div>
                     </div>
                     <button
@@ -137,7 +152,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                 ))
               ) : (
                 <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
-                  Нет диалогов
+                  {t('noChats')}
                 </div>
               )}
             </div>
@@ -150,23 +165,23 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-background-light dark:bg-background-dark rounded-xl p-6 max-w-sm w-full shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
-              Удалить диалог?
+              {t('deleteChat')}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Вы точно хотите удалить этот диалог? Это действие нельзя отменить.
+              {t('deleteChatConfirm')}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={handleCancelDelete}
                 className="flex-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
-                Отмена
+                {t('cancel')}
               </button>
               <button
                 onClick={handleConfirmDelete}
                 className="flex-1 px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
               >
-                Удалить
+                {t('delete')}
               </button>
             </div>
           </div>

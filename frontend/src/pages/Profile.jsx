@@ -1,7 +1,10 @@
 import React from 'react';
-import { User, Moon, Sun, CreditCard, Bell, LogOut, ArrowLeft } from 'lucide-react';
+import { User, Moon, Sun, CreditCard, Bell, LogOut, ArrowLeft, Globe } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
+  const { t, language, changeLanguage } = useLanguage();
+
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
       <div className="max-w-3xl mx-auto">
@@ -14,7 +17,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
             <ArrowLeft size={20} className="text-gray-600 dark:text-gray-400" />
           </button>
           <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
-            Profile Settings
+            {t('profileSettings')}
           </h1>
         </div>
 
@@ -39,20 +42,20 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-[1.5rem] p-6 mb-6 text-white shadow-lg">
           <div className="flex items-center gap-3 mb-4">
             <CreditCard size={24} />
-            <h3 className="text-lg font-semibold">Current Plan</h3>
+            <h3 className="text-lg font-semibold">{t('currentPlan')}</h3>
           </div>
           <div className="mb-2">
-            <span className="text-sm opacity-90">Free Tier</span>
+            <span className="text-sm opacity-90">{t('freeTier')}</span>
           </div>
           <div className="flex items-end justify-between">
             <div>
-              <div className="text-sm opacity-90 mb-1">Token Balance</div>
+              <div className="text-sm opacity-90 mb-1">{t('tokenBalance')}</div>
               <div className="text-3xl font-bold">
                 {userProfile?.token_balance || 0}
               </div>
             </div>
             <button className="bg-white text-blue-600 px-4 py-2 rounded-xl font-medium hover:bg-blue-50 transition-colors">
-              Upgrade Plan
+              {t('upgradePlan')}
             </button>
           </div>
         </div>
@@ -60,15 +63,15 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         {/* Settings Section */}
         <div className="bg-surface-light dark:bg-surface-dark rounded-[1.5rem] p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">
-            Settings
+            {t('settings')}
           </h3>
 
           {/* General Settings */}
           <div className="mb-6">
             <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4 uppercase tracking-wider">
-              General
+              {t('general')}
             </h4>
-            
+
             {/* Dark Mode Toggle */}
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
@@ -78,7 +81,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
                   <Moon size={20} className="text-gray-600 dark:text-gray-400" />
                 )}
                 <span className="text-gray-700 dark:text-gray-300">
-                  {theme === 'light' ? 'Light Mode' : 'Dark Mode'}
+                  {theme === 'light' ? t('lightMode') : t('darkMode')}
                 </span>
               </div>
               <button
@@ -94,20 +97,38 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
                 />
               </button>
             </div>
+
+            {/* Language Toggle */}
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-3">
+                <Globe size={20} className="text-gray-600 dark:text-gray-400" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  {t('language')}
+                </span>
+              </div>
+              <button
+                onClick={() => changeLanguage(language === 'ru' ? 'en' : 'ru')}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {language === 'ru' ? 'RU' : 'EN'}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Notifications Settings */}
           <div className="mb-6">
             <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4 uppercase tracking-wider">
-              Notifications
+              {t('notifications')}
             </h4>
-            
+
             <div className="space-y-3">
               <div className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-gray-600 dark:text-gray-400" />
                   <span className="text-gray-700 dark:text-gray-300">
-                    Email Notifications
+                    {t('emailNotifications')}
                   </span>
                 </div>
                 <button
@@ -121,7 +142,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-gray-600 dark:text-gray-400" />
                   <span className="text-gray-700 dark:text-gray-300">
-                    Push Notifications
+                    {t('pushNotifications')}
                   </span>
                 </div>
                 <button
@@ -135,7 +156,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-gray-600 dark:text-gray-400" />
                   <span className="text-gray-700 dark:text-gray-300">
-                    Task Reminders
+                    {t('taskReminders')}
                   </span>
                 </div>
                 <button
@@ -151,7 +172,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         {/* Logout Button */}
         <button className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-[1.5rem] transition-colors font-medium">
           <LogOut size={20} />
-          <span>Logout</span>
+          <span>{t('logout')}</span>
         </button>
       </div>
     </div>
