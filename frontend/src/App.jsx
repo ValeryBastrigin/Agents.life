@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import ChatInput from './components/ChatInput';
 import { User, Menu, Sun, Moon, ArrowLeft } from 'lucide-react';
@@ -69,6 +69,30 @@ function App() {
 function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThemeToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [chats, setChats] = useState([]);
+  const [userId] = useState(1);
+
+  // Load user chats on mount
+  useEffect(() => {
+    loadChats();
+  }, []);
+
+  const loadChats = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/user-chats`, { params: { user_id: userId } });
+      setChats(response.data);
+    } catch (error) {
+      console.error('Failed to load chats:', error);
+    }
+  };
+
+  const handleSelectChat = (chatId) => {
+    navigate(`/chat/${chatId}`);
+  };
+
+  const handleNewChat = () => {
+    navigate('/');
+  };
 
   return (
     <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark ${theme}`}>
@@ -77,6 +101,9 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         theme={theme}
+        chats={chats}
+        onSelectChat={handleSelectChat}
+        onNewChat={handleNewChat}
       />
 
       {/* Header */}
@@ -128,7 +155,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Routes */}
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Home onChatCreated={loadChats} />} />
+        <Route path="/chat/:chatId" element={<Home onChatCreated={loadChats} />} />
         <Route path="/secretary" element={<Secretary />} />
         <Route path="/accountant" element={<Accountant />} />
         <Route path="/profile" element={<Profile userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
@@ -137,16 +165,48 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   );
 }
 
-function Home() {
+function Home({ onChatCreated }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [chatId, setChatId] = useState(null);
   const [userId] = useState(1);
   const messagesEndRef = React.useRef(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Load chat based on URL
+  useEffect(() => {
+    const loadChat = async () => {
+      const pathMatch = location.pathname.match(/^\/chat\/(\d+)$/);
+      
+      if (pathMatch) {
+        // Load specific chat from URL
+        const id = parseInt(pathMatch[1]);
+        setChatId(id);
+        await loadChatMessages(id);
+      } else {
+        // Start new chat - clear messages
+        setMessages([]);
+        setChatId(null);
+      }
+    };
+    
+    loadChat();
+  }, [location.pathname]);
+
+  const loadChatMessages = async (id) => {
+    try {
+      const response = await axios.get(`${API_URL}/api/chats/${id}/messages`);
+      setMessages(response.data);
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+    }
+  };
 
   const handleSendMessage = async (message) => {
     setIsLoading(true);
@@ -159,8 +219,20 @@ function Home() {
       const response = await axios.post(`${API_URL}/api/chat`, {
         user_id: userId,
         message: message,
+        chat_id: chatId,
         history: messages,
       });
+
+      // Update chat_id if it's a new chat
+      if (!chatId && response.data.chat_id) {
+        setChatId(response.data.chat_id);
+        // Navigate to the new chat URL
+        navigate(`/chat/${response.data.chat_id}`);
+        // Refresh chats list in sidebar
+        if (onChatCreated) {
+          onChatCreated();
+        }
+      }
 
       // Add assistant response to chat
       const assistantMessage = { role: 'assistant', content: response.data.response };

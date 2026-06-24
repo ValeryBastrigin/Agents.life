@@ -12,7 +12,31 @@ import os
 router = APIRouter(prefix="/api", tags=["orchestrator"])
 
 # System prompt for the main orchestrator agent "Agents"
-ORCHESTRATOR_SYSTEM_PROMPT = "Ты — Agents, дружелюбный AI-помощник. Отвечай кратко и по делу."
+ORCHESTRATOR_SYSTEM_PROMPT = """Ты — Agents, ИИ-управляющий. МАКСИМАЛЬНАЯ ДЛИНА ОТВЕТА: 20 слов. Никаких "Как проходит твой день?" или "Чем могу быть полезен?". Отвечай ТОЛЬКО на суть вопроса. На приветствие: "Привет! Я Agents, твой ИИ-управляющий. Чем помочь?". Никакой воды. Кратко. По делу."""
+
+# System prompt for generating chat titles
+TITLE_GENERATION_PROMPT = """Сгенерируй короткий и понятный заголовок для диалога на основе первого сообщения пользователя. 
+Заголовок должен быть на русском языке, не длиннее 5 слов, и отражать суть диалога. 
+Не используй кавычки. Верни ТОЛЬКО заголовок, без дополнительного текста."""
+
+async def generate_chat_title(first_message: str, client) -> str:
+    """Generate a chat title based on the first message using AI."""
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=[
+                {"role": "system", "content": TITLE_GENERATION_PROMPT},
+                {"role": "user", "content": first_message}
+            ],
+            temperature=0.3,
+            max_tokens=50,
+            timeout=30.0
+        )
+        title = response.choices[0].message.content.strip()
+        return title[:50] if title else "Новый диалог"
+    except Exception as e:
+        print(f"Error generating chat title: {e}")
+        return first_message[:50]
 
 # Pydantic models
 class ChatRequest(BaseModel):
@@ -25,6 +49,7 @@ class ChatResponse(BaseModel):
     response: str
     tokens_used: int
     remaining_balance: int
+    chat_id: Optional[int] = None
 
 class UserProfile(BaseModel):
     id: int
@@ -92,7 +117,9 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
         if not chat:
             raise HTTPException(status_code=404, detail="Chat not found")
     else:
-        chat = Chat(user_id=request.user_id, agent_id=agent.id, title=request.message[:50])
+        # Generate chat title using AI
+        chat_title = await generate_chat_title(request.message, client)
+        chat = Chat(user_id=request.user_id, agent_id=agent.id, title=chat_title)
         db.add(chat)
         await db.flush()
     
@@ -151,7 +178,8 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     return ChatResponse(
         response=response_text,
         tokens_used=tokens_used,
-        remaining_balance=user.token_balance
+        remaining_balance=user.token_balance,
+        chat_id=chat.id
     )
 
 @router.get("/agents")
@@ -159,6 +187,18 @@ async def get_agents(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Agent).where(Agent.is_active == True))
     agents = result.scalars().all()
     return [{"id": a.id, "name": a.name, "description": a.description} for a in agents]
+
+@router.get("/chats/{chat_id}/messages")
+async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at))
+    messages = result.scalars().all()
+    return [{"role": msg.role, "content": msg.content, "tokens_used": msg.tokens_used} for msg in messages]
+
+@router.get("/user-chats")
+async def get_user_chats(user_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Chat).where(Chat.user_id == user_id).order_by(Chat.created_at.desc()))
+    chats = result.scalars().all()
+    return [{"id": chat.id, "title": chat.title, "created_at": chat.created_at} for chat in chats]
 
 @router.get("/user/{user_id}", response_model=UserProfile)
 async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):

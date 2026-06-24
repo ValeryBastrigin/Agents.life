@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { X, Calendar, Wallet } from 'lucide-react';
+import { X, Calendar, Wallet, MessageSquare, Plus } from 'lucide-react';
 
-const Sidebar = ({ isOpen, onClose, theme }) => {
+const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat }) => {
   const menuItems = [
     { id: 'secretary', name: 'Secretary', icon: Calendar, path: '/secretary', description: 'Personal assistant for scheduling and organization' },
     { id: 'accountant', name: 'Accountant', icon: Wallet, path: '/accountant', description: 'Financial assistant for budgeting and expenses' },
@@ -38,27 +38,75 @@ const Sidebar = ({ isOpen, onClose, theme }) => {
 
           {/* Agents List */}
           <div className="flex-1 overflow-y-auto p-4">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.id}
-                  to={item.path}
+            {/* Agents Section */}
+            <div className="mb-6">
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
+                Агенты
+              </h3>
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.id}
+                    to={item.path}
+                    onClick={() => {
+                      onClose();
+                    }}
+                    className="w-full flex items-center gap-3 p-4 rounded-xl mb-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                  >
+                    <Icon size={20} />
+                    <div className="text-left flex-1">
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                        {item.description}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Chats Section */}
+            <div>
+              <div className="flex items-center justify-between px-2 mb-3">
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Ваши диалоги с Agents
+                </h3>
+                <button
                   onClick={() => {
+                    onNewChat();
                     onClose();
                   }}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl mb-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
-                  <Icon size={20} />
-                  <div className="text-left flex-1">
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                      {item.description}
+                  <Plus size={16} className="text-gray-600 dark:text-gray-400" />
+                </button>
+              </div>
+              {chats && chats.length > 0 ? (
+                chats.map((chat) => (
+                  <button
+                    key={chat.id}
+                    onClick={() => {
+                      onSelectChat(chat.id);
+                      onClose();
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl mb-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-left"
+                  >
+                    <MessageSquare size={18} className="text-gray-500 dark:text-gray-400" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{chat.title}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {new Date(chat.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              );
-            })}
+                  </button>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                  Нет диалогов
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
