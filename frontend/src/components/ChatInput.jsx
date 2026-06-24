@@ -24,7 +24,7 @@ const ChatInput = ({ onSendMessage, disabled }) => {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
-      <div className="flex items-center gap-2 bg-gray-300/90 dark:bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl shadow-gray-900/20 dark:shadow-black/50 p-3 border border-gray-400/50 dark:border-white/30">
+      <div className="flex items-center gap-2 bg-gray-300/90 dark:bg-white/10 backdrop-blur-xl rounded-[2rem] shadow-2xl shadow-gray-900/20 dark:shadow-black/50 p-3 border border-gray-400/50 dark:border-white/30">
         {/* Attachment Button */}
         <button
           type="button"

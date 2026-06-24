@@ -47,11 +47,7 @@ const Sidebar = ({ isOpen, onClose, theme, agents, selectedAgent, onSelectAgent 
                   onClick={() => {
                     onClose();
                   }}
-                  className={`w-full flex items-center gap-3 p-4 rounded-xl mb-2 transition-all ${
-                    selectedAgent?.name === item.name
-                      ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
-                  }`}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl mb-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
                 >
                   <Icon size={20} />
                   <div className="text-left flex-1">

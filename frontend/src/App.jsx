@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-import ProfileModal from './components/ProfileModal';
 import ChatInput from './components/ChatInput';
 import { User, Menu, Sun, Moon, ArrowLeft } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
+import Profile from './pages/Profile';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
@@ -13,7 +13,6 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 function App() {
   const [theme, setTheme] = useState('light');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [userId] = useState(1); // Default user for MVP
   const [selectedAgent, setSelectedAgent] = useState(null);
@@ -61,8 +60,6 @@ function App() {
         theme={theme}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
-        profileModalOpen={profileModalOpen}
-        setProfileModalOpen={setProfileModalOpen}
         userProfile={userProfile}
         handleThemeToggle={handleThemeToggle}
         selectedAgent={selectedAgent}
@@ -72,7 +69,7 @@ function App() {
   );
 }
 
-function AppContent({ theme, sidebarOpen, setSidebarOpen, profileModalOpen, setProfileModalOpen, userProfile, handleThemeToggle, selectedAgent, setSelectedAgent }) {
+function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThemeToggle, selectedAgent, setSelectedAgent }) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -88,7 +85,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, profileModalOpen, setP
       />
 
       {/* Header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-background-light dark:bg-background-dark flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
+      {location.pathname !== '/profile' && (
+        <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-background-light dark:bg-background-dark flex-shrink-0">
         <div className="flex items-center gap-3">
           {location.pathname === '/secretary' || location.pathname === '/accountant' ? (
             <button
@@ -106,9 +104,9 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, profileModalOpen, setP
             </button>
           )}
           <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
-            {location.pathname === '/' ? 'LifeAgent' : 
+            {location.pathname === '/' ? 'Agents' : 
              location.pathname === '/secretary' ? 'Secretary' :
-             location.pathname === '/accountant' ? 'Accountant' : 'LifeAgent'}
+             location.pathname === '/accountant' ? 'Accountant' : 'Agents'}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -124,29 +122,22 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, profileModalOpen, setP
             )}
           </button>
           <button
-            onClick={() => setProfileModalOpen(true)}
+            onClick={() => navigate('/profile')}
             className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"
           >
             <User size={24} className="text-gray-600 dark:text-gray-400" />
           </button>
         </div>
       </header>
+      )}
 
       {/* Routes */}
       <Routes>
         <Route path="/" element={<Home selectedAgent={selectedAgent} setSelectedAgent={setSelectedAgent} />} />
         <Route path="/secretary" element={<Secretary />} />
         <Route path="/accountant" element={<Accountant />} />
+        <Route path="/profile" element={<Profile userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
       </Routes>
-
-      {/* Profile Modal */}
-      <ProfileModal
-        isOpen={profileModalOpen}
-        onClose={() => setProfileModalOpen(false)}
-        userProfile={userProfile}
-        onThemeToggle={handleThemeToggle}
-        theme={theme}
-      />
     </div>
   );
 }
@@ -204,7 +195,7 @@ function Home({ selectedAgent, setSelectedAgent }) {
             <div className="text-6xl mb-4">💬</div>
             <p className="text-lg">
               {selectedAgent
-                ? `Chat with ${selectedAgent.name}`
+                ? 'Chat with Agents'
                 : 'Select an agent to start chatting'}
             </p>
           </div>
@@ -218,7 +209,7 @@ function Home({ selectedAgent, setSelectedAgent }) {
                 }`}
               >
                 <div
-                  className={`max-w-[80%] sm:max-w-[70%] px-4 py-2 rounded-2xl ${
+                  className={`max-w-[80%] sm:max-w-[70%] px-4 py-2 rounded-[1.5rem] ${
                     message.role === 'user'
                       ? 'bg-blue-500 text-white'
                       : 'bg-surface-light dark:bg-surface-dark text-gray-800 dark:text-white'
@@ -245,7 +236,7 @@ function Home({ selectedAgent, setSelectedAgent }) {
       </div>
 
       {/* Chat Input Footer */}
-      <div className="flex-shrink-0 px-4 py-4 bg-background-light dark:bg-background-dark border-t border-gray-200 dark:border-gray-700">
+      <div className="flex-shrink-0 px-4 py-4 bg-background-light dark:bg-background-dark">
         <ChatInput
           onSendMessage={handleSendMessage}
           disabled={isLoading || !selectedAgent}
