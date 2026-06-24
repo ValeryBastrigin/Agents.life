@@ -31,6 +31,14 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Set initial theme from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, []);
+
   const loadUserProfile = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/user/${userId}`);
@@ -44,6 +52,7 @@ function App() {
   const handleThemeToggle = async () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
 
     try {
       await axios.put(`${API_URL}/api/user/${userId}/theme`, { theme: newTheme });
@@ -94,6 +103,17 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
     navigate('/');
   };
 
+  const handleDeleteChat = (deletedChatId) => {
+    // Remove deleted chat from list
+    setChats((prev) => prev.filter((chat) => chat.id !== deletedChatId));
+    
+    // If current chat was deleted, navigate to home
+    const currentChatId = location.pathname.match(/^\/chat\/(\d+)$/);
+    if (currentChatId && parseInt(currentChatId[1]) === deletedChatId) {
+      navigate('/');
+    }
+  };
+
   return (
     <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark ${theme}`}>
       {/* Sidebar */}
@@ -104,6 +124,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         chats={chats}
         onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
+        onDeleteChat={handleDeleteChat}
       />
 
       {/* Header */}
@@ -247,7 +268,7 @@ function Home({ onChatCreated }) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto px-4">
         {messages.length === 0 ? (
@@ -258,7 +279,7 @@ function Home({ onChatCreated }) {
             </p>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto flex flex-col space-y-4 py-4 mt-auto">
+          <div className="max-w-3xl mx-auto flex flex-col space-y-4 py-4">
             {messages.map((message, index) => (
               <div
                 key={index}

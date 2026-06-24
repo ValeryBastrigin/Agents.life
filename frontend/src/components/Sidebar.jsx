@@ -1,12 +1,40 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Calendar, Wallet, MessageSquare, Plus } from 'lucide-react';
+import { X, Calendar, Wallet, MessageSquare, Plus, X as DeleteIcon } from 'lucide-react';
+import axios from 'axios';
 
-const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat }) => {
+const API_URL = 'http://localhost:8001';
+
+const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDeleteChat }) => {
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
   const menuItems = [
     { id: 'secretary', name: 'Secretary', icon: Calendar, path: '/secretary', description: 'Personal assistant for scheduling and organization' },
     { id: 'accountant', name: 'Accountant', icon: Wallet, path: '/accountant', description: 'Financial assistant for budgeting and expenses' },
   ];
+
+  const handleDeleteClick = (e, chatId) => {
+    e.stopPropagation();
+    setDeleteConfirm(chatId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteConfirm) {
+      try {
+        await axios.delete(`${API_URL}/api/chats/${deleteConfirm}`);
+        if (onDeleteChat) {
+          onDeleteChat(deleteConfirm);
+        }
+      } catch (error) {
+        console.error('Failed to delete chat:', error);
+      }
+      setDeleteConfirm(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirm(null);
+  };
 
   return (
     <>
@@ -90,7 +118,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat }) => 
                       onSelectChat(chat.id);
                       onClose();
                     }}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl mb-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-left"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl mb-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-left group"
                   >
                     <MessageSquare size={18} className="text-gray-500 dark:text-gray-400" />
                     <div className="flex-1 min-w-0">
@@ -99,6 +127,12 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat }) => 
                         {new Date(chat.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                       </div>
                     </div>
+                    <button
+                      onClick={(e) => handleDeleteClick(e, chat.id)}
+                      className="p-1 opacity-40 hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                    >
+                      <DeleteIcon size={14} className="text-gray-400 hover:text-red-500" />
+                    </button>
                   </button>
                 ))
               ) : (
@@ -110,6 +144,34 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat }) => 
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-background-light dark:bg-background-dark rounded-xl p-6 max-w-sm w-full shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+              Удалить диалог?
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Вы точно хотите удалить этот диалог? Это действие нельзя отменить.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancelDelete}
+                className="flex-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

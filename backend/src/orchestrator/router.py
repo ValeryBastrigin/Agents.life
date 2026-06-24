@@ -268,3 +268,18 @@ async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
         }
         for m in messages
     ]
+
+@router.delete("/chats/{chat_id}")
+async def delete_chat(chat_id: int, db: AsyncSession = Depends(get_db)):
+    # Get chat to verify it exists
+    result = await db.execute(select(Chat).where(Chat.id == chat_id))
+    chat = result.scalar_one_or_none()
+    
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    
+    # Delete chat (cascade will delete messages)
+    await db.delete(chat)
+    await db.commit()
+    
+    return {"message": "Chat deleted successfully"}

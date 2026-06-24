@@ -6,6 +6,28 @@
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="LifeAgent - Your AI Assistant Platform" />
     <title>LifeAgent</title>
+    <style>
+      body {
+        background-color: #ffffff;
+        transition: background-color 0.3s ease;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #111827;
+        }
+      }
+    </style>
+    <script>
+      // Prevent flash of wrong theme
+      (function() {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+          document.body.style.backgroundColor = '#111827';
+        } else if (savedTheme === 'light') {
+          document.body.style.backgroundColor = '#ffffff';
+        }
+      })();
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
