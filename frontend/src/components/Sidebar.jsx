@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { X, Calendar, Wallet } from 'lucide-react';
 
-const Sidebar = ({ isOpen, onClose, theme, agents, selectedAgent, onSelectAgent }) => {
+const Sidebar = ({ isOpen, onClose, theme }) => {
   const menuItems = [
     { id: 'secretary', name: 'Secretary', icon: Calendar, path: '/secretary', description: 'Personal assistant for scheduling and organization' },
     { id: 'accountant', name: 'Accountant', icon: Wallet, path: '/accountant', description: 'Financial assistant for budgeting and expenses' },

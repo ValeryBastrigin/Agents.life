@@ -36,6 +36,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: lifeagent-app
+    env_file:
+      - backend/.env
     ports:
       - "3000:3000"
       - "8001:8000"
@@ -43,6 +45,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://lifeagent:lifeagent_password@db:5432/lifeagent
       FRONTEND_URL: http://localhost:3000
       BACKEND_URL: http://localhost:8001
+      REACT_APP_API_URL: http://localhost:8001
       PYTHONPATH: /app
     depends_on:
       db:

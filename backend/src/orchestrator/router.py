@@ -1,21 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from ..database import get_db
-from ..models import User, Agent, Chat, Message, TokenTransaction
-from pydantic import BaseModel
-from typing import Optional
+from src.database import get_db
+from src.models import User, Agent, Chat, Message, TokenTransaction
+from src.config import client
+from pydantic import BaseModel, ValidationError
+from typing import Optional, List
 import importlib
 import os
 
 router = APIRouter(prefix="/api", tags=["orchestrator"])
 
+# System prompt for the main orchestrator agent "Agents"
+ORCHESTRATOR_SYSTEM_PROMPT = "Ты — Agents, дружелюбный AI-помощник. Отвечай кратко и по делу."
+
 # Pydantic models
 class ChatRequest(BaseModel):
     user_id: int
-    agent_name: str
     message: str
     chat_id: Optional[int] = None
+    history: Optional[List[dict]] = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -43,7 +47,7 @@ def load_agents():
             if filename.endswith('_agent.py') and not filename.startswith('__'):
                 module_name = filename[:-3]
                 try:
-                    module = importlib.import_module(f'..agents.{module_name}', package='src')
+                    module = importlib.import_module(f'src.agents.{module_name}')
                     if hasattr(module, 'process'):
                         agent_name = module_name.replace('_agent', '')
                         AGENT_REGISTRY[agent_name] = module.process
@@ -62,16 +66,24 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Check token balance
-    if user.token_balance < 10:
-        raise HTTPException(status_code=400, detail="Insufficient token balance")
+    # Check token balance (disabled for development)
+    # if user.token_balance < 10:
+    #     raise HTTPException(status_code=400, detail="Insufficient token balance")
     
-    # Get agent
-    result = await db.execute(select(Agent).where(Agent.name == request.agent_name))
+    # Get or create default orchestrator agent
+    result = await db.execute(select(Agent).where(Agent.name == "agents"))
     agent = result.scalar_one_or_none()
     
     if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
+        # Create default orchestrator agent if it doesn't exist
+        agent = Agent(
+            name="agents",
+            description="Main AI orchestrator and personal assistant",
+            system_prompt=ORCHESTRATOR_SYSTEM_PROMPT,
+            is_active=True
+        )
+        db.add(agent)
+        await db.flush()
     
     # Create or get chat
     if request.chat_id:
@@ -88,28 +100,50 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
     db.add(user_message)
     
-    # Process with agent
-    agent_processor = AGENT_REGISTRY.get(request.agent_name.lower())
-    if not agent_processor:
-        raise HTTPException(status_code=400, detail="Agent processor not found")
+    # Build messages array for LLM
+    messages = []
     
-    response_text, tokens_used = agent_processor(request.message, agent.system_prompt)
+    # Add system prompt for orchestrator
+    messages.append({"role": "system", "content": ORCHESTRATOR_SYSTEM_PROMPT})
+    
+    # Add history if provided
+    if request.history:
+        messages.extend(request.history)
+    
+    # Add current message
+    messages.append({"role": "user", "content": request.message})
+    
+    # Call RouterAI API
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=500,
+            timeout=60.0
+        )
+        
+        response_text = response.choices[0].message.content
+        tokens_used = response.usage.total_tokens
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"API error: {str(e)}")
     
     # Save assistant message
     assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
     db.add(assistant_message)
     
-    # Deduct tokens
-    user.token_balance -= tokens_used
-    
-    # Record transaction
-    transaction = TokenTransaction(
-        user_id=user.id,
-        amount=-tokens_used,
-        transaction_type="debit",
-        description=f"Chat with {agent.name}"
-    )
-    db.add(transaction)
+    # Deduct tokens (disabled for development)
+    # user.token_balance -= tokens_used
+    # 
+    # Record transaction (disabled for development)
+    # transaction = TokenTransaction(
+    #     user_id=user.id,
+    #     amount=-tokens_used,
+    #     transaction_type="debit",
+    #     description=f"Chat with {agent.name}"
+    # )
+    # db.add(transaction)
     
     await db.commit()
     await db.refresh(user)

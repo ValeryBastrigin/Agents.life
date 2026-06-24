@@ -8,14 +8,13 @@ import Accountant from './pages/Accountant';
 import Profile from './pages/Profile';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+const API_URL = 'http://localhost:8001';
 
 function App() {
   const [theme, setTheme] = useState('light');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [userId] = useState(1); // Default user for MVP
-  const [selectedAgent, setSelectedAgent] = useState(null);
 
   // Apply theme to document
   useEffect(() => {
@@ -62,14 +61,12 @@ function App() {
         setSidebarOpen={setSidebarOpen}
         userProfile={userProfile}
         handleThemeToggle={handleThemeToggle}
-        selectedAgent={selectedAgent}
-        setSelectedAgent={setSelectedAgent}
       />
     </Router>
   );
 }
 
-function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThemeToggle, selectedAgent, setSelectedAgent }) {
+function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThemeToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -80,8 +77,6 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         theme={theme}
-        selectedAgent={selectedAgent}
-        onSelectAgent={setSelectedAgent}
       />
 
       {/* Header */}
@@ -133,7 +128,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Routes */}
       <Routes>
-        <Route path="/" element={<Home selectedAgent={selectedAgent} setSelectedAgent={setSelectedAgent} />} />
+        <Route path="/" element={<Home />} />
         <Route path="/secretary" element={<Secretary />} />
         <Route path="/accountant" element={<Accountant />} />
         <Route path="/profile" element={<Profile userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
@@ -142,7 +137,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   );
 }
 
-function Home({ selectedAgent, setSelectedAgent }) {
+function Home() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userId] = useState(1);
@@ -153,14 +148,7 @@ function Home({ selectedAgent, setSelectedAgent }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Clear messages when agent changes
-  useEffect(() => {
-    setMessages([]);
-  }, [selectedAgent]);
-
   const handleSendMessage = async (message) => {
-    if (!selectedAgent) return;
-
     setIsLoading(true);
     
     // Add user message to chat
@@ -170,8 +158,8 @@ function Home({ selectedAgent, setSelectedAgent }) {
     try {
       const response = await axios.post(`${API_URL}/api/chat`, {
         user_id: userId,
-        agent_name: selectedAgent.name,
         message: message,
+        history: messages,
       });
 
       // Add assistant response to chat
@@ -194,9 +182,7 @@ function Home({ selectedAgent, setSelectedAgent }) {
           <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
             <div className="text-6xl mb-4">💬</div>
             <p className="text-lg">
-              {selectedAgent
-                ? 'Chat with Agents'
-                : 'Select an agent to start chatting'}
+              Chat with your AI Assistant
             </p>
           </div>
         ) : (
@@ -239,7 +225,7 @@ function Home({ selectedAgent, setSelectedAgent }) {
       <div className="flex-shrink-0 px-4 py-4 bg-background-light dark:bg-background-dark">
         <ChatInput
           onSendMessage={handleSendMessage}
-          disabled={isLoading || !selectedAgent}
+          disabled={isLoading}
         />
       </div>
     </div>

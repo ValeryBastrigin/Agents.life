@@ -1,10 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from src.orchestrator.router import router as orchestrator_router
-from src.database import engine, Base, get_db
+from src.database import engine, Base, get_db, async_session
 from src.models import User
-from sqlalchemy.ext.asyncio import AsyncSession
+from src.config import client
 from sqlalchemy import select
+from pydantic import ValidationError
 
 app = FastAPI(title="LifeAgent API")
 
@@ -20,6 +21,13 @@ app.add_middleware(
 # Include routers
 app.include_router(orchestrator_router)
 
+# Exception handler for validation errors
+@app.exception_handler(ValidationError)
+async def validation_exception_handler(request: Request, exc: ValidationError):
+    print(f"VALIDATION ERROR: {exc}")
+    print(f"REQUEST BODY: {await request.body()}")
+    return {"detail": exc.errors(), "body": exc.body}
+
 @app.on_event("startup")
 async def startup_event():
     # Create tables
@@ -27,8 +35,8 @@ async def startup_event():
         await conn.run_sync(Base.metadata.create_all)
     
     # Ensure default user exists
-    async with engine.begin() as conn:
-        result = await conn.execute(select(User).where(User.id == 1))
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.id == 1))
         user = result.scalar_one_or_none()
         if not user:
             # Create default user
@@ -40,8 +48,8 @@ async def startup_event():
                 token_balance=1000,
                 theme_preference="light"
             )
-            conn.add(default_user)
-            await conn.commit()
+            session.add(default_user)
+            await session.commit()
 
 @app.get("/")
 async def root():
