@@ -1,7 +1,13 @@
 import React from 'react';
-import { X, Bot } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { X, Calendar, Wallet } from 'lucide-react';
 
-const Sidebar = ({ isOpen, onClose, agents, selectedAgent, onSelectAgent, theme }) => {
+const Sidebar = ({ isOpen, onClose, theme, agents, selectedAgent, onSelectAgent }) => {
+  const menuItems = [
+    { id: 'secretary', name: 'Secretary', icon: Calendar, path: '/secretary', description: 'Personal assistant for scheduling and organization' },
+    { id: 'accountant', name: 'Accountant', icon: Wallet, path: '/accountant', description: 'Financial assistant for budgeting and expenses' },
+  ];
+
   return (
     <>
       {/* Overlay backdrop */}
@@ -32,30 +38,31 @@ const Sidebar = ({ isOpen, onClose, agents, selectedAgent, onSelectAgent, theme 
 
           {/* Agents List */}
           <div className="flex-1 overflow-y-auto p-4">
-            {agents.map((agent) => (
-              <button
-                key={agent.id}
-                onClick={() => {
-                  onSelectAgent(agent);
-                  onClose();
-                }}
-                className={`w-full flex items-center gap-3 p-4 rounded-xl mb-2 transition-all ${
-                  selectedAgent?.id === agent.id
-                    ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                <Bot size={20} />
-                <div className="text-left flex-1">
-                  <div className="font-medium">{agent.name}</div>
-                  {agent.description && (
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.id}
+                  to={item.path}
+                  onClick={() => {
+                    onClose();
+                  }}
+                  className={`w-full flex items-center gap-3 p-4 rounded-xl mb-2 transition-all ${
+                    selectedAgent?.name === item.name
+                      ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                  }`}
+                >
+                  <Icon size={20} />
+                  <div className="text-left flex-1">
+                    <div className="font-medium">{item.name}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                      {agent.description}
+                      {item.description}
                     </div>
-                  )}
-                </div>
-              </button>
-            ))}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </div>

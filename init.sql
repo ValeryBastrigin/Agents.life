@@ -53,6 +53,10 @@ CREATE TABLE IF NOT EXISTS token_transactions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Insert default user
+INSERT INTO users (username, email, password_hash, token_balance, theme_preference) VALUES
+('demo_user', 'demo@lifeagent.com', 'hashed_password_placeholder', 1000, 'light');
+
 -- Insert default agents
 INSERT INTO agents (name, description, system_prompt) VALUES
 ('Secretary', 'Personal assistant for scheduling, reminders, and organization', 'You are a helpful secretary assistant. Help users with scheduling, reminders, note-taking, and general organization tasks.'),
