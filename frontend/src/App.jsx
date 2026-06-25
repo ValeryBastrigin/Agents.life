@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import ChatInput from './components/ChatInput';
+import AnimatedBackground from './components/AnimatedBackground';
 import { User, Menu, Sun, Moon, ArrowLeft } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
@@ -152,7 +153,14 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   };
 
   return (
-    <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark ${theme}`}>
+    <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark ${theme} relative`}>
+      {/* Animated Background - Only visible on chat pages */}
+      {location.pathname !== '/profile' && location.pathname !== '/secretary' && location.pathname !== '/accountant' && (
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <AnimatedBackground theme={theme} isLoading={false} />
+        </div>
+      )}
+
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
@@ -168,25 +176,25 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Header */}
       {location.pathname !== '/profile' && (
-        <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-background-light dark:bg-background-dark flex-shrink-0">
+        <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
           {location.pathname === '/secretary' || location.pathname === '/accountant' ? (
             <button
               onClick={() => navigate('/')}
-              className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
             >
-              <ArrowLeft size={20} className="text-gray-600 dark:text-gray-400" />
+              <ArrowLeft size={20} className="text-gray-700 dark:text-gray-300" />
             </button>
           ) : (
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
             >
-              <Menu size={20} className="text-gray-600 dark:text-gray-400" />
+              <Menu size={20} className="text-gray-700 dark:text-gray-300" />
             </button>
           )}
-          <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
-            {location.pathname === '/' ? 'Agents' : 
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+            {location.pathname === '/' ? 'Agents' :
              location.pathname === '/secretary' ? 'Secretary' :
              location.pathname === '/accountant' ? 'Accountant' : 'Agents'}
           </h1>
@@ -194,9 +202,9 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/profile')}
-            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
           >
-            <User size={24} className="text-gray-600 dark:text-gray-400" />
+            <User size={24} className="text-gray-700 dark:text-gray-300" />
           </button>
         </div>
       </header>
@@ -204,8 +212,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Routes */}
       <Routes>
-        <Route path="/" element={<Home onChatCreated={loadChats} />} />
-        <Route path="/chat/:chatId" element={<Home onChatCreated={loadChats} />} />
+        <Route path="/" element={<Home onChatCreated={loadChats} theme={theme} />} />
+        <Route path="/chat/:chatId" element={<Home onChatCreated={loadChats} theme={theme} />} />
         <Route path="/secretary" element={<Secretary />} />
         <Route path="/accountant" element={<Accountant />} />
         <Route path="/profile" element={<Profile userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
@@ -214,7 +222,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   );
 }
 
-function Home({ onChatCreated }) {
+function Home({ onChatCreated, theme }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [chatId, setChatId] = useState(null);
@@ -297,9 +305,9 @@ function Home({ onChatCreated }) {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full relative">
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-4">
+      <div className="flex-1 overflow-y-auto px-4 relative z-10">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
             <div className="text-6xl mb-4">💬</div>
@@ -344,7 +352,7 @@ function Home({ onChatCreated }) {
       </div>
 
       {/* Chat Input Footer */}
-      <div className="flex-shrink-0 px-4 py-4 bg-background-light dark:bg-background-dark">
+      <div className="flex-shrink-0 px-4 py-4 bg-background-light dark:bg-background-dark relative z-10">
         <ChatInput
           onSendMessage={handleSendMessage}
           disabled={isLoading}
