@@ -93,7 +93,13 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   const loadChats = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/user-chats`, { params: { user_id: userId } });
-      setChats(response.data);
+      // Sort chats: pinned first, then by date
+      const sortedChats = response.data.sort((a, b) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+      setChats(sortedChats);
     } catch (error) {
       console.error('Failed to load chats:', error);
     }
@@ -110,11 +116,38 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   const handleDeleteChat = (deletedChatId) => {
     // Remove deleted chat from list
     setChats((prev) => prev.filter((chat) => chat.id !== deletedChatId));
-    
+
     // If current chat was deleted, navigate to home
     const currentChatId = location.pathname.match(/^\/chat\/(\d+)$/);
     if (currentChatId && parseInt(currentChatId[1]) === deletedChatId) {
       navigate('/');
+    }
+  };
+
+  const handleRenameChat = async (chatId, newTitle) => {
+    try {
+      await axios.put(`${API_URL}/api/chats/${chatId}/rename`, { new_title: newTitle });
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId ? { ...chat, title: newTitle } : chat
+        )
+      );
+    } catch (error) {
+      console.error('Failed to rename chat:', error);
+    }
+  };
+
+  const handlePinChat = async (chatId) => {
+    try {
+      const response = await axios.put(`${API_URL}/api/chats/${chatId}/pin`);
+      const updatedChat = response.data.chat;
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId ? { ...chat, is_pinned: updatedChat.is_pinned } : chat
+        )
+      );
+    } catch (error) {
+      console.error('Failed to pin chat:', error);
     }
   };
 
@@ -129,6 +162,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
         onDeleteChat={handleDeleteChat}
+        onRenameChat={handleRenameChat}
+        onPinChat={handlePinChat}
       />
 
       {/* Header */}

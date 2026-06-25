@@ -21,9 +21,20 @@ export const translations = {
     deleteChatConfirm: 'Вы точно хотите удалить этот диалог? Это действие нельзя отменить.',
     cancel: 'Отмена',
     delete: 'Удалить',
+
+    // Chat Options
+    chatOptions: 'Опции диалога',
+    share: 'Поделиться',
+    rename: 'Переименовать',
+    pin: 'Закрепить',
+    unpin: 'Открепить',
+    deleteChatOption: 'Удалить',
+    renameChat: 'Переименовать диалог',
+    enterNewTitle: 'Введите новое название',
+    save: 'Сохранить',
     
     // Header
-    agents: 'Agents',
+    agents: 'Агенты',
     
     // Theme
     switchToDark: 'Switch to dark mode',
@@ -46,6 +57,34 @@ export const translations = {
     logout: 'Выйти',
     language: 'Язык',
     switchLanguage: 'Переключить язык',
+
+    // Secretary
+    secretaryWelcome: 'Управляйте своим расписанием, напоминаниями и задачами эффективно.',
+    calendar: 'Календарь',
+    reminders: 'Напоминания',
+    notes: 'Заметки',
+    upcomingEvents: 'Предстоящие события',
+    teamMeeting: 'Встреча команды',
+    today2pm: 'Сегодня, 14:00',
+    projectDeadline: 'Дедлайн проекта',
+    tomorrow5pm: 'Завтра, 17:00',
+    clientCall: 'Звонок клиенту',
+    friday10am: 'Пятница, 10:00',
+
+    // Accountant
+    accountantWelcome: 'Отслеживайте свой бюджет, расходы и финансовые цели.',
+    totalBalance: 'Общий баланс',
+    income: 'Доход',
+    expenses: 'Расходы',
+    budget: 'Бюджет',
+    reports: 'Отчеты',
+    recentTransactions: 'Последние транзакции',
+    salaryDeposit: 'Зарплата',
+    today: 'Сегодня',
+    groceryShopping: 'Покупки продуктов',
+    yesterday: 'Вчера',
+    utilities: 'Коммунальные услуги',
+    twoDaysAgo: '2 дня назад',
   },
   en: {
     // Sidebar
@@ -65,6 +104,17 @@ export const translations = {
     deleteChatConfirm: 'Are you sure you want to delete this chat? This action cannot be undone.',
     cancel: 'Cancel',
     delete: 'Delete',
+
+    // Chat Options
+    chatOptions: 'Chat Options',
+    share: 'Share',
+    rename: 'Rename',
+    pin: 'Pin',
+    unpin: 'Unpin',
+    deleteChatOption: 'Delete',
+    renameChat: 'Rename Chat',
+    enterNewTitle: 'Enter new title',
+    save: 'Save',
     
     // Header
     agents: 'Agents',
@@ -90,6 +140,34 @@ export const translations = {
     logout: 'Logout',
     language: 'Language',
     switchLanguage: 'Switch Language',
+
+    // Secretary
+    secretaryWelcome: 'Manage your schedule, reminders, and tasks efficiently.',
+    calendar: 'Calendar',
+    reminders: 'Reminders',
+    notes: 'Notes',
+    upcomingEvents: 'Upcoming Events',
+    teamMeeting: 'Team Meeting',
+    today2pm: 'Today, 2:00 PM',
+    projectDeadline: 'Project Deadline',
+    tomorrow5pm: 'Tomorrow, 5:00 PM',
+    clientCall: 'Client Call',
+    friday10am: 'Friday, 10:00 AM',
+
+    // Accountant
+    accountantWelcome: 'Track your budget, expenses, and financial goals.',
+    totalBalance: 'Total Balance',
+    income: 'Income',
+    expenses: 'Expenses',
+    budget: 'Budget',
+    reports: 'Reports',
+    recentTransactions: 'Recent Transactions',
+    salaryDeposit: 'Salary Deposit',
+    today: 'Today',
+    groceryShopping: 'Grocery Shopping',
+    yesterday: 'Yesterday',
+    utilities: 'Utilities',
+    twoDaysAgo: '2 days ago',
   }
 };
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from src.database import get_db
 from src.models import User, Agent, Chat, Message, TokenTransaction
 from src.config import client
@@ -274,12 +274,44 @@ async def delete_chat(chat_id: int, db: AsyncSession = Depends(get_db)):
     # Get chat to verify it exists
     result = await db.execute(select(Chat).where(Chat.id == chat_id))
     chat = result.scalar_one_or_none()
-    
+
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    
+
     # Delete chat (cascade will delete messages)
     await db.delete(chat)
     await db.commit()
-    
+
     return {"message": "Chat deleted successfully"}
+
+
+@router.put("/chats/{chat_id}/rename")
+async def rename_chat(chat_id: int, new_title: str = Body(..., embed=True), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Chat).where(Chat.id == chat_id))
+    chat = result.scalar_one_or_none()
+
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    chat.title = new_title
+    chat.updated_at = func.now()
+    await db.commit()
+    await db.refresh(chat)
+
+    return {"message": "Chat renamed successfully", "chat": chat}
+
+
+@router.put("/chats/{chat_id}/pin")
+async def toggle_pin_chat(chat_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Chat).where(Chat.id == chat_id))
+    chat = result.scalar_one_or_none()
+
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    chat.is_pinned = not chat.is_pinned
+    chat.updated_at = func.now()
+    await db.commit()
+    await db.refresh(chat)
+
+    return {"message": "Chat pin status updated", "chat": chat}
