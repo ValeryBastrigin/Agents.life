@@ -214,7 +214,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       <Routes>
         <Route path="/" element={<Home onChatCreated={loadChats} theme={theme} />} />
         <Route path="/chat/:chatId" element={<Home onChatCreated={loadChats} theme={theme} />} />
-        <Route path="/secretary" element={<Secretary />} />
+        <Route path="/secretary" element={<Secretary theme={theme} />} />
         <Route path="/accountant" element={<Accountant />} />
         <Route path="/profile" element={<Profile userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
       </Routes>

@@ -1,0 +1,303 @@
+/* Custom styles for react-big-calendar to match app theme */
+
+/* Override default calendar styles */
+.rbc-calendar {
+  background: transparent !important;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Dark theme - invert colors */
+.dark .rbc-calendar {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.dark .rbc-event {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Make day headers white in dark theme */
+.dark .rbc-header {
+  filter: invert(1) hue-rotate(180deg);
+  color: #FFFFFF !important;
+}
+
+/* Remove tap highlight on mobile */
+.rbc-calendar * {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  outline: none !important;
+}
+
+/* Remove selection */
+.rbc-calendar ::selection {
+  background: transparent !important;
+}
+
+.rbc-calendar ::-moz-selection {
+  background: transparent !important;
+}
+
+/* Remove focus and active states */
+.rbc-calendar *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}
+
+.rbc-calendar *:active {
+  outline: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}
+
+.rbc-calendar *:hover {
+  outline: none !important;
+  background-color: transparent !important;
+}
+
+/* Remove date cell highlight */
+.rbc-date-cell {
+  outline: none !important;
+  background-color: transparent !important;
+}
+
+.rbc-date-cell:focus {
+  outline: none !important;
+  background-color: transparent !important;
+}
+
+.rbc-date-cell:active {
+  outline: none !important;
+  background-color: transparent !important;
+}
+
+.rbc-date-cell:hover {
+  outline: none !important;
+  background-color: transparent !important;
+}
+
+/* Remove number highlight */
+.rbc-number {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  background-color: transparent !important;
+}
+
+.rbc-number:focus {
+  outline: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.rbc-number:active {
+  outline: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.rbc-number:hover {
+  outline: none !important;
+  background-color: transparent !important;
+}
+
+/* Remove all background colors on active states */
+.rbc-day-bg:active {
+  background-color: transparent !important;
+}
+
+.rbc-day-bg:hover {
+  background-color: transparent !important;
+}
+
+.rbc-off-range-bg:active {
+  background-color: transparent !important;
+}
+
+.rbc-off-range-bg:hover {
+  background-color: transparent !important;
+}
+
+.rbc-today:active {
+  background-color: transparent !important;
+}
+
+.rbc-today:hover {
+  background-color: transparent !important;
+}
+
+/* Month view header */
+.rbc-month-view {
+  border: none !important;
+}
+
+.rbc-header {
+  padding: 8px 0 !important;
+  font-weight: 600 !important;
+  color: #6B7280 !important;
+  font-size: 14px !important;
+}
+
+.dark .rbc-header {
+  color: #E5E7EB !important;
+  font-weight: 700 !important;
+}
+
+/* Day cells */
+.rbc-month-row {
+  border: none !important;
+}
+
+.rbc-day-bg {
+  background-color: transparent !important;
+}
+
+.rbc-day-bg + .rbc-day-bg {
+  border-left: 1px solid rgba(156, 163, 175, 0.2) !important;
+}
+
+.dark .rbc-day-bg + .rbc-day-bg {
+  border-left: 1px solid rgba(75, 85, 99, 0.5) !important;
+}
+
+.rbc-off-range-bg {
+  background-color: rgba(156, 163, 175, 0.05) !important;
+}
+
+.dark .rbc-off-range-bg {
+  background-color: rgba(75, 85, 99, 0.3) !important;
+}
+
+/* Today highlight */
+.rbc-today {
+  background-color: rgba(59, 130, 246, 0.08) !important;
+}
+
+.dark .rbc-today {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  border: 1px solid rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Events in month view */
+.rbc-event {
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 2px 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.rbc-event:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Event label */
+.rbc-event-label {
+  padding: 0 4px !important;
+}
+
+/* More events link */
+.rbc-show-more {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  color: #3B82F6 !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+}
+
+.dark .rbc-show-more {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  color: #60A5FA !important;
+}
+
+.rbc-show-more:hover {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.dark .rbc-show-more:hover {
+  background-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Row borders */
+.rbc-month-row + .rbc-month-row {
+  border-top: 1px solid rgba(156, 163, 175, 0.2) !important;
+}
+
+.dark .rbc-month-row + .rbc-month-row {
+  border-top: 1px solid rgba(75, 85, 99, 0.3) !important;
+}
+
+/* Date number */
+.rbc-date-cell {
+  padding: 4px !important;
+}
+
+.rbc-number {
+  font-weight: 500 !important;
+  color: #374151 !important;
+}
+
+/* Force white color in dark theme for all numbers - MAXIMUM SPECIFICITY */
+html.dark .rbc-calendar .rbc-number,
+html.dark .rbc-month-view .rbc-number,
+html.dark .rbc-day-bg .rbc-number,
+html.dark .rbc-date-cell .rbc-number,
+html.dark .rbc-row .rbc-number,
+html.dark .rbc-month-row .rbc-number {
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+}
+
+.dark .rbc-off-range-bg .rbc-number {
+  color: #6B7280 !important;
+}
+
+.rbc-today .rbc-number {
+  color: #3B82F6 !important;
+  font-weight: 600 !important;
+}
+
+.dark .rbc-today .rbc-number {
+  color: #60A5FA !important;
+  font-weight: 700 !important;
+}
+
+/* Current date indicator */
+.rbc-current {
+  color: #3B82F6 !important;
+}
+
+/* Toolbar (hidden) */
+.rbc-toolbar {
+  display: none !important;
+}
+
+/* Dark mode specific improvements */
+.dark .rbc-event {
+  opacity: 0.9 !important;
+}
+
+.dark .rbc-event:hover {
+  opacity: 1 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rbc-header {
+    font-size: 12px !important;
+    padding: 6px 0 !important;
+  }
+  
+  .rbc-event {
+    font-size: 11px !important;
+    padding: 1px 4px !important;
+  }
+  
+  .rbc-number {
+    font-size: 12px !important;
+  }
+}

@@ -70,6 +70,13 @@ export const translations = {
     tomorrow5pm: 'Завтра, 17:00',
     clientCall: 'Звонок клиенту',
     friday10am: 'Пятница, 10:00',
+    today: 'Сегодня',
+    schedule: 'Расписание',
+    addEvent: 'Добавить событие',
+    eventsReminders: 'События и напоминания',
+    reminderText: 'Текст напоминания',
+    addReminder: 'Добавить напоминание',
+    noUpcomingEvents: 'Нет предстоящих событий',
 
     // Accountant
     accountantWelcome: 'Отслеживайте свой бюджет, расходы и финансовые цели.',
@@ -153,6 +160,13 @@ export const translations = {
     tomorrow5pm: 'Tomorrow, 5:00 PM',
     clientCall: 'Client Call',
     friday10am: 'Friday, 10:00 AM',
+    today: 'Today',
+    schedule: 'Schedule',
+    addEvent: 'Add Event',
+    eventsReminders: 'Events & Reminders',
+    reminderText: 'Reminder text',
+    addReminder: 'Add Reminder',
+    noUpcomingEvents: 'No upcoming events',
 
     // Accountant
     accountantWelcome: 'Track your budget, expenses, and financial goals.',
