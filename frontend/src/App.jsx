@@ -85,15 +85,22 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   const { language, changeLanguage, t } = useLanguage();
   const [chats, setChats] = useState([]);
   const [userId] = useState(1);
+  const [headerSolid, setHeaderSolid] = useState(false);
 
   // Load user chats on mount
   useEffect(() => {
     loadChats();
   }, []);
 
+  // Track scroll to make header solid when messages are under it
+  const handleScroll = (scrollTop) => {
+    setHeaderSolid(scrollTop > 10);
+  };
+
   const loadChats = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/user-chats`, { params: { user_id: userId } });
+      console.log('Loaded chats:', response.data);
       // Sort chats: pinned first, then by date
       const sortedChats = response.data.sort((a, b) => {
         if (a.is_pinned && !b.is_pinned) return -1;
@@ -153,7 +160,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   };
 
   return (
-    <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark ${theme} relative`}>
+    <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark ${theme} relative overflow-hidden`}>
       {/* Animated Background - Only visible on chat pages */}
       {location.pathname !== '/profile' && location.pathname !== '/secretary' && location.pathname !== '/accountant' && (
         <div className="absolute inset-0 pointer-events-none z-0">
@@ -176,7 +183,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Header */}
       {location.pathname !== '/profile' && (
-        <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
+        <header className={`sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent backdrop-blur-none'}`}>
         <div className="flex items-center gap-3">
           {location.pathname === '/secretary' || location.pathname === '/accountant' ? (
             <button
@@ -212,8 +219,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Routes */}
       <Routes>
-        <Route path="/" element={<Home onChatCreated={loadChats} theme={theme} />} />
-        <Route path="/chat/:chatId" element={<Home onChatCreated={loadChats} theme={theme} />} />
+        <Route path="/" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
+        <Route path="/chat/:chatId" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
         <Route path="/accountant" element={<Accountant />} />
         <Route path="/profile" element={<Profile userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
@@ -222,12 +229,13 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   );
 }
 
-function Home({ onChatCreated, theme }) {
+function Home({ onChatCreated, theme, onScroll }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [chatId, setChatId] = useState(null);
   const [userId] = useState(1);
   const messagesEndRef = React.useRef(null);
+  const messagesContainerRef = React.useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { t, language } = useLanguage();
@@ -236,6 +244,21 @@ function Home({ onChatCreated, theme }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Track scroll in messages container
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (onScroll) {
+        onScroll(container.scrollTop);
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [onScroll]);
 
   // Load chat based on URL
   useEffect(() => {
@@ -307,7 +330,7 @@ function Home({ onChatCreated, theme }) {
   return (
     <div className="flex flex-col h-full relative">
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-4 relative z-10">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 relative z-10 pb-0 -mb-2">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
             <div className="text-6xl mb-4">💬</div>
@@ -351,8 +374,8 @@ function Home({ onChatCreated, theme }) {
         )}
       </div>
 
-      {/* Chat Input Footer */}
-      <div className="flex-shrink-0 px-4 py-4 bg-background-light dark:bg-background-dark relative z-10">
+      {/* Chat Input Footer - Fixed at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 px-4 py-4 relative z-20 bg-transparent">
         <ChatInput
           onSendMessage={handleSendMessage}
           disabled={isLoading}

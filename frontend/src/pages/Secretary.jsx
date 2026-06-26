@@ -6,13 +6,16 @@ import moment from 'moment';
 import { Calendar as BigCalendar, momentLocalizer, Views } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '../styles/calendar.css';
+import axios from 'axios';
 
+const API_URL = 'http://localhost:8001';
 const localizer = momentLocalizer(moment);
 
 const Secretary = ({ theme }) => {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+  const [userId] = useState(1);
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -23,36 +26,41 @@ const Secretary = ({ theme }) => {
   const [tempSlotInfo, setTempSlotInfo] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      title: 'Team Meeting',
-      start: new Date(new Date().setHours(10, 0, 0, 0)),
-      end: new Date(new Date().setHours(11, 0, 0, 0)),
-      color: '#3B82F6'
-    },
-    {
-      id: 2,
-      title: 'Client Call',
-      start: new Date(new Date().setHours(14, 0, 0, 0)),
-      end: new Date(new Date().setHours(15, 0, 0, 0)),
-      color: '#8B5CF6'
-    },
-    {
-      id: 3,
-      title: 'Project Review',
-      start: new Date(new Date().setDate(new Date().getDate() + 1)),
-      end: new Date(new Date().setDate(new Date().getDate() + 1)),
-      color: '#10B981'
-    }
-  ]);
+  const [events, setEvents] = useState([]);
 
   const [dayEvents, setDayEvents] = useState([]);
-  const [reminders, setReminders] = useState([
-    { id: 1, text: 'Send weekly report', time: '09:00', completed: false, color: '#EF4444' },
-    { id: 2, text: 'Review PR #123', time: '11:30', completed: true, color: '#F59E0B' },
-    { id: 3, text: 'Prepare presentation', time: '15:00', completed: false, color: '#3B82F6' }
-  ]);
+  const [reminders, setReminders] = useState([]);
+
+  // Load events and reminders on mount
+  useEffect(() => {
+    loadEvents();
+    loadReminders();
+  }, []);
+
+  const loadEvents = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/secretary/events/${userId}`);
+      const formattedEvents = response.data.map(event => ({
+        id: event.id,
+        title: event.title,
+        start: new Date(event.start),
+        end: new Date(event.end),
+        color: event.color
+      }));
+      setEvents(formattedEvents);
+    } catch (error) {
+      console.error('Failed to load events:', error);
+    }
+  };
+
+  const loadReminders = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/secretary/reminders/${userId}`);
+      setReminders(response.data);
+    } catch (error) {
+      console.error('Failed to load reminders:', error);
+    }
+  };
 
   const [newReminder, setNewReminder] = useState({ text: '', time: '' });
 
@@ -71,11 +79,16 @@ const Secretary = ({ theme }) => {
     setShowDeleteModal(true);
   }, []);
 
-  const handleConfirmDelete = useCallback(() => {
+  const handleConfirmDelete = useCallback(async () => {
     if (eventToDelete) {
-      setEvents(events.filter(e => e.id !== eventToDelete.id));
-      setShowDeleteModal(false);
-      setEventToDelete(null);
+      try {
+        await axios.delete(`${API_URL}/api/secretary/events/${eventToDelete.id}`);
+        setEvents(events.filter(e => e.id !== eventToDelete.id));
+        setShowDeleteModal(false);
+        setEventToDelete(null);
+      } catch (error) {
+        console.error('Failed to delete event:', error);
+      }
     }
   }, [eventToDelete, events]);
 
@@ -100,22 +113,31 @@ const Secretary = ({ theme }) => {
     }
   }, [selectedDate]);
 
-  const handleSaveEvent = useCallback(() => {
+  const handleSaveEvent = useCallback(async () => {
     if (newEventTitle && tempSlotInfo) {
-      const newEvent = {
-        id: Date.now(),
-        title: newEventTitle,
-        start: new Date(tempSlotInfo.start),
-        end: new Date(tempSlotInfo.end),
-        color: '#3B82F6'
-      };
-      console.log('Creating event:', newEvent);
-      setEvents([...events, newEvent]);
-      setShowEventModal(false);
-      setNewEventTitle('');
-      setTempSlotInfo(null);
+      try {
+        const response = await axios.post(`${API_URL}/api/secretary/events/${userId}`, {
+          title: newEventTitle,
+          start_time: new Date(tempSlotInfo.start).toISOString(),
+          end_time: new Date(tempSlotInfo.end).toISOString(),
+          color: '#3B82F6'
+        });
+        const newEvent = {
+          id: response.data.id,
+          title: response.data.title,
+          start: new Date(response.data.start),
+          end: new Date(response.data.end),
+          color: response.data.color
+        };
+        setEvents([...events, newEvent]);
+        setShowEventModal(false);
+        setNewEventTitle('');
+        setTempSlotInfo(null);
+      } catch (error) {
+        console.error('Failed to create event:', error);
+      }
     }
-  }, [newEventTitle, tempSlotInfo, events]);
+  }, [newEventTitle, tempSlotInfo, events, userId]);
 
   const handleCancelEvent = useCallback(() => {
     setShowEventModal(false);
@@ -123,20 +145,36 @@ const Secretary = ({ theme }) => {
     setTempSlotInfo(null);
   }, []);
 
-  const handleEventDrop = useCallback(({ event, start, end }) => {
-    setEvents(events.map(ev => 
-      ev.id === event.id 
-        ? { ...ev, start, end }
-        : ev
-    ));
+  const handleEventDrop = useCallback(async ({ event, start, end }) => {
+    try {
+      await axios.put(`${API_URL}/api/secretary/events/${event.id}`, {
+        start_time: start.toISOString(),
+        end_time: end.toISOString()
+      });
+      setEvents(events.map(ev =>
+        ev.id === event.id
+          ? { ...ev, start, end }
+          : ev
+      ));
+    } catch (error) {
+      console.error('Failed to update event:', error);
+    }
   }, [events]);
 
-  const handleEventResize = useCallback(({ event, start, end }) => {
-    setEvents(events.map(ev => 
-      ev.id === event.id 
-        ? { ...ev, start, end }
-        : ev
-    ));
+  const handleEventResize = useCallback(async ({ event, start, end }) => {
+    try {
+      await axios.put(`${API_URL}/api/secretary/events/${event.id}`, {
+        start_time: start.toISOString(),
+        end_time: end.toISOString()
+      });
+      setEvents(events.map(ev =>
+        ev.id === event.id
+          ? { ...ev, start, end }
+          : ev
+      ));
+    } catch (error) {
+      console.error('Failed to update event:', error);
+    }
   }, [events]);
 
   const upcomingEvents = events
@@ -144,27 +182,43 @@ const Secretary = ({ theme }) => {
     .sort((a, b) => moment(a.start).diff(moment(b.start)))
     .slice(0, 5);
 
-  const addReminder = () => {
+  const addReminder = async () => {
     if (newReminder.text && newReminder.time) {
-      setReminders([...reminders, {
-        id: Date.now(),
-        text: newReminder.text,
-        time: newReminder.time,
-        completed: false,
-        color: '#3B82F6'
-      }]);
-      setNewReminder({ text: '', time: '' });
+      try {
+        const response = await axios.post(`${API_URL}/api/secretary/reminders/${userId}`, {
+          text: newReminder.text,
+          time: newReminder.time,
+          color: '#3B82F6'
+        });
+        setReminders([...reminders, response.data]);
+        setNewReminder({ text: '', time: '' });
+      } catch (error) {
+        console.error('Failed to create reminder:', error);
+      }
     }
   };
 
-  const toggleReminder = (id) => {
-    setReminders(reminders.map(r => 
-      r.id === id ? { ...r, completed: !r.completed } : r
-    ));
+  const toggleReminder = async (id) => {
+    try {
+      const reminder = reminders.find(r => r.id === id);
+      await axios.put(`${API_URL}/api/secretary/reminders/${id}`, {
+        completed: !reminder.completed
+      });
+      setReminders(reminders.map(r =>
+        r.id === id ? { ...r, completed: !r.completed } : r
+      ));
+    } catch (error) {
+      console.error('Failed to toggle reminder:', error);
+    }
   };
 
-  const deleteReminder = (id) => {
-    setReminders(reminders.filter(r => r.id !== id));
+  const deleteReminder = async (id) => {
+    try {
+      await axios.delete(`${API_URL}/api/secretary/reminders/${id}`);
+      setReminders(reminders.filter(r => r.id !== id));
+    } catch (error) {
+      console.error('Failed to delete reminder:', error);
+    }
   };
 
   // Day Details View

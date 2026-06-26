@@ -12,7 +12,17 @@ import os
 router = APIRouter(prefix="/api", tags=["orchestrator"])
 
 # System prompt for the main orchestrator agent "Agents"
-ORCHESTRATOR_SYSTEM_PROMPT = """Ты — Agents, ИИ-управляющий. МАКСИМАЛЬНАЯ ДЛИНА ОТВЕТА: 20 слов. Никаких "Как проходит твой день?" или "Чем могу быть полезен?". Отвечай ТОЛЬКО на суть вопроса. На приветствие: "Привет! Я Agents, твой ИИ-управляющий. Чем помочь?". Никакой воды. Кратко. По делу."""
+ORCHESTRATOR_SYSTEM_PROMPT = """Ты — Agents, ИИ-оркестратор. Твоя задача — определить, к какому специализированному агенту адресован запрос пользователя, и перенаправить его.
+
+Доступные агенты:
+- secretary: секретарь (планирование встреч, расписание, напоминания, организация)
+- accountant: бухгалтер (бюджетирование, учет расходов, финансовое планирование)
+
+Если запрос относится к секретарю (встречи, расписание, напоминания, календарь, организация) — верни "secretary".
+Если запрос относится к бухгалтеру (финансы, бюджет, расходы, деньги) — верни "accountant".
+Если запрос не относится ни к одному из агентов или не понятен — верни "default".
+
+Верни ТОЛЬКО имя агента или "default", без дополнительного текста."""
 
 # System prompt for generating chat titles
 TITLE_GENERATION_PROMPT = """Сгенерируй короткий и понятный заголовок для диалога на основе первого сообщения пользователя. 
@@ -82,87 +92,128 @@ def load_agents():
 # Load agents on startup
 load_agents()
 
+async def route_to_agent(message: str) -> str:
+    """Route message to appropriate agent using LLM."""
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=[
+                {"role": "system", "content": ORCHESTRATOR_SYSTEM_PROMPT},
+                {"role": "user", "content": message}
+            ],
+            temperature=0.1,
+            max_tokens=20,
+            timeout=30.0
+        )
+        agent_name = response.choices[0].message.content.strip().lower()
+        return agent_name if agent_name in AGENT_REGISTRY else "default"
+    except Exception as e:
+        print(f"Error routing message: {e}")
+        return "default"
+
 @router.post("/chat", response_model=ChatResponse)
 async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     # Get user
     result = await db.execute(select(User).where(User.id == request.user_id))
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     # Check token balance (disabled for development)
     # if user.token_balance < 10:
     #     raise HTTPException(status_code=400, detail="Insufficient token balance")
-    
-    # Get or create default orchestrator agent
-    result = await db.execute(select(Agent).where(Agent.name == "agents"))
-    agent = result.scalar_one_or_none()
-    
-    if not agent:
-        # Create default orchestrator agent if it doesn't exist
-        agent = Agent(
-            name="agents",
-            description="Main AI orchestrator and personal assistant",
-            system_prompt=ORCHESTRATOR_SYSTEM_PROMPT,
-            is_active=True
-        )
-        db.add(agent)
-        await db.flush()
-    
+
+    # Route message to appropriate agent
+    agent_name = await route_to_agent(request.message)
+
+    # Get or create agent
+    if agent_name == "default":
+        result = await db.execute(select(Agent).where(Agent.name == "agents"))
+        agent = result.scalar_one_or_none()
+        if not agent:
+            agent = Agent(
+                name="agents",
+                description="Main AI orchestrator and personal assistant",
+                system_prompt="Ты — Agents, ИИ-управляющий. МАКСИМАЛЬНАЯ ДЛИНА ОТВЕТА: 20 слов. Никаких «Как проходит твой день?» или «Чем могу быть полезен?». Отвечай ТОЛЬКО на суть вопроса. На приветствие: «Привет! Я Agents, твой ИИ-управляющий. Чем помочь?». Никакой воды. Кратко. По делу.",
+                is_active=True
+            )
+            db.add(agent)
+            await db.flush()
+        else:
+            # Update system prompt if it's different
+            correct_prompt = "Ты — Agents, ИИ-управляющий. МАКСИМАЛЬНАЯ ДЛИНА ОТВЕТА: 20 слов. Никаких «Как проходит твой день?» или «Чем могу быть полезен?». Отвечай ТОЛЬКО на суть вопроса. На приветствие: «Привет! Я Agents, твой ИИ-управляющий. Чем помочь?». Никакой воды. Кратко. По делу."
+            if agent.system_prompt != correct_prompt:
+                agent.system_prompt = correct_prompt
+                await db.flush()
+    else:
+        result = await db.execute(select(Agent).where(Agent.name == agent_name))
+        agent = result.scalar_one_or_none()
+        if not agent:
+            # Create agent if it doesn't exist
+            agent = Agent(
+                name=agent_name,
+                description=f"{agent_name.capitalize()} agent",
+                system_prompt=f"Ты — {agent_name}, специализированный ИИ-агент.",
+                is_active=True
+            )
+            db.add(agent)
+            await db.flush()
+
     # Create or get chat
     if request.chat_id:
         result = await db.execute(select(Chat).where(Chat.id == request.chat_id))
         chat = result.scalar_one_or_none()
         if not chat:
-            raise HTTPException(status_code=404, detail="Chat not found")
+            # Chat not found, create new one
+            chat_title = await generate_chat_title(request.message, client)
+            chat = Chat(user_id=request.user_id, agent_id=agent.id, title=chat_title)
+            db.add(chat)
+            await db.flush()
     else:
         # Generate chat title using AI
         chat_title = await generate_chat_title(request.message, client)
         chat = Chat(user_id=request.user_id, agent_id=agent.id, title=chat_title)
         db.add(chat)
         await db.flush()
-    
+
     # Save user message
     user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
     db.add(user_message)
-    
-    # Build messages array for LLM
-    messages = []
-    
-    # Add system prompt for orchestrator
-    messages.append({"role": "system", "content": ORCHESTRATOR_SYSTEM_PROMPT})
-    
-    # Add history if provided
-    if request.history:
-        messages.extend(request.history)
-    
-    # Add current message
-    messages.append({"role": "user", "content": request.message})
-    
-    # Call RouterAI API
-    try:
-        response = client.chat.completions.create(
-            model="google/gemini-3.1-flash-lite",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=500,
-            timeout=60.0
-        )
-        
-        response_text = response.choices[0].message.content
-        tokens_used = response.usage.total_tokens
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"API error: {str(e)}")
-    
+
+    # Process message
+    if agent_name in AGENT_REGISTRY:
+        # Use specialized agent
+        agent_process = AGENT_REGISTRY[agent_name]
+        response_text, tokens_used = await agent_process(request.message, agent.system_prompt, db, request.user_id)
+    else:
+        # Use default LLM mode
+        messages = []
+        messages.append({"role": "system", "content": agent.system_prompt})
+        if request.history:
+            messages.extend(request.history)
+        messages.append({"role": "user", "content": request.message})
+
+        try:
+            response = client.chat.completions.create(
+                model="google/gemini-3.1-flash-lite",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=500,
+                timeout=60.0
+            )
+            response_text = response.choices[0].message.content
+            tokens_used = 0  # Disabled for development
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"API error: {str(e)}")
+
     # Save assistant message
     assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
     db.add(assistant_message)
-    
+
     # Deduct tokens (disabled for development)
     # user.token_balance -= tokens_used
-    # 
+    #
     # Record transaction (disabled for development)
     # transaction = TokenTransaction(
     #     user_id=user.id,
@@ -171,10 +222,10 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     #     description=f"Chat with {agent.name}"
     # )
     # db.add(transaction)
-    
+
     await db.commit()
     await db.refresh(user)
-    
+
     return ChatResponse(
         response=response_text,
         tokens_used=tokens_used,
@@ -198,7 +249,7 @@ async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
 async def get_user_chats(user_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Chat).where(Chat.user_id == user_id).order_by(Chat.created_at.desc()))
     chats = result.scalars().all()
-    return [{"id": chat.id, "title": chat.title, "created_at": chat.created_at} for chat in chats]
+    return [{"id": chat.id, "title": chat.title, "created_at": chat.created_at, "is_pinned": chat.is_pinned} for chat in chats]
 
 @router.get("/user/{user_id}", response_model=UserProfile)
 async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):

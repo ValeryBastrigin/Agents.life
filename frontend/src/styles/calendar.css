@@ -169,14 +169,21 @@
   background-color: rgba(75, 85, 99, 0.3) !important;
 }
 
-/* Today highlight */
-.rbc-today {
+/* Today highlight - only for month view */
+.rbc-month-view .rbc-today {
   background-color: rgba(59, 130, 246, 0.08) !important;
 }
 
-.dark .rbc-today {
+.dark .rbc-month-view .rbc-today {
   background-color: rgba(59, 130, 246, 0.2) !important;
   border: 1px solid rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Remove today highlight in day/time views */
+.rbc-time-view .rbc-today,
+.rbc-agenda-view .rbc-today {
+  background-color: transparent !important;
+  border: none !important;
 }
 
 /* Events in month view */
