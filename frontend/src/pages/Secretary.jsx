@@ -57,27 +57,6 @@ const Secretary = ({ theme }) => {
     try {
       const response = await axios.get(`${API_URL}/api/reminders/${userId}`);
       setReminders(response.data);
-      
-      // Convert reminders to calendar events with orange color
-      const reminderEvents = response.data
-        .filter(reminder => reminder.date)
-        .map(reminder => {
-          const reminderDate = new Date(reminder.date);
-          reminderDate.setHours(0, 0, 0, 0);
-          const endDate = new Date(reminderDate);
-          endDate.setHours(23, 59, 59, 999);
-          
-          return {
-            id: `reminder-${reminder.id}`,
-            title: reminder.title || reminder.text,
-            start: reminderDate,
-            end: endDate,
-            color: '#F97316', // Orange color for reminders
-            isReminder: true
-          };
-        });
-      
-      setEvents(prev => [...prev, ...reminderEvents]);
     } catch (error) {
       console.error('Failed to load reminders:', error);
     }
