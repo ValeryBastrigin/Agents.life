@@ -19,20 +19,22 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
     Отвечай кратко и по делу, подтверждая создание."""
 
     # Check if user is asking about schedule/events on a specific date
-    schedule_query_prompt = f"""Проанализируй сообщение и определи, спрашивает ли пользователь о расписании или событиях на конкретную дату.
+    schedule_query_prompt = f"""Проанализируй сообщение. Определи, ХОЧЕТ ли пользователь УЗНАТЬ своё расписание, ИЛИ он просит СОЗДАТЬ/запланировать встречу.
+
     Сообщение: "{message}"
-    
     Текущая дата: {datetime.now().strftime('%Y-%m-%d')}
-    
-    Если пользователь спрашивает о расписании/событиях на дату, верни JSON:
-    {{
-        "action": "query_schedule",
-        "date": "YYYY-MM-DD" (дата из запроса или null если не указана)
-    }}
-    
-    Если это не запрос о расписании, верни {{"action": "none"}}
-    
-    Верни ТОЛЬКО JSON, без дополнительного текста."""
+
+    ПРАВИЛА (строго):
+    - Если пользователь ПРОСИТ СОЗДАТЬ, НАЗНАЧИТЬ, ЗАПЛАНИРОВАТЬ, ЗАПИСАТЬ, ДОБАВИТЬ встречу/событие/напоминание — верни {{"action": "none"}}
+      (Ключевые слова: назначь, создай, запланируй, запиши, добавь, поставь, сделай, schedule, create, add)
+    - Если пользователь СПРАШИВАЕТ "что у меня", "какие встречи", "что запланировано", "расписание на" — верни query_schedule.
+    - Если просто названа дата без явного вопроса — верни {{"action": "none"}}
+
+    Если это запрос расписания, верни:
+    {{"action": "query_schedule", "date": "YYYY-MM-DD"}}
+
+    Если это НЕ запрос расписания, верни {{"action": "none"}}
+    Верни ТОЛЬКО JSON."""
     
     try:
         response = client.chat.completions.create(
@@ -120,19 +122,19 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
         "action": "create",
         "type": "event" или "reminder",
         "title": "краткое название (макс. 50 символов)",
-        "start_time": "YYYY-MM-DDTHH:MM:SS" (если есть точное время),
-        "end_time": "YYYY-MM-DDTHH:MM:SS" (если есть время, например, с 10 до 12),
-        "date": "YYYY-MM-DD" (если указана только дата без времени),
-        "description": "подробное описание (если есть)"
+        "start_time": "YYYY-MM-DDTHH:MM:SS" (ТОЛЬКО если указано время),
+        "end_time": "YYYY-MM-DDTHH:MM:SS" (ТОЛЬКО если указано время окончания),
+        "date": "YYYY-MM-DD" (дата, ОБЯЗАТЕЛЬНО),
+        "description": "подробное описание"
     }}
     
-    ПРАВИЛА:
-- Если указано ВРЕМЯ (с 10 до 12, в 15:00, с 14:00 до 16:00 и т.д.) — type = "event" (расписание)
-- Если указана только ДАТА без времени (завтра, 29 июня, 15 января и т.д.) — type = "reminder" (события и напоминания)
-- Если не указана дата/время — верни {{"action": "none"}}
-- Для относительных дат (завтра, послезавтра) используй текущую дату для расчета
+    ПРАВИЛА (строго по порядку):
+    1. Если в сообщении НЕТ даты и нет слов "завтра"/"послезавтра" — верни {{"action": "none"}}
+    2. Если указано ВРЕМЯ (в 15:00, с 10 до 12, к 14:00 и т.д.) — type="event", ОБЯЗАТЕЛЬНО заполни start_time и end_time
+    3. Если указана только ДАТА без времени — type="reminder"
+    4. "завтра" = завтрашняя дата, "послезавтра" = послезавтра
     
-    Верни ТОЛЬКО JSON, без дополнительного текста."""
+    Верни ТОЛЬКО JSON."""
     
     try:
         response = client.chat.completions.create(
@@ -209,8 +211,15 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
         # If extraction fails, fall through to default LLM response
         pass
 
+    # If we reached here, extraction returned none or failed.
+    # Check if user is trying to create something without a date
+    create_keywords = ['назначь', 'создай', 'запланируй', 'запиши', 'добавь', 'поставь',
+                       'schedule', 'create', 'add', 'set up', 'book']
+    msg_lower = message.lower()
+    if any(kw in msg_lower for kw in create_keywords):
+        return "Уточните дату и время для создания записи.", 0
+
     # Default: use LLM to respond
-    # If we reached here, it means the extraction failed or wasn't needed.
     # We force the agent to NOT suggest using the interface.
     try:
         response = client.chat.completions.create(

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import PayloadWidget from './PayloadWidget';
 import { CheckCircle2, Loader2, XCircle, ChevronDown, Calendar, Bell, MessageSquare, FileText, Clock } from 'lucide-react';
 
 const CLR = {
@@ -75,12 +76,7 @@ export default function LogItem({ entry, isLast, index }) {
           <AnimatePresence>
             {open && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1, marginTop: 12 }} exit={{ height: 0, opacity: 0, marginTop: 0 }} className="overflow-hidden">
-                <div className="bg-black/20 dark:bg-white/5 rounded-xl p-3 border border-white/10">
-                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Payload</p>
-                  <pre className="text-xs text-gray-600 dark:text-gray-300 font-mono whitespace-pre-wrap break-all leading-relaxed max-h-64 overflow-y-auto">
-                    {JSON.stringify(entry.payload, null, 2)}
-                  </pre>
-                </div>
+                <PayloadWidget payload={entry.payload} />
               </motion.div>
             )}
           </AnimatePresence>
