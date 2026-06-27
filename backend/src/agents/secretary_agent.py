@@ -18,6 +18,97 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
     Если в сообщении есть информация о планировании, извлеки данные и создай событие/напоминание.
     Отвечай кратко и по делу, подтверждая создание."""
 
+    # Check if user is asking about schedule/events on a specific date
+    schedule_query_prompt = f"""Проанализируй сообщение и определи, спрашивает ли пользователь о расписании или событиях на конкретную дату.
+    Сообщение: "{message}"
+    
+    Текущая дата: {datetime.now().strftime('%Y-%m-%d')}
+    
+    Если пользователь спрашивает о расписании/событиях на дату, верни JSON:
+    {{
+        "action": "query_schedule",
+        "date": "YYYY-MM-DD" (дата из запроса или null если не указана)
+    }}
+    
+    Если это не запрос о расписании, верни {{"action": "none"}}
+    
+    Верни ТОЛЬКО JSON, без дополнительного текста."""
+    
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=[{"role": "user", "content": schedule_query_prompt}],
+            temperature=0.1,
+            max_tokens=100
+        )
+        import json
+        llm_response = response.choices[0].message.content
+        print(f"DEBUG: Schedule query LLM response: {llm_response}")
+        query_data = json.loads(llm_response)
+        print(f"DEBUG: Parsed query data: {query_data}")
+        
+        if query_data.get("action") == "query_schedule":
+            # Query actual events from database
+            query_date_str = query_data.get("date")
+            if query_date_str:
+                query_date = date.fromisoformat(query_date_str)
+            else:
+                query_date = datetime.now().date()
+            
+            # Get calendar events for the date
+            events_result = await db.execute(
+                select(CalendarEvent).where(
+                    CalendarEvent.user_id == user_id,
+                    CalendarEvent.start_time >= datetime.combine(query_date, time.min),
+                    CalendarEvent.start_time < datetime.combine(query_date + timedelta(days=1), time.min)
+                )
+            )
+            events = events_result.scalars().all()
+            
+            # Get reminders for the date
+            reminders_result = await db.execute(
+                select(Reminder).where(
+                    Reminder.user_id == user_id,
+                    Reminder.date == query_date
+                )
+            )
+            reminders = reminders_result.scalars().all()
+            
+            # Format the data for LLM
+            events_info = []
+            for event in events:
+                events_info.append(f"- {event.start_time.strftime('%H:%M')} - {event.end_time.strftime('%H:%M')}: {event.title}")
+            
+            reminders_info = []
+            for reminder in reminders:
+                reminders_info.append(f"- {reminder.title or reminder.text}")
+            
+            # Build response based on actual data - return JSON for frontend rendering
+            import json
+            response_data = {
+                "type": "schedule",
+                "date": query_date.strftime('%d.%m.%Y'),
+                "events": [],
+                "reminders": []
+            }
+            
+            for event in events:
+                response_data["events"].append({
+                    "start_time": event.start_time.strftime('%H:%M'),
+                    "end_time": event.end_time.strftime('%H:%M'),
+                    "title": event.title
+                })
+            
+            for reminder in reminders:
+                response_data["reminders"].append({
+                    "title": reminder.title or reminder.text
+                })
+            
+            return json.dumps(response_data), 0
+    except Exception as e:
+        print(f"Error querying schedule: {e}")
+        pass  # Fall through to extraction logic
+
     # Always try to extract event/reminder details if the message seems to be a request for planning
     extraction_prompt = f"""Проанализируй сообщение пользователя и определи, нужно ли создать событие или напоминание.
     Сообщение: "{message}"

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate,
 import Sidebar from './components/Sidebar';
 import ChatInput from './components/ChatInput';
 import AnimatedBackground from './components/AnimatedBackground';
+import ChatWidgetRenderer from './components/ui/widgets/ChatWidgetRenderer';
 import { User, Menu, Sun, Moon, ArrowLeft } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
@@ -348,13 +349,17 @@ function Home({ onChatCreated, theme, onScroll }) {
                 }`}
               >
                 <div
-                  className={`max-w-[80%] sm:max-w-[70%] px-4 py-2 rounded-[1.5rem] ${
+                  className={`max-w-[80%] sm:max-w-[70%] ${
                     message.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-surface-light dark:bg-surface-dark text-gray-800 dark:text-white'
+                      ? 'bg-blue-500 text-white px-4 py-2 rounded-[1.5rem]'
+                      : 'w-full'
                   }`}
                 >
-                  {message.content}
+                  {message.role === 'assistant' ? (
+                    <ChatWidgetRenderer content={message.content} />
+                  ) : (
+                    <div className="px-4 py-2">{message.content}</div>
+                  )}
                 </div>
               </div>
             ))}
