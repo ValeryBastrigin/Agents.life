@@ -169,7 +169,15 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
                     )
                     db.add(new_event)
                     await db.commit()
-                    return f"✅ Событие '{new_event.title}' добавлено в расписание с {new_event.start_time.strftime('%H:%M')} до {new_event.end_time.strftime('%H:%M')} ({new_event.start_time.strftime('%d.%m.%Y')}).", 0
+                    import json
+                    response_data = {
+                        "type": "event_created",
+                        "title": new_event.title,
+                        "date": new_event.start_time.strftime('%d.%m.%Y'),
+                        "time": f"{new_event.start_time.strftime('%H:%M')} - {new_event.end_time.strftime('%H:%M')}",
+                        "kind": "event"
+                    }
+                    return json.dumps(response_data), 0
                 else:
                     # Без времени - создаем Reminder (события и напоминания)
                     date_str = data.get("date")
@@ -185,7 +193,15 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
                     )
                     db.add(new_reminder)
                     await db.commit()
-                    return f"✅ Напоминание '{new_reminder.title}' создано на {new_reminder.date.strftime('%d.%m.%Y')}.", 0
+                    import json
+                    response_data = {
+                        "type": "event_created",
+                        "title": new_reminder.title,
+                        "date": new_reminder.date.strftime('%d.%m.%Y'),
+                        "time": new_reminder.time.strftime('%H:%M'),
+                        "kind": "reminder"
+                    }
+                    return json.dumps(response_data), 0
             except Exception as e:
                 print(f"Error creating event/reminder: {e}")
                 return f"Не удалось создать запись. Уточните детали.", 0

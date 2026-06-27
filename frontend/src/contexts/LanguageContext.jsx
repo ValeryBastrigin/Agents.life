@@ -78,6 +78,21 @@ export const translations = {
     addReminder: 'Добавить напоминание',
     noUpcomingEvents: 'Нет предстоящих событий',
 
+    // Activity Log
+    activityLog: 'Журнал действий',
+    activityLogDesc: 'История всех действий AI-секретаря',
+    allActions: 'Все',
+    calendarActions: 'Календарь',
+    taskActions: 'Задачи',
+    noteActions: 'Заметки',
+    chatReplies: 'Ответы',
+    noActionsYet: 'Пока нет записей',
+    noActionsHint: 'Как только AI-секретарь выполнит действие, оно появится здесь.',
+    loadMore: 'Загрузить ещё',
+    loadingActivity: 'Загрузка журнала...',
+    totalEntries: 'Всего записей',
+    refreshActivity: 'Обновить',
+
     // Accountant
     accountantWelcome: 'Отслеживайте свой бюджет, расходы и финансовые цели.',
     totalBalance: 'Общий баланс',
@@ -167,6 +182,21 @@ export const translations = {
     reminderText: 'Reminder text',
     addReminder: 'Add Reminder',
     noUpcomingEvents: 'No upcoming events',
+
+    // Activity Log
+    activityLog: 'Activity Log',
+    activityLogDesc: 'History of all AI secretary actions',
+    allActions: 'All',
+    calendarActions: 'Calendar',
+    taskActions: 'Tasks',
+    noteActions: 'Notes',
+    chatReplies: 'Replies',
+    noActionsYet: 'No entries yet',
+    noActionsHint: 'AI secretary actions will appear here once performed.',
+    loadMore: 'Load More',
+    loadingActivity: 'Loading activity log...',
+    totalEntries: 'Total entries',
+    refreshActivity: 'Refresh',
 
     // Accountant
     accountantWelcome: 'Track your budget, expenses, and financial goals.',

@@ -557,7 +557,7 @@ const Secretary = ({ theme }) => {
           </div>
 
           {/* Recent Secretary Records Block */}
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 rounded-[1.5rem] p-4 text-white cursor-pointer hover:shadow-lg transition-shadow flex flex-col items-center justify-center text-center">
+          <div onClick={() => navigate('/secretary/logs')} className="bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 rounded-[1.5rem] p-4 text-white cursor-pointer hover:shadow-lg transition-shadow flex flex-col items-center justify-center text-center">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mb-2">
               <Clock size={20} />
             </div>

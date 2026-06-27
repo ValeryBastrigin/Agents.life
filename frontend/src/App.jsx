@@ -8,6 +8,7 @@ import { User, Menu, Sun, Moon, ArrowLeft } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Profile from './pages/Profile';
+import ActivityLog from './pages/ActivityLog';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import axios from 'axios';
 
@@ -183,10 +184,10 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       />
 
       {/* Header */}
-      {location.pathname !== '/profile' && (
+      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && (
         <header className={`sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent backdrop-blur-none'}`}>
         <div className="flex items-center gap-3">
-          {location.pathname === '/secretary' || location.pathname === '/accountant' ? (
+          {location.pathname === '/secretary' || location.pathname === '/secretary/logs' || location.pathname === '/accountant' ? (
             <button
               onClick={() => navigate('/')}
               className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
@@ -204,6 +205,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
             {location.pathname === '/' ? 'Agents' :
              location.pathname === '/secretary' ? 'Secretary' :
+             location.pathname === '/secretary/logs' ? 'Secretary' :
              location.pathname === '/accountant' ? 'Accountant' : 'Agents'}
           </h1>
         </div>
@@ -223,6 +225,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
         <Route path="/chat/:chatId" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
+        <Route path="/secretary/logs" element={<ActivityLog theme={theme} />} />
         <Route path="/accountant" element={<Accountant />} />
         <Route path="/profile" element={<Profile userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
       </Routes>

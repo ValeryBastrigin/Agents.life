@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, update
+from sqlalchemy import select, delete, update, func, desc
 from pydantic import BaseModel
 from datetime import time, date
 from typing import Optional
 from src.database import get_db
-from src.models import CalendarEvent, Reminder
+from src.models import CalendarEvent, Reminder, Chat, Message, Agent
 
 router = APIRouter(prefix="/api", tags=["secretary"])
 
@@ -250,6 +250,154 @@ async def delete_reminder(reminder_id: int, db: AsyncSession = Depends(get_db)):
     await db.execute(delete(Reminder).where(Reminder.id == reminder_id))
     await db.commit()
     
-    return {"message": "Reminder deleted successfully"}
+
+# ============================================================
+# Activity Log endpoint — агрегирует все действия секретаря
+# ============================================================
+@router.get("/secretary/logs/{user_id}")
+async def get_secretary_logs(
+    user_id: int,
+    page: int = 1,
+    page_size: int = 20,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Возвращает ленту действий AI-секретаря:
+    – созданные события календаря
+    – созданные напоминания
+    – сообщения из чатов с агентом Secretary
+    """
+    from datetime import datetime as dt_module
+
+    logs = []
+
+    # --- 1. Calendar Events ---
+    events_result = await db.execute(
+        select(CalendarEvent)
+        .where(CalendarEvent.user_id == user_id)
+        .order_by(desc(CalendarEvent.created_at))
+    )
+    events = events_result.scalars().all()
+    for e in events:
+        logs.append({
+            "id": f"event-{e.id}",
+            "action_type": "calendar",
+            "title": f"Создал событие: {e.title}",
+            "status": "success",
+            "timestamp": e.created_at.isoformat() if e.created_at else dt_module.utcnow().isoformat(),
+            "payload": {
+                "id": e.id,
+                "title": e.title,
+                "start": e.start_time.isoformat() if e.start_time else None,
+                "end": e.end_time.isoformat() if e.end_time else None,
+                "color": e.color,
+                "description": e.description,
+                "source": "calendar_event"
+            }
+        })
+
+    # --- 2. Reminders ---
+    reminders_result = await db.execute(
+        select(Reminder)
+        .where(Reminder.user_id == user_id)
+        .order_by(desc(Reminder.created_at))
+    )
+    reminders = reminders_result.scalars().all()
+    for r in reminders:
+        logs.append({
+            "id": f"reminder-{r.id}",
+            "action_type": "task",
+            "title": f"Создал напоминание: {r.text[:60]}{'...' if len(r.text) > 60 else ''}",
+            "status": "success" if not r.completed else "completed",
+            "timestamp": r.created_at.isoformat() if r.created_at else dt_module.utcnow().isoformat(),
+            "payload": {
+                "id": r.id,
+                "text": r.text,
+                "title": r.title,
+                "time": r.time.strftime("%H:%M") if r.time else None,
+                "date": r.date.isoformat() if r.date else None,
+                "completed": r.completed,
+                "color": r.color,
+                "source": "reminder"
+            }
+        })
+
+    # --- 3. Messages from Secretary chats ---
+    # Находим агента Secretary
+    secretary_agent_result = await db.execute(
+        select(Agent).where(Agent.name == "Secretary")
+    )
+    secretary_agent = secretary_agent_result.scalar_one_or_none()
+
+    if secretary_agent:
+        # Получаем все чаты с Secretary-агентом
+        chats_result = await db.execute(
+            select(Chat)
+            .where(Chat.user_id == user_id, Chat.agent_id == secretary_agent.id)
+        )
+        secretary_chats = chats_result.scalars().all()
+        chat_ids = [c.id for c in secretary_chats]
+
+        if chat_ids:
+            # Получаем сообщения (только assistant) из этих чатов
+            messages_result = await db.execute(
+                select(Message)
+                .where(
+                    Message.chat_id.in_(chat_ids),
+                    Message.role == "assistant"
+                )
+                .order_by(desc(Message.created_at))
+                .limit(50)
+            )
+            assistant_messages = messages_result.scalars().all()
+
+            for m in assistant_messages:
+                # Пытаемся понять тип действия из содержимого
+                content_preview = m.content[:80]
+                action = "chat"
+                title = f"Ответил: {content_preview}{'...' if len(m.content) > 80 else ''}"
+                
+                if "встреч" in m.content.lower() or "событи" in m.content.lower() or "event" in m.content.lower():
+                    action = "calendar"
+                    title = f"Ответ о встрече: {content_preview}..."
+                elif "напоминани" in m.content.lower() or "reminder" in m.content.lower():
+                    action = "task"
+                    title = f"Ответ о напоминании: {content_preview}..."
+                elif "заметк" in m.content.lower() or "note" in m.content.lower():
+                    action = "note"
+                    title = f"Заметка: {content_preview}..."
+
+                logs.append({
+                    "id": f"msg-{m.id}",
+                    "action_type": action,
+                    "title": title,
+                    "status": "success",
+                    "timestamp": m.created_at.isoformat() if m.created_at else dt_module.utcnow().isoformat(),
+                    "payload": {
+                        "id": m.id,
+                        "chat_id": m.chat_id,
+                        "role": m.role,
+                        "content": m.content,
+                        "tokens_used": m.tokens_used,
+                        "source": "chat_message"
+                    }
+                })
+
+    # --- Сортировка всех логов по времени (новые сверху) ---
+    logs.sort(key=lambda x: x["timestamp"], reverse=True)
+
+    # --- Пагинация ---
+    total = len(logs)
+    start = (page - 1) * page_size
+    end = start + page_size
+    paged_logs = logs[start:end]
+
+    return {
+        "logs": paged_logs,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "has_more": end < total
+    }
 
 

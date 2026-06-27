@@ -1,5 +1,6 @@
 import React from 'react';
 import ScheduleWidget from './ScheduleWidget';
+import EventCreatedWidget from './EventCreatedWidget';
 
 const ChatWidgetRenderer = ({ content }) => {
   try {
@@ -9,6 +10,10 @@ const ChatWidgetRenderer = ({ content }) => {
     // Check if it's a widget type
     if (parsedData.type === 'schedule') {
       return <ScheduleWidget data={parsedData} />;
+    }
+    
+    if (parsedData.type === 'event_created') {
+      return <EventCreatedWidget data={parsedData} />;
     }
     
     // If it's JSON but not a recognized widget type, render as formatted text
