@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from src.models import CalendarEvent, Reminder
+from src.models import CalendarEvent, Reminder, Note
 from src.config import client
 from datetime import datetime, timedelta, time, date
 import re
@@ -110,6 +110,48 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
     except Exception as e:
         print(f"Error querying schedule: {e}")
         pass  # Fall through to extraction logic
+
+    # ============================================================
+    # Note creation — detect BEFORE event/reminder extraction
+    # ============================================================
+    msg_lower = message.lower()
+    note_keywords = ['заметк', 'запиши заметк', 'создай заметк', 'надикт', 'note',
+                     'добавь заметк', 'напомни заметк']
+    if any(kw in msg_lower for kw in note_keywords):
+        note_extraction_prompt = f"""Пользователь хочет создать заметку. Выдели из сообщения суть, придумай краткий заголовок (до 60 символов) и оформи содержимое заметки.
+        Сообщение: "{message}"
+
+        Верни JSON:
+        {{
+            "title": "Краткий заголовок (суммируй суть)",
+            "content": "Оформленное содержимое заметки (всё что сказал пользователь, структурированно)"
+        }}
+        Верни ТОЛЬКО JSON."""
+        try:
+            response = client.chat.completions.create(
+                model="google/gemini-3.1-flash-lite",
+                messages=[{"role": "user", "content": note_extraction_prompt}],
+                temperature=0.3, max_tokens=500
+            )
+            import json
+            note_data = json.loads(response.choices[0].message.content)
+            title = note_data.get("title", "Заметка")[:100]
+            content = note_data.get("content", message)[:2000]
+
+            new_note = Note(user_id=user_id, title=title, content=content, color="#8B5CF6")
+            db.add(new_note)
+            await db.commit()
+            await db.refresh(new_note)
+
+            return json.dumps({
+                "type": "note_created",
+                "title": new_note.title,
+                "content_preview": new_note.content[:100] + ("..." if len(new_note.content) > 100 else ""),
+                "id": new_note.id
+            }), 0
+        except Exception as e:
+            print(f"Error creating note: {e}")
+            return "Не удалось создать заметку. Попробуйте ещё раз.", 0
 
     # Always try to extract event/reminder details if the message seems to be a request for planning
     extraction_prompt = f"""Проанализируй сообщение пользователя и определи, нужно ли создать событие или напоминание.

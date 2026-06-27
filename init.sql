@@ -92,6 +92,18 @@ BEGIN
     END IF;
 END $$;
 
+-- Notes table
+CREATE TABLE IF NOT EXISTS notes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    content TEXT DEFAULT '',
+    is_pinned BOOLEAN DEFAULT FALSE,
+    color VARCHAR(7) DEFAULT '#8B5CF6',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Insert default user
 INSERT INTO users (username, email, password_hash, token_balance, theme_preference) VALUES
 ('demo_user', 'demo@lifeagent.com', 'hashed_password_placeholder', 1000, 'light');

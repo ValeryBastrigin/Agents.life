@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from datetime import time, date
 from typing import Optional
 from src.database import get_db
-from src.models import CalendarEvent, Reminder, Chat, Message, Agent
+from src.models import CalendarEvent, Reminder, Note
 
 router = APIRouter(prefix="/api", tags=["secretary"])
 
@@ -322,66 +322,27 @@ async def get_secretary_logs(
             }
         })
 
-    # --- 3. Messages from Secretary chats ---
-    # Находим агента Secretary
-    secretary_agent_result = await db.execute(
-        select(Agent).where(Agent.name == "Secretary")
+    # --- 3. Notes ---
+    notes_result = await db.execute(
+        select(Note).where(Note.user_id == user_id).order_by(desc(Note.created_at))
     )
-    secretary_agent = secretary_agent_result.scalar_one_or_none()
-
-    if secretary_agent:
-        # Получаем все чаты с Secretary-агентом
-        chats_result = await db.execute(
-            select(Chat)
-            .where(Chat.user_id == user_id, Chat.agent_id == secretary_agent.id)
-        )
-        secretary_chats = chats_result.scalars().all()
-        chat_ids = [c.id for c in secretary_chats]
-
-        if chat_ids:
-            # Получаем сообщения (только assistant) из этих чатов
-            messages_result = await db.execute(
-                select(Message)
-                .where(
-                    Message.chat_id.in_(chat_ids),
-                    Message.role == "assistant"
-                )
-                .order_by(desc(Message.created_at))
-                .limit(50)
-            )
-            assistant_messages = messages_result.scalars().all()
-
-            for m in assistant_messages:
-                # Пытаемся понять тип действия из содержимого
-                content_preview = m.content[:80]
-                action = "chat"
-                title = f"Ответил: {content_preview}{'...' if len(m.content) > 80 else ''}"
-                
-                if "встреч" in m.content.lower() or "событи" in m.content.lower() or "event" in m.content.lower():
-                    action = "calendar"
-                    title = f"Ответ о встрече: {content_preview}..."
-                elif "напоминани" in m.content.lower() or "reminder" in m.content.lower():
-                    action = "task"
-                    title = f"Ответ о напоминании: {content_preview}..."
-                elif "заметк" in m.content.lower() or "note" in m.content.lower():
-                    action = "note"
-                    title = f"Заметка: {content_preview}..."
-
-                logs.append({
-                    "id": f"msg-{m.id}",
-                    "action_type": action,
-                    "title": title,
-                    "status": "success",
-                    "timestamp": m.created_at.isoformat() if m.created_at else dt_module.utcnow().isoformat(),
-                    "payload": {
-                        "id": m.id,
-                        "chat_id": m.chat_id,
-                        "role": m.role,
-                        "content": m.content,
-                        "tokens_used": m.tokens_used,
-                        "source": "chat_message"
-                    }
-                })
+    notes = notes_result.scalars().all()
+    for n in notes:
+        logs.append({
+            "id": f"note-{n.id}",
+            "action_type": "note",
+            "title": "Создал заметку: " + (n.title[:60] + ("..." if len(n.title) > 60 else "")),
+            "status": "success",
+            "timestamp": n.created_at.isoformat() if n.created_at else dt_module.utcnow().isoformat(),
+            "payload": {
+                "id": n.id,
+                "title": n.title,
+                "content": n.content,
+                "color": n.color,
+                "is_pinned": n.is_pinned,
+                "source": "note"
+            }
+        })
 
     # --- Сортировка всех логов по времени (новые сверху) ---
     logs.sort(key=lambda x: x["timestamp"], reverse=True)
@@ -401,3 +362,68 @@ async def get_secretary_logs(
     }
 
 
+# ============================================================
+# Notes CRUD
+# ============================================================
+class NoteCreate(BaseModel):
+    title: str
+    content: str = ""
+    color: str = "#8B5CF6"
+
+class NoteUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    is_pinned: Optional[bool] = None
+    color: Optional[str] = None
+
+@router.get("/notes/{user_id}")
+async def get_notes(user_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Note).where(Note.user_id == user_id).order_by(desc(Note.is_pinned), desc(Note.updated_at))
+    )
+    notes = result.scalars().all()
+    return [
+        {
+            "id": n.id,
+            "user_id": n.user_id,
+            "title": n.title,
+            "content": n.content,
+            "is_pinned": n.is_pinned,
+            "color": n.color,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+            "updated_at": n.updated_at.isoformat() if n.updated_at else None,
+        }
+        for n in notes
+    ]
+
+@router.post("/notes/{user_id}")
+async def create_note(user_id: int, data: NoteCreate, db: AsyncSession = Depends(get_db)):
+    note = Note(user_id=user_id, title=data.title, content=data.content, color=data.color)
+    db.add(note)
+    await db.commit()
+    await db.refresh(note)
+    return {"id": note.id, "title": note.title, "content": note.content, "is_pinned": note.is_pinned, "color": note.color}
+
+@router.put("/notes/{note_id}")
+async def update_note(note_id: int, data: NoteUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Note).where(Note.id == note_id))
+    note = result.scalar_one_or_none()
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    update_data = {}
+    if data.title is not None: update_data["title"] = data.title
+    if data.content is not None: update_data["content"] = data.content
+    if data.is_pinned is not None: update_data["is_pinned"] = data.is_pinned
+    if data.color is not None: update_data["color"] = data.color
+    await db.execute(update(Note).where(Note.id == note_id).values(**update_data))
+    await db.commit()
+    return {"message": "Note updated"}
+
+@router.delete("/notes/{note_id}")
+async def delete_note(note_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Note).where(Note.id == note_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Note not found")
+    await db.execute(delete(Note).where(Note.id == note_id))
+    await db.commit()
+    return {"message": "Note deleted"}
