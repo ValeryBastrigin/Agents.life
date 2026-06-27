@@ -42,7 +42,6 @@ export default function ActivityLog({ theme }) {
     { key: 'calendar', label: language === 'ru' ? 'Календарь' : 'Calendar' },
     { key: 'task', label: language === 'ru' ? 'Задачи' : 'Tasks' },
     { key: 'note', label: language === 'ru' ? 'Заметки' : 'Notes' },
-    { key: 'chat', label: language === 'ru' ? 'Ответы' : 'Replies' },
   ];
   var titleText = language === 'ru' ? 'Журнал действий' : 'Activity Log';
   var filteredLogs = filter === 'all' ? logs : logs.filter(function(e) { return e.action_type === filter; });

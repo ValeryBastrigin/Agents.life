@@ -547,7 +547,7 @@ const Secretary = ({ theme }) => {
         {/* Info Blocks */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           {/* How to Use Agent Block */}
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 rounded-[1.5rem] p-4 text-white cursor-pointer hover:shadow-lg transition-shadow flex flex-col items-center justify-center text-center">
+          <div onClick={() => navigate('/secretary/guide')} className="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 rounded-[1.5rem] p-4 text-white cursor-pointer hover:shadow-lg transition-shadow flex flex-col items-center justify-center text-center">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mb-2">
               <Calendar size={20} />
             </div>
@@ -567,7 +567,7 @@ const Secretary = ({ theme }) => {
           </div>
 
           {/* Your Notes Block */}
-          <div className="bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 rounded-[1.5rem] p-4 text-white cursor-default flex flex-col items-center justify-center text-center">
+          <div onClick={() => navigate('/secretary/notes')} className="bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 rounded-[1.5rem] p-4 text-white cursor-pointer hover:shadow-lg transition-shadow flex flex-col items-center justify-center text-center">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mb-2">
               <Plus size={20} />
             </div>

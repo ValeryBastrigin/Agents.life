@@ -93,6 +93,15 @@ export const translations = {
     totalEntries: 'Всего записей',
     refreshActivity: 'Обновить',
 
+    // Notes
+    yourNotes: 'Ваши заметки',
+    noteTitle: 'Заголовок заметки',
+    noteContent: 'Содержимое заметки...',
+    emptyNote: 'Пустая заметка',
+    noNotes: 'Нет заметок. + чтобы создать.',
+    pinNote: 'Закрепить',
+    deleteNote: 'Удалить',
+
     // Accountant
     accountantWelcome: 'Отслеживайте свой бюджет, расходы и финансовые цели.',
     totalBalance: 'Общий баланс',
@@ -197,6 +206,15 @@ export const translations = {
     loadingActivity: 'Loading activity log...',
     totalEntries: 'Total entries',
     refreshActivity: 'Refresh',
+
+    // Notes
+    yourNotes: 'Your Notes',
+    noteTitle: 'Note title',
+    noteContent: 'Note content...',
+    emptyNote: 'Empty note',
+    noNotes: 'No notes. Tap + to create.',
+    pinNote: 'Pin',
+    deleteNote: 'Delete',
 
     // Accountant
     accountantWelcome: 'Track your budget, expenses, and financial goals.',

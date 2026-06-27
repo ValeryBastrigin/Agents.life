@@ -9,6 +9,9 @@ import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Profile from './pages/Profile';
 import ActivityLog from './pages/ActivityLog';
+import SecretaryGuide from './pages/SecretaryGuide';
+import NotesList from './pages/NotesList';
+import NoteEditor from './pages/NoteEditor';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import axios from 'axios';
 
@@ -184,7 +187,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       />
 
       {/* Header */}
-      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && (
+      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/secretary/notes') && (
         <header className={`sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent backdrop-blur-none'}`}>
         <div className="flex items-center gap-3">
           {location.pathname === '/secretary' || location.pathname === '/secretary/logs' || location.pathname === '/accountant' ? (
@@ -226,6 +229,9 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/chat/:chatId" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
         <Route path="/secretary/logs" element={<ActivityLog theme={theme} />} />
+        <Route path="/secretary/guide" element={<SecretaryGuide />} />
+        <Route path="/secretary/notes" element={<NotesList />} />
+        <Route path="/secretary/notes/:id" element={<NoteEditor />} />
         <Route path="/accountant" element={<Accountant />} />
         <Route path="/profile" element={<Profile userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
       </Routes>
