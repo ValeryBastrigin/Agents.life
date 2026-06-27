@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Date, Time
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Time, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -20,7 +20,6 @@ class User(Base):
     token_transactions = relationship("TokenTransaction", back_populates="user", cascade="all, delete-orphan")
     calendar_events = relationship("CalendarEvent", back_populates="user", cascade="all, delete-orphan")
     reminders = relationship("Reminder", back_populates="user", cascade="all, delete-orphan")
-
 class Agent(Base):
     __tablename__ = "agents"
     
@@ -93,6 +92,7 @@ class Reminder(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     text = Column(Text, nullable=False)
+    title = Column(String(255))
     time = Column(Time, nullable=False)
     date = Column(Date)
     completed = Column(Boolean, default=False)
@@ -101,3 +101,4 @@ class Reminder(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="reminders")
+

@@ -39,7 +39,7 @@ const Secretary = ({ theme }) => {
 
   const loadEvents = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/secretary/events/${userId}`);
+      const response = await axios.get(`${API_URL}/api/events/${userId}`);
       const formattedEvents = response.data.map(event => ({
         id: event.id,
         title: event.title,
@@ -55,8 +55,29 @@ const Secretary = ({ theme }) => {
 
   const loadReminders = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/secretary/reminders/${userId}`);
+      const response = await axios.get(`${API_URL}/api/reminders/${userId}`);
       setReminders(response.data);
+      
+      // Convert reminders to calendar events with orange color
+      const reminderEvents = response.data
+        .filter(reminder => reminder.date)
+        .map(reminder => {
+          const reminderDate = new Date(reminder.date);
+          reminderDate.setHours(0, 0, 0, 0);
+          const endDate = new Date(reminderDate);
+          endDate.setHours(23, 59, 59, 999);
+          
+          return {
+            id: `reminder-${reminder.id}`,
+            title: reminder.title || reminder.text,
+            start: reminderDate,
+            end: endDate,
+            color: '#F97316', // Orange color for reminders
+            isReminder: true
+          };
+        });
+      
+      setEvents(prev => [...prev, ...reminderEvents]);
     } catch (error) {
       console.error('Failed to load reminders:', error);
     }
@@ -86,7 +107,7 @@ const Secretary = ({ theme }) => {
   const handleConfirmDelete = useCallback(async () => {
     if (eventToDelete) {
       try {
-        await axios.delete(`${API_URL}/api/secretary/events/${eventToDelete.id}`);
+        await axios.delete(`${API_URL}/api/events/${eventToDelete.id}`);
         setEvents(events.filter(e => e.id !== eventToDelete.id));
         setShowDeleteModal(false);
         setEventToDelete(null);
@@ -127,7 +148,7 @@ const Secretary = ({ theme }) => {
         const endDate = new Date(tempSlotInfo.end);
         endDate.setHours(endDate.getHours() + 3);
 
-        const response = await axios.post(`${API_URL}/api/secretary/events/${userId}`, {
+        const response = await axios.post(`${API_URL}/api/events/${userId}`, {
           title: newEventTitle,
           start_time: startDate.toISOString(),
           end_time: endDate.toISOString(),
@@ -165,7 +186,7 @@ const Secretary = ({ theme }) => {
       const endDate = new Date(end);
       endDate.setHours(endDate.getHours() + 3);
 
-      await axios.put(`${API_URL}/api/secretary/events/${event.id}`, {
+      await axios.put(`${API_URL}/api/events/${event.id}`, {
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString()
       });
@@ -188,7 +209,7 @@ const Secretary = ({ theme }) => {
       const endDate = new Date(end);
       endDate.setHours(endDate.getHours() + 3);
 
-      await axios.put(`${API_URL}/api/secretary/events/${event.id}`, {
+      await axios.put(`${API_URL}/api/events/${event.id}`, {
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString()
       });
@@ -210,7 +231,7 @@ const Secretary = ({ theme }) => {
   const addReminder = async () => {
     if (newReminder.text && newReminder.time) {
       try {
-        const response = await axios.post(`${API_URL}/api/secretary/reminders/${userId}`, {
+        const response = await axios.post(`${API_URL}/api/reminders/${userId}`, {
           text: newReminder.text,
           time: newReminder.time,
           color: '#3B82F6'
@@ -226,7 +247,7 @@ const Secretary = ({ theme }) => {
   const addNewItem = async () => {
     if (newItemText) {
       try {
-        const response = await axios.post(`${API_URL}/api/secretary/reminders/${userId}`, {
+        const response = await axios.post(`${API_URL}/api/reminders/${userId}`, {
           text: newItemText,
           time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
           date: selectedDate ? moment(selectedDate).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
@@ -244,7 +265,7 @@ const Secretary = ({ theme }) => {
   const toggleReminder = async (id) => {
     try {
       const reminder = reminders.find(r => r.id === id);
-      await axios.put(`${API_URL}/api/secretary/reminders/${id}`, {
+      await axios.put(`${API_URL}/api/reminders/${id}`, {
         completed: !reminder.completed
       });
       setReminders(reminders.map(r =>
@@ -257,7 +278,7 @@ const Secretary = ({ theme }) => {
 
   const deleteReminder = async (id) => {
     try {
-      await axios.delete(`${API_URL}/api/secretary/reminders/${id}`);
+      await axios.delete(`${API_URL}/api/reminders/${id}`);
       setReminders(reminders.filter(r => r.id !== id));
     } catch (error) {
       console.error('Failed to delete reminder:', error);
@@ -567,7 +588,7 @@ const Secretary = ({ theme }) => {
           </div>
 
           {/* Your Notes Block */}
-          <div className="bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 rounded-[1.5rem] p-4 text-white cursor-pointer hover:shadow-lg transition-shadow flex flex-col items-center justify-center text-center">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 rounded-[1.5rem] p-4 text-white cursor-default flex flex-col items-center justify-center text-center">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mb-2">
               <Plus size={20} />
             </div>
@@ -575,6 +596,7 @@ const Secretary = ({ theme }) => {
               {language === 'ru' ? 'Ваши заметки' : 'Your Notes'}
             </h3>
           </div>
+
         </div>
 
         {/* Calendar Section */}

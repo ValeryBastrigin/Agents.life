@@ -7,7 +7,7 @@ from typing import Optional
 from src.database import get_db
 from src.models import CalendarEvent, Reminder
 
-router = APIRouter(prefix="/api/secretary", tags=["secretary"])
+router = APIRouter(prefix="/api", tags=["secretary"])
 
 # Pydantic models
 class CalendarEventCreate(BaseModel):
@@ -35,12 +35,14 @@ class CalendarEventResponse(BaseModel):
 
 class ReminderCreate(BaseModel):
     text: str
+    title: Optional[str] = None
     time: str  # HH:MM format
     date: Optional[str] = None  # YYYY-MM-DD format
     color: str = "#3B82F6"
 
 class ReminderUpdate(BaseModel):
     text: Optional[str] = None
+    title: Optional[str] = None
     time: Optional[str] = None
     date: Optional[str] = None
     completed: Optional[bool] = None
@@ -50,6 +52,7 @@ class ReminderResponse(BaseModel):
     id: int
     user_id: int
     text: str
+    title: Optional[str] = None
     time: str
     date: Optional[str] = None
     completed: bool
@@ -158,6 +161,7 @@ async def get_reminders(user_id: int, db: AsyncSession = Depends(get_db)):
             "id": reminder.id,
             "user_id": reminder.user_id,
             "text": reminder.text,
+            "title": reminder.title,
             "time": reminder.time.strftime("%H:%M"),
             "date": reminder.date.isoformat() if reminder.date else None,
             "completed": reminder.completed,
@@ -176,6 +180,7 @@ async def create_reminder(user_id: int, reminder_data: ReminderCreate, db: Async
     new_reminder = Reminder(
         user_id=user_id,
         text=reminder_data.text,
+        title=reminder_data.title,
         time=parsed_time,
         date=parsed_date,
         color=reminder_data.color
@@ -188,6 +193,7 @@ async def create_reminder(user_id: int, reminder_data: ReminderCreate, db: Async
         "id": new_reminder.id,
         "user_id": new_reminder.user_id,
         "text": new_reminder.text,
+        "title": new_reminder.title,
         "time": new_reminder.time.strftime("%H:%M"),
         "date": new_reminder.date.isoformat() if new_reminder.date else None,
         "completed": new_reminder.completed,
@@ -207,6 +213,8 @@ async def update_reminder(reminder_id: int, reminder_data: ReminderUpdate, db: A
     update_data = {}
     if reminder_data.text is not None:
         update_data["text"] = reminder_data.text
+    if reminder_data.title is not None:
+        update_data["title"] = reminder_data.title
     if reminder_data.time is not None:
         update_data["time"] = datetime.strptime(reminder_data.time, "%H:%M").time()
     if reminder_data.date is not None:
@@ -224,6 +232,7 @@ async def update_reminder(reminder_id: int, reminder_data: ReminderUpdate, db: A
         "id": reminder.id,
         "user_id": reminder.user_id,
         "text": reminder.text,
+        "title": reminder.title,
         "time": reminder.time.strftime("%H:%M"),
         "date": reminder.date.isoformat() if reminder.date else None,
         "completed": reminder.completed,
@@ -242,3 +251,5 @@ async def delete_reminder(reminder_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
     
     return {"message": "Reminder deleted successfully"}
+
+

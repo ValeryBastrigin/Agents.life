@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS reminders (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     text TEXT NOT NULL,
+    title VARCHAR(255),
     time TIME NOT NULL,
     date DATE,
     completed BOOLEAN DEFAULT FALSE,
@@ -79,6 +80,17 @@ CREATE TABLE IF NOT EXISTS reminders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add title column if it doesn't exist (for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='reminders' AND column_name='title'
+    ) THEN
+        ALTER TABLE reminders ADD COLUMN title VARCHAR(255);
+    END IF;
+END $$;
 
 -- Insert default user
 INSERT INTO users (username, email, password_hash, token_balance, theme_preference) VALUES
@@ -121,3 +133,4 @@ CREATE TRIGGER update_calendar_events_updated_at BEFORE UPDATE ON calendar_event
 
 CREATE TRIGGER update_reminders_updated_at BEFORE UPDATE ON reminders
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
