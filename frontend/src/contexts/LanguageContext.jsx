@@ -8,8 +8,8 @@ export const translations = {
     agents: 'Агенты',
     yourChats: 'Ваши диалоги с Ixteria',
     noChats: 'Нет диалогов',
-    secretary: 'Secretary',
-    accountant: 'Accountant',
+    secretary: 'Секретарь',
+    accountant: 'Бухгалтер',
     secretaryDesc: 'Персональный ассистент для планирования и организации',
     accountantDesc: 'Финансовый ассистент для бюджета и расходов',
     

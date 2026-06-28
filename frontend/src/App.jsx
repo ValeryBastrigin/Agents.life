@@ -7,6 +7,9 @@ import ChatWidgetRenderer from './components/ui/widgets/ChatWidgetRenderer';
 import { User, Menu, Sun, Moon, ArrowLeft } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
+import Dietitian from './pages/Dietitian';
+import Psychologist from './pages/Psychologist';
+import Mentor from './pages/Mentor';
 import Profile from './pages/Profile';
 import ActivityLog from './pages/ActivityLog';
 import SecretaryGuide from './pages/SecretaryGuide';
@@ -167,7 +170,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   return (
     <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark ${theme} relative overflow-hidden`}>
       {/* Animated Background - Only visible on chat pages */}
-      {location.pathname !== '/profile' && location.pathname !== '/secretary' && location.pathname !== '/accountant' && (
+      {location.pathname !== '/profile' && location.pathname !== '/secretary' && location.pathname !== '/accountant' && location.pathname !== '/dietitian' && location.pathname !== '/psychologist' && location.pathname !== '/mentor' && (
         <div className="absolute inset-0 pointer-events-none z-0">
           <AnimatedBackground theme={theme} isLoading={false} />
         </div>
@@ -187,10 +190,10 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       />
 
       {/* Header */}
-      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/secretary/notes') && (
+      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/secretary/notes') && location.pathname !== '/dietitian' && location.pathname !== '/psychologist' && location.pathname !== '/mentor' && (
         <header className={`sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent backdrop-blur-none'}`}>
         <div className="flex items-center gap-3">
-          {location.pathname === '/secretary' || location.pathname === '/secretary/logs' || location.pathname === '/accountant' ? (
+          {location.pathname === '/secretary' || location.pathname === '/secretary/logs' || location.pathname === '/accountant' || location.pathname === '/dietitian' || location.pathname === '/psychologist' || location.pathname === '/mentor' ? (
             <button
               onClick={() => navigate('/')}
               className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
@@ -207,9 +210,12 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
           )}
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
             {location.pathname === '/' ? 'Ixteria' :
-             location.pathname === '/secretary' ? 'Secretary' :
-             location.pathname === '/secretary/logs' ? 'Secretary' :
-             location.pathname === '/accountant' ? 'Accountant' : 'Ixteria'}
+              location.pathname === '/secretary' ? 'Секретарь' :
+              location.pathname === '/secretary/logs' ? 'Секретарь' :
+              location.pathname === '/accountant' ? 'Бухгалтер' :
+             location.pathname === '/dietitian' ? 'Диетолог' :
+             location.pathname === '/psychologist' ? 'Психолог' :
+             location.pathname === '/mentor' ? 'Ментор' : 'Ixteria'}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -233,6 +239,9 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/secretary/notes" element={<NotesList />} />
         <Route path="/secretary/notes/:id" element={<NoteEditor />} />
         <Route path="/accountant" element={<Accountant />} />
+        <Route path="/dietitian" element={<Dietitian />} />
+        <Route path="/psychologist" element={<Psychologist />} />
+        <Route path="/mentor" element={<Mentor />} />
         <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
       </Routes>
     </div>

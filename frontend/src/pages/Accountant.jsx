@@ -1,18 +1,29 @@
 import React from 'react';
-import { Wallet, TrendingUp, PieChart, DollarSign } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Wallet, TrendingUp, PieChart, DollarSign } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const Accountant = () => {
+  const navigate = useNavigate();
   const { t } = useLanguage();
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
       <div className="max-w-4xl mx-auto">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <p className="text-gray-600 dark:text-gray-400">
-            {t('accountantWelcome')}
-          </p>
+        {/* Back Button */}
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => navigate('/')}
+            className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-xl transition-colors"
+          >
+            <ArrowLeft size={22} className="text-gray-700 dark:text-gray-300" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">💰 Бухгалтер</h1>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              {t('accountantWelcome')}
+            </p>
+          </div>
         </div>
 
         {/* Balance Cards */}

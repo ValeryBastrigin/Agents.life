@@ -45,6 +45,30 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
       description: t('accountantDesc'),
       gradient: 'from-green-500 to-emerald-500'
     },
+    { 
+      id: 'dietitian', 
+      name: 'Диетолог', 
+      icon: '🍎', 
+      path: '/dietitian', 
+      description: 'Питание, диета, калории и здоровый рацион',
+      gradient: 'from-green-400 to-teal-500'
+    },
+    { 
+      id: 'psychologist', 
+      name: 'Психолог', 
+      icon: '🧠', 
+      path: '/psychologist', 
+      description: 'Эмоциональная поддержка, практики и ментальное здоровье',
+      gradient: 'from-purple-400 to-indigo-500'
+    },
+    { 
+      id: 'mentor', 
+      name: 'Ментор', 
+      icon: '🎯', 
+      path: '/mentor', 
+      description: 'Цели, развитие, карьера и мотивация',
+      gradient: 'from-amber-400 to-orange-500'
+    },
   ];
 
   const handleDeleteClick = (e, chatId) => {
