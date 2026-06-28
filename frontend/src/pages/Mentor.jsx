@@ -55,7 +55,7 @@ const Mentor = () => {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate('/')}
-            className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-xl transition-colors"
+            className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors"
           >
             <ArrowLeft size={22} className="text-gray-700 dark:text-gray-300" />
           </button>
@@ -68,7 +68,7 @@ const Mentor = () => {
         </div>
 
         {/* Motivation Banner */}
-        <div className="bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[1.5rem] p-6 mb-6 text-white">
+        <div className="bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3.5rem] p-6 mb-6 text-white">
           <div className="flex items-center gap-4">
             <div className="text-5xl">🏆</div>
             <div>
@@ -102,8 +102,8 @@ const Mentor = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {goals.map((goal, index) => (
-              <div key={index} className="bg-surface-light dark:bg-surface-dark rounded-[1.5rem] p-5 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${goal.gradient} flex items-center justify-center text-2xl mb-3 shadow-md group-hover:shadow-xl transition-all`}>
+              <div key={index} className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-5 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group">
+                <div className={`w-12 h-12 rounded-[3rem] bg-gradient-to-br ${goal.gradient} flex items-center justify-center text-2xl mb-3 shadow-md group-hover:shadow-xl transition-all`}>
                   {goal.icon}
                 </div>
                 <h3 className="font-semibold text-gray-800 dark:text-white mb-1">{goal.title}</h3>
@@ -138,8 +138,8 @@ const Mentor = () => {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {habits.map((habit, index) => (
-              <div key={index} className="bg-surface-light dark:bg-surface-dark rounded-[1.5rem] p-4 text-center hover:bg-gray-200 dark:hover:bg-gray-800 transition-all">
-                <div className={`w-10 h-10 mx-auto rounded-xl bg-gradient-to-br ${habit.color} flex items-center justify-center text-xl mb-2`}>
+              <div key={index} className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-4 text-center hover:bg-gray-200 dark:hover:bg-gray-800 transition-all">
+                <div className={`w-10 h-10 mx-auto rounded-[3rem] bg-gradient-to-br ${habit.color} flex items-center justify-center text-xl mb-2`}>
                   {habit.icon}
                 </div>
                 <div className="text-sm font-medium text-gray-800 dark:text-white mb-1">
@@ -163,8 +163,8 @@ const Mentor = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {resources.map((resource, index) => (
-              <button key={index} className="flex items-center gap-4 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all text-left group">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${resource.gradient} flex items-center justify-center text-xl shadow-md group-hover:shadow-xl transition-all flex-shrink-0`}>
+              <button key={index} className="flex items-center gap-4 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all text-left group">
+                <div className={`w-12 h-12 rounded-[3rem] bg-gradient-to-br ${resource.gradient} flex items-center justify-center text-xl shadow-md group-hover:shadow-xl transition-all flex-shrink-0`}>
                   {resource.icon}
                 </div>
                 <div className="flex-1">
@@ -183,26 +183,26 @@ const Mentor = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
               <Flag size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Поставить цель</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
               <Brain size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">План развития</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
               <Rocket size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Карьерный рост</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
               <Star size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Достижения</span>
@@ -210,7 +210,7 @@ const Mentor = () => {
         </div>
 
         {/* Quote */}
-        <div className="bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[1.5rem] p-6 text-white text-center">
+        <div className="bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3.5rem] p-6 text-white text-center">
           <p className="text-2xl mb-2">🌟</p>
           <p className="text-lg font-medium mb-2">
             «Успех — это лестница, на которую не взобраться с руками в карманах.»

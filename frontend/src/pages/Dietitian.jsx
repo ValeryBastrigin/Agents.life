@@ -38,7 +38,7 @@ const Dietitian = () => {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate('/')}
-            className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-xl transition-colors"
+            className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors"
           >
             <ArrowLeft size={22} className="text-gray-700 dark:text-gray-300" />
           </button>
@@ -51,7 +51,7 @@ const Dietitian = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] p-1">
+        <div className="flex gap-2 mb-6 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-1">
           {['overview', 'meals', 'recipes'].map((tab) => (
             <button
               key={tab}
@@ -70,7 +70,7 @@ const Dietitian = () => {
         {/* Nutrition Overview Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
           {Object.entries(nutritionSummary).map(([key, value]) => (
-            <div key={key} className="p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] text-center">
+            <div key={key} className="p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] text-center">
               <div className="text-2xl mb-1">
                 {key === 'calories' ? '🔥' : key === 'protein' ? '🥩' : key === 'fats' ? '🥑' : key === 'carbs' ? '🍞' : '💧'}
               </div>
@@ -92,7 +92,7 @@ const Dietitian = () => {
         </div>
 
         {/* Meals Timeline */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[1.5rem] p-6 mb-6">
+        <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">
             🕐 План питания на сегодня
           </h2>
@@ -124,26 +124,26 @@ const Dietitian = () => {
 
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
               <Flame size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Рассчитать калории</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
               <Scale size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">План похудения</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
               <TrendingUp size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Набор массы</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
               <PieChart size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Анализ рациона</span>
@@ -151,7 +151,7 @@ const Dietitian = () => {
         </div>
 
         {/* Tips Section */}
-        <div className="bg-gradient-to-br from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700 rounded-[1.5rem] p-6 text-white">
+        <div className="bg-gradient-to-br from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700 rounded-[3.5rem] p-6 text-white">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Coffee size={24} />
             Советы диетолога

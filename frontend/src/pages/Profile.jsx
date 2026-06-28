@@ -22,7 +22,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         </div>
 
         {/* Profile Section */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[1.5rem] p-6 mb-6">
+        <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
               <User size={40} className="text-blue-500 dark:text-blue-400" />
@@ -39,7 +39,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         </div>
 
         {/* Tariff Card */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-[1.5rem] p-6 mb-6 text-white shadow-lg">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-[3.5rem] p-6 mb-6 text-white shadow-lg">
           <div className="flex items-center gap-3 mb-4">
             <CreditCard size={24} />
             <h3 className="text-lg font-semibold">{t('currentPlan')}</h3>
@@ -54,14 +54,14 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
                 {userProfile?.token_balance || 0}
               </div>
             </div>
-            <button className="bg-white text-blue-600 px-4 py-2 rounded-xl font-medium hover:bg-blue-50 transition-colors">
+            <button className="bg-white text-blue-600 px-4 py-2 rounded-[3rem] font-medium hover:bg-blue-50 transition-colors">
               {t('upgradePlan')}
             </button>
           </div>
         </div>
 
         {/* Settings Section */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[1.5rem] p-6 mb-6">
+        <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">
             {t('settings')}
           </h3>
@@ -108,7 +108,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
               </div>
               <button
                 onClick={() => changeLanguage(language === 'ru' ? 'en' : 'ru')}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-[3rem] bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {language === 'ru' ? 'RU' : 'EN'}
@@ -170,7 +170,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         </div>
 
         {/* Logout Button */}
-        <button className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-[1.5rem] transition-colors font-medium">
+        <button className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-[3.5rem] transition-colors font-medium">
           <LogOut size={20} />
           <span>{t('logout')}</span>
         </button>

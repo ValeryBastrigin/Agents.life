@@ -64,7 +64,7 @@ const Psychologist = () => {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate('/')}
-            className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-xl transition-colors"
+            className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors"
           >
             <ArrowLeft size={22} className="text-gray-700 dark:text-gray-300" />
           </button>
@@ -77,7 +77,7 @@ const Psychologist = () => {
         </div>
 
         {/* Mood Tracker */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[1.5rem] p-6 mb-6">
+        <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
             Как вы себя чувствуете сейчас?
           </h2>
@@ -107,7 +107,7 @@ const Psychologist = () => {
         </div>
 
         {/* Mood History */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[1.5rem] p-6 mb-6">
+        <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
             <BarChart3 size={22} className="text-purple-500" />
             Настроение за неделю
@@ -135,9 +135,9 @@ const Psychologist = () => {
             {practices.map((practice, index) => (
               <button
                 key={index}
-                className="flex items-start gap-4 p-5 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all text-left group"
+                className="flex items-start gap-4 p-5 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all text-left group"
               >
-                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${practice.gradient} flex items-center justify-center text-2xl shadow-md group-hover:shadow-xl transition-all flex-shrink-0`}>
+                <div className={`w-14 h-14 rounded-[3rem] bg-gradient-to-br ${practice.gradient} flex items-center justify-center text-2xl shadow-md group-hover:shadow-xl transition-all flex-shrink-0`}>
                   {practice.icon}
                 </div>
                 <div className="flex-1">
@@ -154,26 +154,26 @@ const Psychologist = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
               <MessageCircle size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Чат с психологом</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
               <Moon size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Звуки для сна</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
               <Brain size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Когнитивные упражнения</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
               <Heart size={24} className="text-white" />
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Дневник эмоций</span>
@@ -181,7 +181,7 @@ const Psychologist = () => {
         </div>
 
         {/* Quote / Affirmation */}
-        <div className="bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[1.5rem] p-6 text-white text-center">
+        <div className="bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[3.5rem] p-6 text-white text-center">
           <p className="text-2xl mb-2">💜</p>
           <p className="text-lg font-medium mb-2">
             «Ты не один. Каждая эмоция — это часть пути, и ты справляешься лучше, чем думаешь.»

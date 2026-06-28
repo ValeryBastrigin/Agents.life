@@ -50,10 +50,10 @@ const ScheduleWidget = ({ data }) => {
       animate="visible"
       className="w-full"
     >
-      <div className="bg-white/10 dark:bg-gray-800/40 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-white/20 dark:border-gray-700/30">
+      <div className="bg-white/10 dark:bg-gray-800/40 backdrop-blur-xl rounded-[2.5rem] p-6 shadow-2xl border border-white/20 dark:border-gray-700/30">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
+          <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-[2rem]">
             <Calendar className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -83,7 +83,7 @@ const ScheduleWidget = ({ data }) => {
                     className="relative mb-4 last:mb-0"
                   >
                     <div className="absolute -left-8 top-1 w-4 h-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full border-2 border-white dark:border-gray-900" />
-                    <div className="bg-white/30 dark:bg-gray-700/30 rounded-xl p-4 backdrop-blur-sm hover:bg-white/40 dark:hover:bg-gray-700/40 transition-all duration-200">
+                    <div className="bg-white/30 dark:bg-gray-700/30 rounded-[2rem] p-4 backdrop-blur-sm hover:bg-white/40 dark:hover:bg-gray-700/40 transition-all duration-200">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3 flex-1">
                           <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -118,7 +118,7 @@ const ScheduleWidget = ({ data }) => {
               <motion.div
                 key={index}
                 variants={itemVariants}
-                className="flex items-center gap-3 bg-orange-50/50 dark:bg-orange-900/20 rounded-xl p-3 backdrop-blur-sm border border-orange-200/50 dark:border-orange-800/30"
+                className="flex items-center gap-3 bg-orange-50/50 dark:bg-orange-900/20 rounded-[2rem] p-3 backdrop-blur-sm border border-orange-200/50 dark:border-orange-800/30"
               >
                 <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
                   <Calendar className="w-4 h-4 text-orange-600 dark:text-orange-400" />

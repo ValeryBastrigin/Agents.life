@@ -40,12 +40,12 @@ const NoteCreatedWidget = ({ data }) => {
       animate="visible"
       className="w-full"
     >
-      <div className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 backdrop-blur-xl rounded-2xl p-5 shadow-xl border border-violet-200/50 dark:border-violet-700/30">
+      <div className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 backdrop-blur-xl rounded-[2.5rem] p-5 shadow-xl border border-violet-200/50 dark:border-violet-700/30">
         {/* Success Header */}
         <div className="flex items-center gap-3 mb-4">
           <motion.div
             variants={iconVariants}
-            className="p-2 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600"
+            className="p-2 rounded-[2rem] bg-gradient-to-br from-violet-500 to-purple-600"
           >
             <CheckCircle className="w-5 h-5 text-white" />
           </motion.div>
@@ -59,7 +59,7 @@ const NoteCreatedWidget = ({ data }) => {
           variants={detailVariants}
           className="flex items-start gap-4"
         >
-          <div className="p-3 rounded-xl bg-violet-100 dark:bg-violet-900/40">
+          <div className="p-3 rounded-[2rem] bg-violet-100 dark:bg-violet-900/40">
             <StickyNote className="w-5 h-5 text-violet-600 dark:text-violet-400" />
           </div>
           <div className="flex-1 min-w-0">

@@ -34,7 +34,6 @@ export const translations = {
     save: 'Сохранить',
     
     // Header
-    agents: 'Агенты',
     
     // Theme
     switchToDark: 'Switch to dark mode',
@@ -111,7 +110,6 @@ export const translations = {
     reports: 'Отчеты',
     recentTransactions: 'Последние транзакции',
     salaryDeposit: 'Зарплата',
-    today: 'Сегодня',
     groceryShopping: 'Покупки продуктов',
     yesterday: 'Вчера',
     utilities: 'Коммунальные услуги',
@@ -148,7 +146,6 @@ export const translations = {
     save: 'Save',
     
     // Header
-    agents: 'Ixteria',
     
     // Theme
     switchToDark: 'Switch to dark mode',
@@ -225,7 +222,6 @@ export const translations = {
     reports: 'Reports',
     recentTransactions: 'Recent Transactions',
     salaryDeposit: 'Salary Deposit',
-    today: 'Today',
     groceryShopping: 'Grocery Shopping',
     yesterday: 'Yesterday',
     utilities: 'Utilities',

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Calendar, Wallet, MessageSquare, Plus, MoreVertical, Share, Pin, PinOff, Edit, Trash2 } from 'lucide-react';
+import { MessageSquare, Plus, MoreVertical, Share, Pin, PinOff, Edit, Trash2, Settings } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../contexts/LanguageContext';
+import AgentManagerModal from './AgentManagerModal';
 
 const API_URL = 'http://localhost:8001';
 
@@ -14,6 +15,8 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
   const [newTitle, setNewTitle] = useState('');
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [isMobile, setIsMobile] = useState(false);
+  const [agentManagerOpen, setAgentManagerOpen] = useState(false);
+  const [enabledAgents, setEnabledAgents] = useState(['secretary', 'accountant', 'dietitian', 'psychologist', 'mentor']);
   const menuButtonRef = useRef(null);
 
   // Check if mobile device
@@ -28,7 +31,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  const menuItems = [
+  const allMenuItems = [
     { 
       id: 'secretary', 
       name: t('secretary'), 
@@ -70,6 +73,9 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
       gradient: 'from-amber-400 to-orange-500'
     },
   ];
+
+  // Filter menu items based on enabled agents
+  const menuItems = allMenuItems.filter(item => enabledAgents.includes(item.id));
 
   const handleDeleteClick = (e, chatId) => {
     e.stopPropagation();
@@ -151,26 +157,22 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-gray-700/50">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-              {t('agents')}
-            </h2>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              <X size={20} className="text-gray-600 dark:text-gray-400" />
-            </button>
-          </div>
-
           {/* Agents List */}
           <div className="flex-1 overflow-y-auto p-4">
             {/* Agents Section */}
             <div className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
-                {t('agents')}
-              </h3>
+              <div className="flex items-center justify-between mb-3 px-2">
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {t('agents')}
+                </h3>
+                <button
+                  onClick={() => setAgentManagerOpen(true)}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                  title={language === 'ru' ? 'Управление агентами' : 'Manage Agents'}
+                >
+                  <Settings size={22} className="text-gray-500 dark:text-gray-400" />
+                </button>
+              </div>
               {menuItems.map((item) => (
                 <Link
                   key={item.id}
@@ -178,9 +180,9 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                   onClick={() => {
                     onClose();
                   }}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl mb-2 transition-all hover:scale-[1.02] hover:shadow-lg text-gray-700 dark:text-gray-300 group"
+                  className="w-full flex items-center gap-4 p-4 rounded-[2rem] mb-2 transition-all hover:scale-[1.02] hover:shadow-lg text-gray-700 dark:text-gray-300 group"
                 >
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center text-2xl shadow-md group-hover:shadow-xl transition-all duration-300 animate-pulse-slow`}>
+                  <div className={`w-12 h-12 rounded-[2rem] bg-gradient-to-br ${item.gradient} flex items-center justify-center text-2xl shadow-md group-hover:shadow-xl transition-all duration-300 animate-pulse-slow`}>
                     {item.icon}
                   </div>
                   <div className="text-left flex-1">
@@ -219,7 +221,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                     }}
                     onTouchStart={(e) => handleTouchStart(e, chat.id)}
                     onTouchEnd={handleTouchEnd}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl mb-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-left group relative"
+                    className="w-full flex items-center gap-3 p-3 rounded-[2rem] mb-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-left group relative"
                   >
                     <MessageSquare size={18} className="text-gray-500 dark:text-gray-400" />
                     <div className="flex-1 min-w-0">
@@ -247,10 +249,18 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
         </div>
       </div>
 
+      {/* Agent Manager Modal */}
+      {agentManagerOpen && (
+        <AgentManagerModal
+          onClose={() => setAgentManagerOpen(false)}
+          onAgentsChange={(activeIds) => setEnabledAgents(activeIds)}
+        />
+      )}
+
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-background-light dark:bg-background-dark rounded-xl p-6 max-w-sm w-full shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
+          <div className="bg-background-light dark:bg-background-dark rounded-[2rem] p-6 max-w-sm w-full shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
               {t('deleteChat')}
             </h3>
@@ -260,13 +270,13 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
             <div className="flex gap-3">
               <button
                 onClick={handleCancelDelete}
-                className="flex-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                className="flex-1 px-4 py-2 rounded-[2rem] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
                 {t('cancel')}
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="flex-1 px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
+                className="flex-1 px-4 py-2 rounded-[2rem] bg-red-500 text-white hover:bg-red-600 transition-colors"
               >
                 {t('delete')}
               </button>
@@ -283,7 +293,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
             onClick={() => setChatOptions(null)}
           />
           <div
-            className={`fixed ${theme === 'dark' ? 'bg-background-dark' : 'bg-white'} backdrop-blur-xl rounded-xl shadow-2xl border ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-200/50'} z-50 min-w-[200px]`}
+            className={`fixed ${theme === 'dark' ? 'bg-background-dark' : 'bg-white'} backdrop-blur-xl rounded-[2rem] shadow-2xl border ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-200/50'} z-50 min-w-[200px]`}
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`
@@ -353,14 +363,14 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                   // Share functionality
                   setChatOptions(null);
                 }}
-                className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl ${theme === 'dark' ? 'hover:bg-surface-dark text-gray-200' : 'hover:bg-gray-100 text-gray-800'} transition-colors`}
+                className={`w-full flex items-center gap-4 px-4 py-4 rounded-[2rem] ${theme === 'dark' ? 'hover:bg-surface-dark text-gray-200' : 'hover:bg-gray-100 text-gray-800'} transition-colors`}
               >
                 <Share size={22} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} />
                 <span className="text-base font-medium">{t('share')}</span>
               </button>
               <button
                 onClick={() => handlePinToggle(chatOptions)}
-                className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl ${theme === 'dark' ? 'hover:bg-surface-dark text-gray-200' : 'hover:bg-gray-100 text-gray-800'} transition-colors`}
+                className={`w-full flex items-center gap-4 px-4 py-4 rounded-[2rem] ${theme === 'dark' ? 'hover:bg-surface-dark text-gray-200' : 'hover:bg-gray-100 text-gray-800'} transition-colors`}
               >
                 {chats.find(c => c.id === chatOptions)?.is_pinned ? (
                   <PinOff size={22} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} />
@@ -371,7 +381,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
               </button>
               <button
                 onClick={() => handleRenameClick(chatOptions, chats.find(c => c.id === chatOptions)?.title)}
-                className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl ${theme === 'dark' ? 'hover:bg-surface-dark text-gray-200' : 'hover:bg-gray-100 text-gray-800'} transition-colors`}
+                className={`w-full flex items-center gap-4 px-4 py-4 rounded-[2rem] ${theme === 'dark' ? 'hover:bg-surface-dark text-gray-200' : 'hover:bg-gray-100 text-gray-800'} transition-colors`}
               >
                 <Edit size={22} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} />
                 <span className="text-base font-medium">{t('rename')}</span>
@@ -382,7 +392,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                   setChatOptions(null);
                   setDeleteConfirm(chatOptions);
                 }}
-                className="w-full flex items-center gap-4 px-4 py-4 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
+                className="w-full flex items-center gap-4 px-4 py-4 rounded-[2rem] hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
               >
                 <Trash2 size={22} />
                 <span className="text-base font-medium">{t('deleteChatOption')}</span>
@@ -395,7 +405,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
       {/* Rename Modal */}
       {renameModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-background-light dark:bg-background-dark rounded-xl p-6 max-w-sm w-full shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
+          <div className="bg-background-light dark:bg-background-dark rounded-[2rem] p-6 max-w-sm w-full shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
               {t('renameChat')}
             </h3>
@@ -404,7 +414,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder={t('enterNewTitle')}
-              className="w-full p-3 rounded-xl border border-gray-300 bg-surface-light dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+              className="w-full p-3 rounded-[2rem] border border-gray-300 bg-surface-light dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
               autoFocus
             />
             <div className="flex gap-3">
@@ -413,13 +423,13 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                   setRenameModal(null);
                   setNewTitle('');
                 }}
-                className="flex-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                className="flex-1 px-4 py-2 rounded-[2rem] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
                 {t('cancel')}
               </button>
               <button
                 onClick={handleRenameSubmit}
-                className="flex-1 px-4 py-2 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                className="flex-1 px-4 py-2 rounded-[2rem] bg-blue-500 text-white hover:bg-blue-600 transition-colors"
               >
                 {t('save')}
               </button>

@@ -6,7 +6,7 @@ export default function PayloadWidget({ payload }) {
 
   if (src === 'calendar_event') {
     return (
-      <div className="bg-black/20 dark:bg-white/5 rounded-xl p-3 border border-white/10">
+      <div className="bg-black/20 dark:bg-white/5 rounded-[2rem] p-3 border border-white/10">
         <div className="flex items-center gap-2 mb-2">
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: payload.color || '#3B82F6' }} />
           <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Событие</span>
@@ -25,7 +25,7 @@ export default function PayloadWidget({ payload }) {
 
   if (src === 'reminder') {
     return (
-      <div className="bg-black/20 dark:bg-white/5 rounded-xl p-3 border border-white/10">
+      <div className="bg-black/20 dark:bg-white/5 rounded-[2rem] p-3 border border-white/10">
         <div className="flex items-center gap-2 mb-2">
           <Bell size={14} className="text-yellow-500" />
           <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Напоминание</span>
@@ -43,7 +43,7 @@ export default function PayloadWidget({ payload }) {
   }
 
   return (
-    <div className="bg-black/20 dark:bg-white/5 rounded-xl p-3 border border-white/10">
+    <div className="bg-black/20 dark:bg-white/5 rounded-[2rem] p-3 border border-white/10">
       <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Сообщение</span>
       <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 leading-relaxed max-h-48 overflow-y-auto">
         {payload.content ? payload.content.slice(0, 500) : '—'}

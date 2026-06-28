@@ -369,7 +369,7 @@ function Home({ onChatCreated, theme, onScroll }) {
                 <div
                   className={`max-w-[80%] sm:max-w-[70%] ${
                     message.role === 'user'
-                      ? 'bg-blue-500 text-white px-4 py-2 rounded-[1.5rem]'
+                      ? 'bg-blue-500 text-white px-4 py-2 rounded-[2.5rem]'
                       : 'w-full'
                   }`}
                 >
@@ -383,7 +383,7 @@ function Home({ onChatCreated, theme, onScroll }) {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-surface-light dark:bg-surface-dark px-4 py-2 rounded-2xl">
+                <div className="bg-surface-light dark:bg-surface-dark px-4 py-2 rounded-[2.5rem]">
                   <div className="flex gap-1">
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />

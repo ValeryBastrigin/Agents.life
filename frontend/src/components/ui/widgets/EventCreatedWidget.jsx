@@ -55,12 +55,12 @@ const EventCreatedWidget = ({ data }) => {
       animate="visible"
       className="w-full"
     >
-      <div className={`${bgGradient} backdrop-blur-xl rounded-2xl p-5 shadow-xl border ${borderColor}`}>
+      <div className={`${bgGradient} backdrop-blur-xl rounded-[2.5rem] p-5 shadow-xl border ${borderColor}`}>
         {/* Success Header */}
         <div className="flex items-center gap-3 mb-4">
           <motion.div
             variants={iconVariants}
-            className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600"
+            className="p-2 rounded-[2rem] bg-gradient-to-br from-emerald-500 to-teal-600"
           >
             <CheckCircle className="w-5 h-5 text-white" />
           </motion.div>
@@ -74,7 +74,7 @@ const EventCreatedWidget = ({ data }) => {
           variants={detailVariants}
           className="flex items-start gap-4"
         >
-          <div className={`p-3 rounded-xl ${iconBg}`}>
+          <div className={`p-3 rounded-[2rem] ${iconBg}`}>
             <Icon className={`w-5 h-5 ${iconColor}`} />
           </div>
           <div className="flex-1 min-w-0">
