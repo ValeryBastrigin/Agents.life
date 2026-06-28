@@ -206,10 +206,10 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
             </button>
           )}
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {location.pathname === '/' ? 'Agents' :
+            {location.pathname === '/' ? 'Ixteria' :
              location.pathname === '/secretary' ? 'Secretary' :
              location.pathname === '/secretary/logs' ? 'Secretary' :
-             location.pathname === '/accountant' ? 'Accountant' : 'Agents'}
+             location.pathname === '/accountant' ? 'Accountant' : 'Ixteria'}
           </h1>
         </div>
         <div className="flex items-center gap-2">

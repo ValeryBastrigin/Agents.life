@@ -6,7 +6,7 @@ export const translations = {
   ru: {
     // Sidebar
     agents: 'Агенты',
-    yourChats: 'Ваши диалоги с Agents',
+    yourChats: 'Ваши диалоги с Ixteria',
     noChats: 'Нет диалогов',
     secretary: 'Secretary',
     accountant: 'Accountant',
@@ -14,7 +14,7 @@ export const translations = {
     accountantDesc: 'Финансовый ассистент для бюджета и расходов',
     
     // Home
-    chatWithAgents: 'Chat with Agents',
+    chatWithAgents: 'Chat with Ixteria',
     
     // Delete Modal
     deleteChat: 'Удалить диалог?',
@@ -119,8 +119,8 @@ export const translations = {
   },
   en: {
     // Sidebar
-    agents: 'Agents',
-    yourChats: 'Your chats with Agents',
+    agents: 'Ixteria',
+    yourChats: 'Your chats with Ixteria',
     noChats: 'No chats',
     secretary: 'Secretary',
     accountant: 'Accountant',
@@ -128,7 +128,7 @@ export const translations = {
     accountantDesc: 'Financial assistant for budgeting and expenses',
     
     // Home
-    chatWithAgents: 'Chat with Agents',
+    chatWithAgents: 'Chat with Ixteria',
     
     // Delete Modal
     deleteChat: 'Delete chat?',
@@ -148,7 +148,7 @@ export const translations = {
     save: 'Save',
     
     // Header
-    agents: 'Agents',
+    agents: 'Ixteria',
     
     // Theme
     switchToDark: 'Switch to dark mode',

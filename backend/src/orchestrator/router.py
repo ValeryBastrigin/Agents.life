@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, UploadFile, File
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func
 from src.database import get_db
@@ -8,11 +9,14 @@ from pydantic import BaseModel, ValidationError
 from typing import Optional, List
 import importlib
 import os
+import json
+import httpx
+import base64
 
 router = APIRouter(prefix="/api", tags=["orchestrator"])
 
-# System prompt for the main orchestrator agent "Agents"
-ORCHESTRATOR_SYSTEM_PROMPT = """Ты — Agents, ИИ-оркестратор. Твоя задача — определить, к какому специализированному агенту адресован запрос пользователя, и перенаправить его.
+# System prompt for the main orchestrator agent "Ixteria"
+ORCHESTRATOR_SYSTEM_PROMPT = """Ты — Ixteria, ИИ-оркестратор. Твоя задача — определить, к какому специализированному агенту адресован запрос пользователя, и перенаправить его.
 
 Доступные агенты:
 - secretary: секретарь (планирование встреч, расписание, напоминания, организация)
@@ -35,7 +39,7 @@ async def generate_chat_title(first_message: str, client) -> str:
     """Generate a chat title based on the first message using AI."""
     try:
         response = client.chat.completions.create(
-            model="google/gemini-3.1-flash-lite",
+            model="moonshotai/kimi-k2.6",
             messages=[
                 {"role": "system", "content": TITLE_GENERATION_PROMPT},
                 {"role": "user", "content": first_message}
@@ -98,7 +102,7 @@ async def route_to_agent(message: str) -> str:
     """Route message to appropriate agent using LLM."""
     try:
         response = client.chat.completions.create(
-            model="google/gemini-3.1-flash-lite",
+            model="moonshotai/kimi-k2.6",
             messages=[
                 {"role": "system", "content": ORCHESTRATOR_SYSTEM_PROMPT},
                 {"role": "user", "content": message}
@@ -138,14 +142,14 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
             agent = Agent(
                 name="agents",
                 description="Main AI orchestrator and personal assistant",
-                system_prompt="Ты — Agents, ИИ-управляющий. МАКСИМАЛЬНАЯ ДЛИНА ОТВЕТА: 20 слов. Никаких «Как проходит твой день?» или «Чем могу быть полезен?». Отвечай ТОЛЬКО на суть вопроса. На приветствие: «Привет! Я Agents, твой ИИ-управляющий. Чем помочь?». Никакой воды. Кратко. По делу.",
+                system_prompt="Ты — Ixteria, ИИ-управляющий. МАКСИМАЛЬНАЯ ДЛИНА ОТВЕТА: 20 слов. Никаких «Как проходит твой день?» или «Чем могу быть полезен?». Отвечай ТОЛЬКО на суть вопроса. На приветствие: «Привет! Я Ixteria, твой ИИ-управляющий. Чем помочь?». Никакой воды. Кратко. По делу.",
                 is_active=True
             )
             db.add(agent)
             await db.flush()
         else:
             # Update system prompt if it's different
-            correct_prompt = "Ты — Agents, ИИ-управляющий. МАКСИМАЛЬНАЯ ДЛИНА ОТВЕТА: 20 слов. Никаких «Как проходит твой день?» или «Чем могу быть полезен?». Отвечай ТОЛЬКО на суть вопроса. На приветствие: «Привет! Я Agents, твой ИИ-управляющий. Чем помочь?». Никакой воды. Кратко. По делу."
+            correct_prompt = "Ты — Ixteria, ИИ-управляющий. МАКСИМАЛЬНАЯ ДЛИНА ОТВЕТА: 20 слов. Никаких «Как проходит твой день?» или «Чем могу быть полезен?». Отвечай ТОЛЬКО на суть вопроса. На приветствие: «Привет! Я Ixteria, твой ИИ-управляющий. Чем помочь?». Никакой воды. Кратко. По делу."
             if agent.system_prompt != correct_prompt:
                 agent.system_prompt = correct_prompt
                 await db.flush()
@@ -199,7 +203,7 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
 
         try:
             response = client.chat.completions.create(
-                model="google/gemini-3.1-flash-lite",
+                model="moonshotai/kimi-k2.6",
                 messages=messages,
                 temperature=0.7,
                 max_tokens=500,
@@ -354,6 +358,78 @@ async def rename_chat(chat_id: int, new_title: str = Body(..., embed=True), db: 
 
     return {"message": "Chat renamed successfully", "chat": chat}
 
+
+@router.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    """Transcribe audio to text using Voxtral via RouterAI."""
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith("audio/"):
+        raise HTTPException(status_code=400, detail="File must be an audio file")
+    
+    try:
+        content = await file.read()
+        
+        # Encode audio to base64
+        audio_base64 = base64.b64encode(content).decode("utf-8")
+        
+        # Determine audio format from MIME type
+        mime_to_format = {
+            "audio/webm": "webm",
+            "audio/mp3": "mp3",
+            "audio/mpeg": "mp3",
+            "audio/wav": "wav",
+            "audio/ogg": "ogg",
+        }
+        audio_format = mime_to_format.get(file.content_type, "webm")
+        
+        api_key = os.getenv("ROUTER_API_KEY")
+        
+        payload = {
+            "model": "mistralai/voxtral-mini-transcribe",
+            "input_audio": {
+                "data": audio_base64,
+                "format": audio_format,
+            },
+            "language": "ru",
+        }
+        
+        async with httpx.AsyncClient(timeout=120.0) as http_client:
+            response = await http_client.post(
+                "https://routerai.ru/api/v1/audio/transcriptions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+        
+        if response.status_code != 200:
+            print(f"Transcription API error: status={response.status_code}, body={response.text}")
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Transcription API error: {response.text}",
+            )
+        
+        result = response.json()
+        print(f"Transcription API response: {json.dumps(result, indent=2, ensure_ascii=False)[:500]}")
+        
+        # Extract text from Voxtral response
+        transcribed_text = result.get("text", "") if isinstance(result, dict) else str(result)
+        transcribed_text = transcribed_text.strip()
+        
+        if not transcribed_text:
+            return JSONResponse(
+                content={"text": "", "warning": "No speech detected"},
+                status_code=200,
+            )
+        
+        return {"text": transcribed_text}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Transcription error: {e}")
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 @router.put("/chats/{chat_id}/pin")
 async def toggle_pin_chat(chat_id: int, db: AsyncSession = Depends(get_db)):

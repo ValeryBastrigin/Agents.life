@@ -10,11 +10,11 @@ export default function SecretaryGuide() {
   var ru = language === 'ru';
 
   var steps = ru ? [
-    { icon: MessageSquare, color: 'from-blue-500 to-indigo-600', t: 'Шаг 1', title: 'Откройте чат с Agents',
-      body: 'Нажмите на иконку Agents в боковом меню. Оркестратор направит запрос Секретарю.',
+    { icon: MessageSquare, color: 'from-blue-500 to-indigo-600', t: 'Шаг 1', title: 'Откройте чат с Ixteria',
+      body: 'Нажмите на иконку Ixteria в боковом меню. Оркестратор направит запрос Секретарю.',
       cmd: 'Начните диалог в главном чате' },
     { icon: Zap, color: 'from-amber-500 to-orange-600', t: 'Шаг 2', title: 'Опишите задачу',
-      body: 'Напишите что нужно. Agents сам поймёт что это для Секретаря.',
+      body: 'Напишите что нужно. Ixteria сам поймёт что это для Секретаря.',
       cmd: 'Запланируй встречу с Мариной 30 июня в 15:00' },
     { icon: Calendar, color: 'from-emerald-500 to-green-600', t: 'Шаг 3', title: 'С временем → Расписание',
       body: 'Если указано время — событие попадёт в Календарь (Расписание).',
@@ -32,11 +32,11 @@ export default function SecretaryGuide() {
       body: 'Все операции фиксируются в Журнале — нажмите «Последние записи».',
       cmd: 'Кнопка на странице Секретаря' },
   ] : [
-    { icon: MessageSquare, color: 'from-blue-500 to-indigo-600', t: 'Step 1', title: 'Open chat with Agents',
-      body: 'Click Agents in the sidebar. The Orchestrator will route to Secretary.',
+    { icon: MessageSquare, color: 'from-blue-500 to-indigo-600', t: 'Step 1', title: 'Open chat with Ixteria',
+      body: 'Click Ixteria in the sidebar. The Orchestrator will route to Secretary.',
       cmd: 'Start a conversation in the main chat' },
     { icon: Zap, color: 'from-amber-500 to-orange-600', t: 'Step 2', title: 'Describe your task',
-      body: 'Write what you need. Agents detects it is for Secretary.',
+      body: 'Write what you need. Ixteria detects it is for Secretary.',
       cmd: 'Schedule a meeting with Marina on June 30 at 3 PM' },
     { icon: Calendar, color: 'from-emerald-500 to-green-600', t: 'Step 3', title: 'With time = Calendar Event',
       body: 'If a time is given, the event goes to Calendar.',
@@ -74,8 +74,8 @@ export default function SecretaryGuide() {
                   {ru ? 'Как пользоваться Секретарём' : 'How to Use Secretary'}
                 </h1>
                 <p className='text-sm sm:text-base text-gray-500 dark:text-gray-400 leading-relaxed max-w-lg'>
-              {ru ? 'Secretary — AI-агент для встреч и напоминаний. Работает через оркестратор Agents: пишите в общий чат, Agents направит запрос Секретарю.'
-                 : 'Secretary is an AI agent for meetings and reminders. Works through the Agents orchestrator: write in the main chat, Agents routes to Secretary.'}
+              {ru ? 'Secretary — AI-агент для встреч и напоминаний. Работает через оркестратор Ixteria: пишите в общий чат, Ixteria направит запрос Секретарю.'
+                 : 'Secretary is an AI agent for meetings and reminders. Works through the Ixteria orchestrator: write in the main chat, Ixteria routes to Secretary.'}
             </p>
               </motion.div>
             </div>
@@ -113,7 +113,7 @@ export default function SecretaryGuide() {
         <div className='max-w-2xl mx-auto mt-8'>
           <div className='bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-2xl p-5 border border-blue-100 dark:border-blue-800/30 text-center'>
             <p className='text-sm text-blue-700 dark:text-blue-300 font-medium'>
-              {ru ? 'Секретарь работает только через чат с Agents — просто пишите!' : 'Secretary works through the Agents chat — just type!'}
+              {ru ? 'Секретарь работает только через чат с Ixteria — просто пишите!' : 'Secretary works through the Ixteria chat — just type!'}
             </p>
           </div>
         </div>
