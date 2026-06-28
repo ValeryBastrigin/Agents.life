@@ -1,20 +1,19 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Send, Paperclip, Mic, MicOff, X } from 'lucide-react';
+import { Send, Paperclip, Mic, StopCircle } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 
 const ChatInput = ({ onSendMessage, disabled }) => {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
   const [audioLevels, setAudioLevels] = useState([]);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
   const chunksRef = useRef([]);
-  const timerRef = useRef(null);
   const analyserRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const finishModeRef = useRef('send'); // 'send' or 'edit'
 
   // Start recording
   const startRecording = useCallback(async () => {
@@ -70,18 +69,12 @@ const ChatInput = ({ onSendMessage, disabled }) => {
         }
 
         // Send to backend for transcription
-        await transcribeAudio(blob);
+        await transcribeAudio(blob, finishModeRef.current);
       };
 
       mediaRecorder.start(250); // Collect data every 250ms
       setIsRecording(true);
-      setRecordingDuration(0);
-      setAudioLevels(new Array(30).fill(0));
-
-      // Start duration timer
-      timerRef.current = setInterval(() => {
-        setRecordingDuration((prev) => prev + 1);
-      }, 1000);
+      setAudioLevels(new Array(40).fill(0));
 
       // Start audio level visualization
       const updateLevels = () => {
@@ -107,28 +100,29 @@ const ChatInput = ({ onSendMessage, disabled }) => {
     }
   }, []);
 
-  // Stop recording
-  const stopRecording = useCallback(() => {
+  // Stop recording – put transcribed text into input for editing
+  const stopRecordingForEdit = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      finishModeRef.current = 'edit';
       mediaRecorderRef.current.stop();
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
     }
     setIsRecording(false);
   }, []);
 
-  // Cancel recording (discard)
-  const cancelRecording = useCallback(() => {
+  // Stop recording – immediately send transcribed text to chat
+  const stopRecordingAndSend = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      // Override onstop to skip transcription
-      mediaRecorderRef.current.onstop = () => {};
+      finishModeRef.current = 'send';
       mediaRecorderRef.current.stop();
     }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    setIsRecording(false);
+  }, []);
+
+  // Cancel recording (discard, no transcription)
+  const cancelRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.onstop = () => {};
+      mediaRecorderRef.current.stop();
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
@@ -146,7 +140,7 @@ const ChatInput = ({ onSendMessage, disabled }) => {
   }, []);
 
   // Send audio to backend for transcription
-  const transcribeAudio = async (blob) => {
+  const transcribeAudio = async (blob, mode) => {
     setIsTranscribing(true);
     try {
       const formData = new FormData();
@@ -157,7 +151,11 @@ const ChatInput = ({ onSendMessage, disabled }) => {
       if (result.data?.text) {
         const trimmed = result.data.text.trim();
         if (trimmed) {
-          onSendMessage(trimmed);
+          if (mode === 'edit') {
+            setMessage(trimmed);
+          } else {
+            onSendMessage(trimmed);
+          }
         }
       }
     } catch (err) {
@@ -186,39 +184,9 @@ const ChatInput = ({ onSendMessage, disabled }) => {
     }
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
-      {/* Recording indicator */}
-      {isRecording && (
-        <div className="mb-3 px-1">
-          <div className="flex items-center justify-between bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-2xl px-4 py-2.5">
-            <div className="flex items-center gap-3">
-              {/* Pulsing red dot */}
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-              </span>
-              <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                Запись • {formatTime(recordingDuration)}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={cancelRecording}
-              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-800/30 rounded-full transition-colors"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Transcribing indicator */}
       {isTranscribing && (
         <div className="mb-3 px-1">
@@ -235,77 +203,91 @@ const ChatInput = ({ onSendMessage, disabled }) => {
         </div>
       )}
 
-      <div className="flex items-center gap-2 bg-white dark:bg-gray-900/50 backdrop-blur-xl rounded-[2rem] shadow-xl shadow-gray-900/20 dark:shadow-black/40 p-3 border border-gray-200 dark:border-gray-700 transition-all duration-200">
-        {/* Attachment Button */}
-        <button
-          type="button"
-          className="p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-200/50 dark:hover:bg-white/20 flex-shrink-0"
-          title="Attach file"
-        >
-          <Paperclip size={20} />
-        </button>
-
-        {/* Input Field */}
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={isRecording ? 'Говорите...' : 'Message...'}
-          disabled={disabled || isRecording}
-          className="flex-1 px-4 py-3 bg-transparent text-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none disabled:opacity-50 text-base min-w-0"
-        />
-
-        {/* Voice Input Button / Audio Wave Visualization */}
-        {isRecording ? (
+      <div className={`flex items-center gap-2 bg-white dark:bg-gray-900/50 backdrop-blur-xl rounded-[2rem] shadow-xl shadow-gray-900/20 dark:shadow-black/40 p-3 border transition-all duration-200 ${isRecording ? 'border-red-400/50 dark:border-red-500/40 shadow-red-500/10' : 'border-gray-200 dark:border-gray-700'}`}>
+        {/* Attachment Button – hidden during recording */}
+        {!isRecording && (
           <button
             type="button"
-            onClick={stopRecording}
-            className="p-3 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-800/30 transition-colors rounded-full flex-shrink-0 animate-pulse"
-            title="Stop recording"
+            className="p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-200/50 dark:hover:bg-white/20 flex-shrink-0"
+            title="Attach file"
           >
-            <MicOff size={20} />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={startRecording}
-            disabled={disabled}
-            className="p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-200/50 dark:hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-            title="Voice input"
-          >
-            <Mic size={20} />
+            <Paperclip size={20} />
           </button>
         )}
 
-        {/* Send Button */}
-        <button
-          type="submit"
-          disabled={!message.trim() || disabled}
-          className="p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-200/50 dark:hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-        >
-          <Send size={20} />
-        </button>
-      </div>
+        {/* Input area: text field OR audio waveform during recording */}
+        {isRecording ? (
+          <div className="flex-1 flex items-center justify-center gap-0.5 h-12 px-2 min-w-0">
+            {audioLevels.map((level, i) => {
+              const height = Math.max(3, level * 40);
+              return (
+                <div
+                  key={i}
+                  className="w-1 rounded-full bg-gradient-to-t from-red-400 to-red-500 transition-all duration-75 ease-linear"
+                  style={{
+                    height: `${height}px`,
+                    opacity: 0.3 + level * 0.7,
+                  }}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Message..."
+            disabled={disabled}
+            className="flex-1 px-4 py-3 bg-transparent text-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none disabled:opacity-50 text-base min-w-0"
+          />
+        )}
 
-      {/* Audio waveform visualization */}
-      {isRecording && (
-        <div className="mt-3 flex items-center justify-center gap-0.5 h-10 px-2">
-          {audioLevels.map((level, i) => {
-            const height = Math.max(4, level * 36);
-            return (
-              <div
-                key={i}
-                className="w-1 rounded-full bg-gradient-to-t from-red-400 to-red-500 transition-all duration-75 ease-linear"
-                style={{
-                  height: `${height}px`,
-                  opacity: 0.4 + level * 0.6,
-                }}
-              />
-            );
-          })}
-        </div>
-      )}
+        {/* Right buttons: during recording – square (stop for edit) + send arrow (stop & send) */}
+        {isRecording ? (
+          <>
+            <button
+              type="button"
+              onClick={stopRecordingForEdit}
+              className="p-4 md:p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-white/20 transition-colors rounded-full flex-shrink-0"
+              title="Остановить и редактировать"
+            >
+              <StopCircle size={24} className="md:size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={stopRecordingAndSend}
+              className="p-4 md:p-3 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-800/30 transition-colors rounded-full flex-shrink-0"
+              title="Остановить и отправить"
+            >
+              <Send size={24} className="md:size-5" />
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Voice Input Button */}
+            <button
+              type="button"
+              onClick={startRecording}
+              disabled={disabled}
+              className="p-4 md:p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-200/50 dark:hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              title="Voice input"
+            >
+              <Mic size={24} className="md:size-5" />
+            </button>
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={!message.trim() || disabled}
+              className="p-4 md:p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-200/50 dark:hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            >
+              <Send size={24} className="md:size-5" />
+            </button>
+          </>
+        )}
+      </div>
     </form>
   );
 };

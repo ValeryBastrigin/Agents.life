@@ -6,7 +6,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
   const { t, language, changeLanguage } = useLanguage();
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-8">
+    <div className="flex-1 overflow-y-auto px-6 py-8 animate-slide-in-right">
       <div className="max-w-3xl mx-auto">
         {/* Header with Back Button */}
         <div className="flex items-center gap-3 mb-8">

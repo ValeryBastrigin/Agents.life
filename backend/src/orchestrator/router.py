@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body, UploadFile, File
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func
+from sqlalchemy.orm import selectinload
 from src.database import get_db
 from src.models import User, Agent, Chat, Message, TokenTransaction
 from src.config import client
@@ -39,7 +40,7 @@ async def generate_chat_title(first_message: str, client) -> str:
     """Generate a chat title based on the first message using AI."""
     try:
         response = client.chat.completions.create(
-            model="moonshotai/kimi-k2.6",
+            model="moonshotai/kimi-k2.7-code",
             messages=[
                 {"role": "system", "content": TITLE_GENERATION_PROMPT},
                 {"role": "user", "content": first_message}
@@ -48,11 +49,15 @@ async def generate_chat_title(first_message: str, client) -> str:
             max_tokens=50,
             timeout=30.0
         )
-        title = response.choices[0].message.content.strip()
+        raw_content = response.choices[0].message.content
+        if raw_content is None:
+            print("Warning: generate_chat_title received None content from LLM")
+            return first_message[:50] if first_message else "Новый диалог"
+        title = raw_content.strip()
         return title[:50] if title else "Новый диалог"
     except Exception as e:
         print(f"Error generating chat title: {e}")
-        return first_message[:50]
+        return first_message[:50] if first_message else "Новый диалог"
 
 # Pydantic models
 class ChatRequest(BaseModel):
@@ -102,7 +107,7 @@ async def route_to_agent(message: str) -> str:
     """Route message to appropriate agent using LLM."""
     try:
         response = client.chat.completions.create(
-            model="moonshotai/kimi-k2.6",
+            model="moonshotai/kimi-k2.7-code",
             messages=[
                 {"role": "system", "content": ORCHESTRATOR_SYSTEM_PROMPT},
                 {"role": "user", "content": message}
@@ -111,7 +116,11 @@ async def route_to_agent(message: str) -> str:
             max_tokens=20,
             timeout=30.0
         )
-        agent_name = response.choices[0].message.content.strip().lower()
+        raw_content = response.choices[0].message.content
+        if raw_content is None:
+            print("Warning: route_to_agent received None content from LLM, falling back to default")
+            return "default"
+        agent_name = raw_content.strip().lower()
         print(f"DEBUG: Routing message '{message}' to agent: {agent_name}")
         return agent_name if agent_name in AGENT_REGISTRY else "default"
     except Exception as e:
@@ -203,7 +212,7 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
 
         try:
             response = client.chat.completions.create(
-                model="moonshotai/kimi-k2.6",
+                model="moonshotai/kimi-k2.7-code",
                 messages=messages,
                 temperature=0.7,
                 max_tokens=500,
@@ -213,6 +222,11 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
             tokens_used = 0  # Disabled for development
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"API error: {str(e)}")
+
+    # --- SAFETY: Ensure response_text is never None before inserting into DB ---
+    if response_text is None:
+        print("ERROR: response_text is None — LLM returned no content. Inserting fallback message.")
+        response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
 
     # Save assistant message
     assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
@@ -254,9 +268,11 @@ async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/user-chats")
 async def get_user_chats(user_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Chat).where(Chat.user_id == user_id).order_by(Chat.created_at.desc()))
+    result = await db.execute(
+        select(Chat).where(Chat.user_id == user_id).options(selectinload(Chat.agent)).order_by(Chat.created_at.desc())
+    )
     chats = result.scalars().all()
-    return [{"id": chat.id, "title": chat.title, "created_at": chat.created_at, "is_pinned": chat.is_pinned} for chat in chats]
+    return [{"id": chat.id, "title": chat.title, "agent_name": chat.agent.name if chat.agent else "agents", "created_at": chat.created_at, "is_pinned": chat.is_pinned} for chat in chats]
 
 @router.get("/user/{user_id}", response_model=UserProfile)
 async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):
@@ -294,7 +310,7 @@ async def update_theme(user_id: int, request: UpdateThemeRequest, db: AsyncSessi
 @router.get("/chats/{user_id}")
 async def get_user_chats(user_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Chat).where(Chat.user_id == user_id).order_by(Chat.updated_at.desc())
+        select(Chat).where(Chat.user_id == user_id).options(selectinload(Chat.agent)).order_by(Chat.updated_at.desc())
     )
     chats = result.scalars().all()
     
@@ -302,7 +318,7 @@ async def get_user_chats(user_id: int, db: AsyncSession = Depends(get_db)):
         {
             "id": c.id,
             "title": c.title,
-            "agent_name": c.agent.name if c.agent else None,
+            "agent_name": c.agent.name if c.agent else "agents",
             "created_at": c.created_at.isoformat(),
             "updated_at": c.updated_at.isoformat()
         }
@@ -428,7 +444,9 @@ async def transcribe_audio(file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
         print(f"Transcription error: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 @router.put("/chats/{chat_id}/pin")

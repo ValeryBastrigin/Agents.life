@@ -225,15 +225,15 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Routes */}
       <Routes>
-        <Route path="/" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
-        <Route path="/chat/:chatId" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
+        <Route path="/" element={<Home key="home" onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
+        <Route path="/chat/:chatId" element={<Home key={location.pathname} onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
         <Route path="/secretary/logs" element={<ActivityLog theme={theme} />} />
         <Route path="/secretary/guide" element={<SecretaryGuide />} />
         <Route path="/secretary/notes" element={<NotesList />} />
         <Route path="/secretary/notes/:id" element={<NoteEditor />} />
         <Route path="/accountant" element={<Accountant />} />
-        <Route path="/profile" element={<Profile userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
+        <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
       </Routes>
     </div>
   );
@@ -338,7 +338,7 @@ function Home({ onChatCreated, theme, onScroll }) {
   };
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-full relative animate-slide-in-left">
       {/* Messages Container */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 relative z-10 pb-0 -mb-2">
         {messages.length === 0 ? (
