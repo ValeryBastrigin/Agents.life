@@ -880,7 +880,7 @@ const Dietitian = () => {
           {/* Card 1: Manual */}
           <button
             onClick={() => setShowManual(true)}
-            className="bg-gray-50 dark:bg-gray-800 rounded-[2.5rem] p-4 text-left hover:shadow-lg hover:scale-[1.02] transition-all group"
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-[2.5rem] p-4 text-left hover:shadow-lg hover:scale-[1.02] transition-all group"
           >
             <div className="flex items-center gap-2 mb-2">
               <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -891,13 +891,13 @@ const Dietitian = () => {
             <h3 className="font-semibold text-gray-800 dark:text-white text-sm mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
               Как пользоваться диетологом?
             </h3>
-            <p className="text-xs text-gray-400 dark:text-gray-500">Инструкция по добавлению продуктов через чат</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500">Инструкция по добавлению продуктов через чат</p>
           </button>
 
           {/* Card 2: Food Diary */}
           <button
             onClick={() => setShowDiary(true)}
-            className="bg-gray-50 dark:bg-gray-800 rounded-[2.5rem] p-4 text-left hover:shadow-lg hover:scale-[1.02] transition-all group"
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-[2.5rem] p-4 text-left hover:shadow-lg hover:scale-[1.02] transition-all group"
           >
             <div className="flex items-center gap-2 mb-2">
               <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
@@ -908,7 +908,7 @@ const Dietitian = () => {
             <h3 className="font-semibold text-gray-800 dark:text-white text-sm mb-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
               Дневник записей
             </h3>
-            <p className="text-xs text-gray-400 dark:text-gray-500">Календарь питания и анализ за неделю/месяц</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500">Календарь питания и анализ за неделю/месяц</p>
           </button>
         </div>
 
@@ -937,7 +937,7 @@ const Dietitian = () => {
             { label: 'Углеводы', current: nutrition.carbs.current, goal: nutrition.carbs.goal, unit: 'г', color: 'bg-orange-500', icon: '🍞' },
             { label: 'Вода', current: nutrition.water.current, goal: nutrition.water.goal, unit: 'ст.', color: 'bg-cyan-500', icon: '💧' },
           ].map((item) => (
-            <div key={item.label} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-[2.5rem] text-center">
+            <div key={item.label} className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-[2.5rem] text-center">
               <div className="text-xl mb-1">{item.icon}</div>
               <div className="text-base font-bold text-gray-800 dark:text-white">
                 {item.current}<span className="text-xs font-normal text-gray-400">/{item.goal} {item.unit}</span>
@@ -950,7 +950,7 @@ const Dietitian = () => {
         </div>
 
         {/* ===== Настройте агента под вас ===== */}
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-[3.5rem] p-6 mb-6 border-2 border-dashed border-gray-300 dark:border-gray-600">
+        <div className="bg-white dark:bg-gray-800 rounded-[3.5rem] p-6 mb-6 border-2 border-dashed border-gray-300 dark:border-gray-600 shadow-sm">
           {userProfile ? (
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -960,24 +960,24 @@ const Dietitian = () => {
                 </button>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-[1.5rem] p-3 text-center">
-                  <p className="text-gray-400 text-xs">Рост</p>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-[1.5rem] p-3 text-center">
+                  <p className="text-gray-500 text-xs">Рост</p>
                   <p className="font-semibold text-gray-800 dark:text-white">{userProfile.profile.height} см</p>
                 </div>
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-[1.5rem] p-3 text-center">
-                  <p className="text-gray-400 text-xs">Вес</p>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-[1.5rem] p-3 text-center">
+                  <p className="text-gray-500 text-xs">Вес</p>
                   <p className="font-semibold text-gray-800 dark:text-white">{userProfile.profile.weight} кг</p>
                 </div>
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-[1.5rem] p-3 text-center">
-                  <p className="text-gray-400 text-xs">Возраст</p>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-[1.5rem] p-3 text-center">
+                  <p className="text-gray-500 text-xs">Возраст</p>
                   <p className="font-semibold text-gray-800 dark:text-white">{userProfile.profile.age} лет</p>
                 </div>
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-[1.5rem] p-3 text-center">
-                  <p className="text-gray-400 text-xs">Цель</p>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-[1.5rem] p-3 text-center">
+                  <p className="text-gray-500 text-xs">Цель</p>
                   <p className="font-semibold text-gray-800 dark:text-white">{GOAL_LABELS[userProfile.goal]}</p>
                 </div>
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-[1.5rem] p-3 text-center">
-                  <p className="text-gray-400 text-xs">Активность</p>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-[1.5rem] p-3 text-center">
+                  <p className="text-gray-500 text-xs">Активность</p>
                   <p className="font-semibold text-gray-800 dark:text-white">{ACTIVITY_LEVELS[userProfile.activity]?.label}</p>
                 </div>
               </div>
@@ -991,7 +991,7 @@ const Dietitian = () => {
         </div>
 
         {/* ===== Съедено сегодня ===== */}
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-[3.5rem] p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-[3.5rem] p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
             🍽️ Съедено сегодня
           </h2>
