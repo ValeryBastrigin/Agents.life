@@ -49,23 +49,8 @@ const Mentor = () => {
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-8">
+<div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
       <div className="max-w-4xl mx-auto">
-        {/* Back Button + Title */}
-        <div className="flex items-center gap-3 mb-6">
-          <button
-onClick={() => navigate('/chat')}
-            className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors"
-          >
-            <ArrowLeft size={22} className="text-gray-700 dark:text-gray-300" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">🎯 Ментор</h1>
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
-              Ставьте цели, отслеживайте прогресс и развивайтесь каждый день.
-            </p>
-          </div>
-        </div>
 
         {/* Motivation Banner */}
         <div className="bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3.5rem] p-6 mb-6 text-white">

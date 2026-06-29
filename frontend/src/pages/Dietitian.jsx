@@ -1,13 +1,10 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2 } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient } from '../utils/apiClient';
 
 // ---------- Nutrition calculation (Mifflin-St Jeor) ----------
 const GOAL_LABELS = { lose: 'Похудение', gain: 'Набор массы', maintain: 'Поддержание веса' };
-const SPEED_LABELS = { slow: 'Медленно (0.25 кг/нед)', medium: 'Умеренно (0.5 кг/нед)', fast: 'Быстро (0.75 кг/нед)' };
-
 const ACTIVITY_LEVELS = {
   sedentary:  { label: 'Сидячий',        desc: 'Офисная работа, мало движения',           factor: 1.2 },
   light:      { label: 'Лёгкий',          desc: 'Прогулки, лёгкие тренировки 1–3 р/нед',   factor: 1.375 },
@@ -707,7 +704,6 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
 
 // ========== Main Dietitian Page ==========
 const Dietitian = () => {
-  const navigate = useNavigate();
   const { t } = useLanguage();
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -871,17 +867,12 @@ const Dietitian = () => {
   const remaining = nutrition.calories.goal - nutrition.calories.current;
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-8">
+<div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
       <div className="max-w-2xl mx-auto">
-        {/* Back Button + Title */}
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate('/chat')} className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors">
-            <ArrowLeft size={22} className="text-gray-700 dark:text-gray-300" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">🍎 Диетолог</h1>
-            <p className="text-gray-600 dark:text-gray-400 text-sm">Отслеживайте питание, калории и получайте персональные рекомендации.</p>
-          </div>
+        {/* Title */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">🍎 Диетолог</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">Отслеживайте питание, калории и получайте персональные рекомендации.</p>
         </div>
 
         {/* ===== Two Dashboard Cards ABOVE the calorie ring ===== */}

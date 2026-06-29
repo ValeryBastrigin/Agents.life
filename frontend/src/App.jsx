@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useParams, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import ChatInput from './components/ChatInput';
 import AnimatedBackground from './components/AnimatedBackground';
 import ChatWidgetRenderer from './components/ui/widgets/ChatWidgetRenderer';
-import { User, Menu, Sun, Moon, ArrowLeft } from 'lucide-react';
+import { User, Menu, ArrowLeft } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Dietitian from './pages/Dietitian';
@@ -102,7 +102,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
   // Track scroll to make header solid when messages are under it
   const handleScroll = (scrollTop) => {
-    setHeaderSolid(scrollTop > 10);
+    setHeaderSolid(scrollTop > 0);
   };
 
   const loadChats = async () => {
@@ -190,13 +190,13 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       />
 
       {/* Header */}
-      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/secretary/notes') && location.pathname !== '/dietitian' && location.pathname !== '/psychologist' && location.pathname !== '/mentor' && (
+      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/secretary/notes') && (
         <header className={`sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent backdrop-blur-none'}`}>
         <div className="flex items-center gap-3">
-          {location.pathname === '/secretary' || location.pathname === '/secretary/logs' || location.pathname === '/accountant' || location.pathname === '/dietitian' || location.pathname === '/psychologist' || location.pathname === '/mentor' ? (
+          {(location.pathname === '/secretary' || location.pathname === '/accountant' || location.pathname === '/dietitian' || location.pathname === '/psychologist' || location.pathname === '/mentor') ? (
             <button
               onClick={() => navigate('/chat')}
-              className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
             >
               <ArrowLeft size={20} className="text-gray-700 dark:text-gray-300" />
             </button>
@@ -231,6 +231,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Routes */}
       <Routes>
+        <Route path="/" element={<Navigate to="/chat" replace />} />
         <Route path="/chat/:chatId?" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
         <Route path="/secretary/logs" element={<ActivityLog theme={theme} />} />
@@ -367,7 +368,7 @@ function Home({ onChatCreated, theme, onScroll }) {
             </p>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto flex flex-col space-y-4 py-4">
+          <div className="max-w-3xl mx-auto flex flex-col space-y-4 pt-20 pb-4">
             {messages.map((message, index) => (
               <div
                 key={index}
