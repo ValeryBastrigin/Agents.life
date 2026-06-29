@@ -117,3 +117,42 @@ class Note(Base):
 
     user = relationship("User", back_populates="notes")
 
+class UserDietProfile(Base):
+    __tablename__ = "user_diet_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    height = Column(Integer)
+    weight = Column(Integer)
+    age = Column(Integer)
+    gender = Column(String(10))
+    goal = Column(String(20))
+    activity_level = Column(String(20))
+    calorie_target = Column(Integer)
+    protein_target = Column(Integer)
+    fats_target = Column(Integer)
+    carbs_target = Column(Integer)
+    water_target = Column(Integer)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+class FoodConsumption(Base):
+    __tablename__ = "food_consumptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    product_name = Column(String(255), nullable=False)
+    grams = Column(Integer, nullable=False)
+    calories = Column(Integer, nullable=False)
+    protein = Column(Integer, nullable=False)
+    fats = Column(Integer, nullable=False)
+    carbs = Column(Integer, nullable=False)
+    meal_type = Column(String(50), default="other")  # breakfast, lunch, dinner, snack, other
+    notes = Column(Text)
+    consumed_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+

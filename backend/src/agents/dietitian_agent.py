@@ -1,6 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from src.config import client
+from src.models import UserDietProfile, FoodConsumption
+from datetime import datetime, timedelta
 import json
+import re
 
 DIETITIAN_SYSTEM_PROMPT = """Ты — ИИ-диетолог. Ты помогаешь пользователю с вопросами питания, составления рациона, подсчёта калорий, рекомендаций по здоровому образу жизни.
 
@@ -10,24 +14,229 @@ DIETITIAN_SYSTEM_PROMPT = """Ты — ИИ-диетолог. Ты помогае
 - Рекомендации по сбалансированному питанию
 - Советы по витаминам и микроэлементам
 - Анализ пищевых привычек
+- Добавление съеденных продуктов в дневник питания
 
 ВАЖНЫЕ ПРАВИЛА:
 1. Ты НЕ врач. Всегда напоминай: «Я ИИ-ассистент, а не врач. При проблемах со здоровьем обратитесь к специалисту.»
 2. Отвечай кратко, по делу, до 150 слов.
-3. Если спрашивают про диету для похудения/набора массы — уточни рост, вес, возраст, уровень активности.
+3. Если пользователь настроил свой профиль — используй его данные (рост, вес, возраст, цель, КБЖУ) для персональных рекомендаций. НЕ переспрашивай то, что уже известно из профиля.
 4. Не давай экстремальных диет и опасных рекомендаций.
 5. Используй метрическую систему (кг, см)."""
+
+GOAL_LABELS = {"lose": "похудение", "gain": "набор массы", "maintain": "поддержание веса"}
+ACTIVITY_LABELS = {
+    "sedentary": "сидячий", "light": "лёгкий", "moderate": "умеренный",
+    "active": "активный", "veryActive": "очень активный"
+}
+
+MEAL_EMOJIS = {"breakfast": "🌅", "lunch": "☀️", "dinner": "🌙", "snack": "🍪", "other": "🍽️"}
+MEAL_LABELS = {"breakfast": "Завтрак", "lunch": "Обед", "dinner": "Ужин", "snack": "Перекус", "other": "Приём пищи"}
+
+
+def _build_profile_context(profile: UserDietProfile | None) -> str:
+    """Build personalised profile context string."""
+    if profile:
+        return f"""
+
+ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ (уже настроен, НЕ переспрашивай эти данные):
+- Рост: {profile.height} см
+- Вес: {profile.weight} кг
+- Возраст: {profile.age} лет
+- Пол: {'мужской' if profile.gender == 'male' else 'женский'}
+- Цель: {GOAL_LABELS.get(profile.goal, profile.goal)}
+- Уровень активности: {ACTIVITY_LABELS.get(profile.activity_level, profile.activity_level)}
+- Целевая норма калорий: {profile.calorie_target} ккал/день
+- Норма белков: {profile.protein_target} г/день
+- Норма жиров: {profile.fats_target} г/день
+- Норма углеводов: {profile.carbs_target} г/день
+- Норма воды: {profile.water_target} стаканов/день
+
+Используй эти данные во всех расчётах и рекомендациях. Не спрашивай рост, вес, возраст и цели повторно — они уже известны."""
+    else:
+        return "\n\nПользователь ещё не настроил свой профиль. Если он спрашивает про диету или похудение — попроси его настроить профиль в разделе «Настройте агента под вас» на странице диетолога, чтобы получить персональные расчёты КБЖУ."
+
+
+async def _detect_food_intent(message: str) -> bool:
+    """
+    Use Gemini to determine if the message is about logging food consumption.
+    Returns True if user is telling what they ate/drank.
+    """
+    prompt = f"""Определи, сообщает ли пользователь о том, ЧТО ОН СЪЕЛ или ВЫПИЛ (добавление еды в дневник питания).
+
+Примеры ДА (food log):
+- "съел шоколадный пончик из пятёрочки"
+- "на завтрак была овсянка с бананом"
+- "выпил колу без сахара 0.5"
+- "съел 300 грамм вареных макарон, 200 грамм вареной грудки"
+- "я пообедал супом и салатом"
+- "перекусил яблоком"
+- "запил кефиром"
+
+Примеры НЕТ (не food log):
+- "какая норма калорий для мужчины 30 лет?"
+- "составь план питания на неделю"
+- "полезно ли есть яйца каждый день?"
+- "как похудеть на 5 кг?"
+- "сколько белка мне нужно?"
+- "привет"
+- "спасибо"
+
+Сообщение: "{message}"
+
+Верни ТОЛЬКО одно слово: "да" или "нет"."""
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=10,
+            timeout=15.0
+        )
+        result = (response.choices[0].message.content or "").strip().lower()
+        return "да" in result
+    except Exception as e:
+        print(f"Error detecting food intent: {e}")
+        # Fallback: check for russian food keywords
+        food_kw = ["съел", "съела", "поел", "поела", "скушал", "скушала", "выпил", "выпила",
+                   "позавтракал", "пообедал", "поужинал", "перекусил", "перекусила",
+                   "на завтрак", "на обед", "на ужин", "на перекус",
+                   "завтракал", "обедал", "ужинал", "грамм", "порцию", "порция"]
+        msg_lower = message.lower()
+        return any(kw in msg_lower for kw in food_kw)
+
+
+async def _extract_food_items(message: str) -> list[dict]:
+    """
+    Extract food items with grams and meal type from user message.
+    Returns list of dicts with keys: product, grams (int or None), meal_type.
+    """
+    prompt = f"""Извлеки из сообщения пользователя ВСЕ продукты/блюда/напитки, которые он употребил.
+
+Для КАЖДОГО продукта определи:
+- "product" — название продукта/блюда (строка)
+- "grams" — количество в граммах (целое число), если пользователь ЯВНО указал граммовку. Если не указал — null.
+- "meal_type" — приём пищи: "breakfast" / "lunch" / "dinner" / "snack" / "other"
+
+ПРАВИЛА:
+1. "0.5" рядом с напитком обычно означает 0.5 литра = 500 мл/грамм. "кола 0.5" → grams=500.
+2. Если написано "стакан" — НЕ угадывай граммы, ставь null.
+3. Если написано "тарелка", "порция", "немного", "кусочек" без цифр — ставь null.
+4. Извлекай ВСЕ продукты из сообщения, даже если их много (как в перечислении через запятую).
+5. Не придумывай продукты, которых нет в сообщении.
+
+Сообщение: "{message}"
+
+Верни ТОЛЬКО JSON-массив:
+[{{"product": "...", "grams": 300, "meal_type": "lunch"}}, ...]"""
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=500,
+            timeout=20.0
+        )
+        raw = (response.choices[0].message.content or "").strip()
+        # Try to extract JSON array from response
+        json_match = re.search(r'\[.*\]', raw, re.DOTALL)
+        if json_match:
+            items = json.loads(json_match.group())
+            return items
+        return []
+    except Exception as e:
+        print(f"Error extracting food items: {e}")
+        return []
+
+
+async def _search_kbju(product_name: str) -> dict | None:
+    """
+    Search the web for KBJU of a product per 100 grams.
+    Uses Gemini with web search capability to find accurate KBJU data.
+    Returns dict with keys: calories, protein, fats, carbs (all per 100g), or None.
+    """
+    search_prompt = f"""Найди в интернете точную пищевую ценность продукта "{product_name}" на 100 грамм.
+
+Ты ДОЛЖЕН найти реальные данные по КБЖУ для этого продукта. Используй свои знания о пищевой ценности продуктов.
+
+Верни ТОЛЬКО JSON (без форматирования, одной строкой):
+{{"calories_per_100g": число, "protein_per_100g": число, "fats_per_100g": число, "carbs_per_100g": число, "source": "краткое описание источника данных"}}
+
+Если продукт составной (например, "шоколадный пончик из пятёрочки") — оцени КБЖУ по составу (мука, шоколад, сахар, масло), укажи примерные значения.
+Если продукт — напиток с нулевой калорийностью (например, "кола без сахара", "cola zero") — calories_per_100g = 0, всё остальное = 0.
+Если НЕВОЗМОЖНО определить КБЖУ — верни {{"error": "не удалось найти"}}.
+
+ВАЖНО: все числа должны быть ЦЕЛЫМИ (округляй)."""
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=[{"role": "user", "content": search_prompt}],
+            temperature=0.2,
+            max_tokens=300,
+            timeout=25.0
+        )
+        raw = (response.choices[0].message.content or "").strip()
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if json_match:
+            data = json.loads(json_match.group())
+            if "error" in data:
+                return None
+            return data
+        return None
+    except Exception as e:
+        print(f"Error searching KBJU for '{product_name}': {e}")
+        return None
+
+
+async def _get_today_totals(db: AsyncSession, user_id: int) -> dict:
+    """Get today's total KBJU from DB."""
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    result = await db.execute(
+        select(
+            func.coalesce(func.sum(FoodConsumption.calories), 0),
+            func.coalesce(func.sum(FoodConsumption.protein), 0),
+            func.coalesce(func.sum(FoodConsumption.fats), 0),
+            func.coalesce(func.sum(FoodConsumption.carbs), 0),
+            func.count(FoodConsumption.id)
+        ).where(
+            FoodConsumption.user_id == user_id,
+            FoodConsumption.consumed_at >= today_start
+        )
+    )
+    row = result.one()
+    return {
+        "calories": int(row[0]),
+        "protein": int(row[1]),
+        "fats": int(row[2]),
+        "carbs": int(row[3]),
+        "items_count": int(row[4])
+    }
+
 
 async def process(message: str, system_prompt: str, db: AsyncSession, user_id: int) -> tuple[str, int]:
     """
     Process message with Dietitian agent.
+    Handles both general diet questions AND food consumption logging.
     Returns: (response_text, tokens_used)
     """
     try:
+        # Load user diet profile from DB
+        result = await db.execute(
+            select(UserDietProfile).where(UserDietProfile.user_id == user_id)
+        )
+        profile = result.scalar_one_or_none()
+
+        # Detect if this is a food consumption log
+        is_food_log = await _detect_food_intent(message)
+
+        if is_food_log:
+            return await _handle_food_log(message, db, user_id, profile)
+
+        # Regular dietitian chat
+        user_context = _build_profile_context(profile)
         response = client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=[
-                {"role": "system", "content": DIETITIAN_SYSTEM_PROMPT},
+                {"role": "system", "content": DIETITIAN_SYSTEM_PROMPT + user_context},
                 {"role": "user", "content": message}
             ],
             temperature=0.5,
@@ -41,3 +250,194 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
     except Exception as e:
         print(f"Error in dietitian agent: {e}")
         return "Извините, произошла ошибка при обработке вашего запроса.", 0
+
+
+async def _handle_food_log(message: str, db: AsyncSession, user_id: int, profile: UserDietProfile | None) -> tuple[str, int]:
+    """
+    Handle a food consumption log request:
+    1. Extract food items
+    2. Search KBJU for each item
+    3. If grams missing and not found — ask user
+    4. Save to DB and return summary
+    """
+    # Step 1: Extract food items from message
+    items = await _extract_food_items(message)
+
+    if not items:
+        return "Не удалось распознать продукты в сообщении. Пожалуйста, укажите, что именно вы съели, например: «съел овсянку на молоке, 250 грамм».", 0
+
+    # Step 2: For each item, find KBJU
+    items_with_kbju = []
+    missing_grams = []
+
+    for item in items:
+        product = item["product"]
+        grams = item.get("grams")
+        meal_type = item.get("meal_type", "other")
+
+        # Search KBJU per 100g
+        kbju = await _search_kbju(product)
+
+        if kbju is None:
+            # Can't find KBJU at all
+            missing_grams.append({"product": product, "reason": "не удалось найти КБЖУ"})
+            continue
+
+        # If user didn't provide grams, try to estimate from product name
+        if grams is None:
+            # Try to infer typical portion size using Gemini
+            grams = await _estimate_portion(product)
+
+        if grams is None or grams == 0:
+            missing_grams.append({"product": product, "reason": "не указаны граммы"})
+            continue
+
+        # Calculate KBJU for the consumed amount
+        cal_per_100 = kbju["calories_per_100g"]
+        prot_per_100 = kbju["protein_per_100g"]
+        fats_per_100 = kbju["fats_per_100g"]
+        carbs_per_100 = kbju["carbs_per_100g"]
+
+        factor = grams / 100.0
+        total_cal = round(cal_per_100 * factor)
+        total_prot = round(prot_per_100 * factor)
+        total_fats = round(fats_per_100 * factor)
+        total_carbs = round(carbs_per_100 * factor)
+
+        # Save to DB
+        consumption = FoodConsumption(
+            user_id=user_id,
+            product_name=product,
+            grams=grams,
+            calories=total_cal,
+            protein=total_prot,
+            fats=total_fats,
+            carbs=total_carbs,
+            meal_type=meal_type,
+            consumed_at=datetime.now()
+        )
+        db.add(consumption)
+
+        items_with_kbju.append({
+            "product": product,
+            "grams": grams,
+            "calories": total_cal,
+            "protein": total_prot,
+            "fats": total_fats,
+            "carbs": total_carbs,
+            "meal_type": meal_type,
+            "source": kbju.get("source", "")
+        })
+
+    # If nothing was saved and there are missing items
+    if not items_with_kbju and missing_grams:
+        # Ask user for missing info
+        msg = "Не могу добавить продукты:\n"
+        for m in missing_grams:
+            if "КБЖУ" in m["reason"]:
+                msg += f"• {m['product']} — не удалось найти пищевую ценность. Уточните продукт или укажите КБЖУ вручную.\n"
+            else:
+                msg += f"• {m['product']} — не указан вес в граммах. Укажите, сколько грамм вы съели.\n"
+        return msg, 0
+
+    # If some were saved but some missing
+    if missing_grams and items_with_kbju:
+        # Save the successfully parsed items
+        await db.commit()
+
+        # Build response with both saved and missing
+        saved_part = _format_meal_summary(items_with_kbju, profile)
+        missing_part = "\n\n⚠️ Не добавлены (уточните):\n"
+        for m in missing_grams:
+            if "КБЖУ" in m["reason"]:
+                missing_part += f"• {m['product']} — не удалось найти КБЖУ\n"
+            else:
+                missing_part += f"• {m['product']} — укажите граммовку\n"
+
+        # Return human-readable text
+        return saved_part + missing_part, 0
+
+    # All items saved successfully
+    await db.commit()
+    today_totals = await _get_today_totals(db, user_id)
+
+    # Build response
+    summary = _format_meal_summary(items_with_kbju, profile)
+    summary += f"\n\n📊 За сегодня: {today_totals['calories']} ккал"
+
+    if profile:
+        remaining = profile.calorie_target - today_totals['calories']
+        summary += f" | Осталось: {remaining} ккал из {profile.calorie_target}"
+        summary += f"\nБелки: {today_totals['protein']}/{profile.protein_target}г | Жиры: {today_totals['fats']}/{profile.fats_target}г | Углеводы: {today_totals['carbs']}/{profile.carbs_target}г"
+
+    return summary, 0
+
+
+async def _estimate_portion(product_name: str) -> int | None:
+    """Try to estimate typical portion size in grams for a product using Gemini."""
+    prompt = f"""Оцени ТИПИЧНУЮ порцию продукта "{product_name}" в граммах.
+
+Правила:
+- Для напитков ("кола", "сок", "чай", "кефир", "молоко"): стандартная порция — 250 г (стакан), если не указано иное.
+- Для фруктов ("яблоко", "банан", "апельсин"): средний вес одного фрукта (яблоко ~180г, банан ~120г, апельсин ~200г).
+- Для выпечки ("пончик", "булочка", "круассан"): средний вес одной штуки (пончик ~80г, булочка ~100г, круассан ~70г).
+- Для хлеба ("тост", "кусок хлеба"): один кусок ~30г.
+- Для конфет/шоколада ("конфета", "шоколадка"): одна конфета ~15г, маленькая шоколадка ~50г.
+- Для готовых блюд ("суп", "салат", "каша"): стандартная порция ~250-300г.
+- Для перекусов ("орехи", "чипсы"): горсть ~30г, маленький пакетик ~50г.
+- Если не можешь определить — верни null.
+
+Верни ТОЛЬКО число (граммы) или null."""
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=20,
+            timeout=10.0
+        )
+        raw = (response.choices[0].message.content or "").strip().lower()
+        if raw == "null" or raw == "none" or raw == "":
+            return None
+        nums = re.findall(r'\d+', raw)
+        if nums:
+            return int(nums[0])
+        return None
+    except Exception as e:
+        print(f"Error estimating portion for '{product_name}': {e}")
+        return None
+
+
+def _format_meal_summary(items: list[dict], profile: UserDietProfile | None) -> str:
+    """Format a human-readable meal summary."""
+    if not items:
+        return ""
+
+    # Group by meal type
+    by_meal = {}
+    for item in items:
+        mt = item.get("meal_type", "other")
+        by_meal.setdefault(mt, []).append(item)
+
+    lines = ["🍽️ *Добавлено в дневник:*"]
+    for mt in ["breakfast", "lunch", "dinner", "snack", "other"]:
+        if mt in by_meal:
+            emoji = MEAL_EMOJIS.get(mt, "🍽️")
+            label = MEAL_LABELS.get(mt, "")
+            lines.append(f"\n{emoji} {label}:")
+            for item in by_meal[mt]:
+                lines.append(
+                    f"  • {item['product']} — {item['grams']}г "
+                    f"({item['calories']} ккал, Б:{item['protein']} Ж:{item['fats']} У:{item['carbs']})"
+                )
+
+    # Totals
+    total_cal = sum(i["calories"] for i in items)
+    total_prot = sum(i["protein"] for i in items)
+    total_fats = sum(i["fats"] for i in items)
+    total_carbs = sum(i["carbs"] for i in items)
+
+    lines.append(f"\n━━━━━━━━━━━━━━━━")
+    lines.append(f"✅ Всего: {total_cal} ккал | Б:{total_prot}г Ж:{total_fats}г У:{total_carbs}г")
+
+    return "\n".join(lines)

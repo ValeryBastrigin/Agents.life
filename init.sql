@@ -104,6 +104,25 @@ CREATE TABLE IF NOT EXISTS notes (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- User diet profiles table
+CREATE TABLE IF NOT EXISTS user_diet_profiles (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    height INTEGER,
+    weight INTEGER,
+    age INTEGER,
+    gender VARCHAR(10),
+    goal VARCHAR(20),
+    activity_level VARCHAR(20),
+    calorie_target INTEGER,
+    protein_target INTEGER,
+    fats_target INTEGER,
+    carbs_target INTEGER,
+    water_target INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Insert default user
 INSERT INTO users (username, email, password_hash, token_balance, theme_preference) VALUES
 ('demo_user', 'demo@lifeagent.com', 'hashed_password_placeholder', 1000, 'light');
