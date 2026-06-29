@@ -251,6 +251,7 @@ function Home({ onChatCreated, theme, onScroll }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [chatId, setChatId] = useState(null);
+  const chatIdRef = React.useRef(null);
   const [userId] = useState(1);
   const messagesEndRef = React.useRef(null);
   const messagesContainerRef = React.useRef(null);
@@ -278,6 +279,11 @@ function Home({ onChatCreated, theme, onScroll }) {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [onScroll]);
 
+  // Keep ref in sync with state
+  React.useEffect(() => {
+    chatIdRef.current = chatId;
+  }, [chatId]);
+
   // Load chat based on URL
   useEffect(() => {
     const loadChat = async () => {
@@ -287,11 +293,13 @@ function Home({ onChatCreated, theme, onScroll }) {
         // Load specific chat from URL
         const id = parseInt(pathMatch[1]);
         setChatId(id);
+        chatIdRef.current = id;
         await loadChatMessages(id);
       } else {
         // Start new chat - clear messages
         setMessages([]);
         setChatId(null);
+        chatIdRef.current = null;
       }
     };
     
@@ -315,16 +323,18 @@ function Home({ onChatCreated, theme, onScroll }) {
     setMessages((prev) => [...prev, userMessage]);
 
     try {
+      const currentChatId = chatIdRef.current;
       const response = await axios.post(`${API_URL}/api/chat`, {
         user_id: userId,
         message: message,
-        chat_id: chatId,
+        chat_id: currentChatId,
         history: messages,
       });
 
-      // Update chat_id if it's a new chat
-      if (!chatId && response.data.chat_id) {
+      // Only create new chat if we didn't have one before
+      if (!currentChatId && response.data.chat_id) {
         setChatId(response.data.chat_id);
+        chatIdRef.current = response.data.chat_id;
         // Navigate to the new chat URL
         navigate(`/chat/${response.data.chat_id}`);
         // Refresh chats list in sidebar
