@@ -2,6 +2,7 @@ import React from 'react';
 import ScheduleWidget from './ScheduleWidget';
 import EventCreatedWidget from './EventCreatedWidget';
 import NoteCreatedWidget from './NoteCreatedWidget';
+import FoodLogWidget from './FoodLogWidget';
 
 const ChatWidgetRenderer = ({ content }) => {
   try {
@@ -19,6 +20,10 @@ const ChatWidgetRenderer = ({ content }) => {
     
     if (parsedData.type === 'note_created') {
       return <NoteCreatedWidget data={parsedData} />;
+    }
+    
+    if (parsedData.type === 'food_log') {
+      return <FoodLogWidget data={parsedData} />;
     }
     
     // If it's JSON but not a recognized widget type, render as formatted text

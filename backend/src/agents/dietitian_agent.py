@@ -258,7 +258,7 @@ async def _handle_food_log(message: str, db: AsyncSession, user_id: int, profile
     1. Extract food items
     2. Search KBJU for each item
     3. If grams missing and not found — ask user
-    4. Save to DB and return summary
+    4. Save to DB and return JSON widget
     """
     # Step 1: Extract food items from message
     items = await _extract_food_items(message)
@@ -279,13 +279,11 @@ async def _handle_food_log(message: str, db: AsyncSession, user_id: int, profile
         kbju = await _search_kbju(product)
 
         if kbju is None:
-            # Can't find KBJU at all
             missing_grams.append({"product": product, "reason": "не удалось найти КБЖУ"})
             continue
 
         # If user didn't provide grams, try to estimate from product name
         if grams is None:
-            # Try to infer typical portion size using Gemini
             grams = await _estimate_portion(product)
 
         if grams is None or grams == 0:
@@ -326,12 +324,10 @@ async def _handle_food_log(message: str, db: AsyncSession, user_id: int, profile
             "fats": total_fats,
             "carbs": total_carbs,
             "meal_type": meal_type,
-            "source": kbju.get("source", "")
         })
 
-    # If nothing was saved and there are missing items
+    # If nothing was saved and there are missing items — return plain text question
     if not items_with_kbju and missing_grams:
-        # Ask user for missing info
         msg = "Не могу добавить продукты:\n"
         for m in missing_grams:
             if "КБЖУ" in m["reason"]:
@@ -340,37 +336,75 @@ async def _handle_food_log(message: str, db: AsyncSession, user_id: int, profile
                 msg += f"• {m['product']} — не указан вес в граммах. Укажите, сколько грамм вы съели.\n"
         return msg, 0
 
-    # If some were saved but some missing
+    # If some were saved but some missing — show JSON + plain text warning
     if missing_grams and items_with_kbju:
-        # Save the successfully parsed items
         await db.commit()
+        today_totals = await _get_today_totals(db, user_id)
 
-        # Build response with both saved and missing
-        saved_part = _format_meal_summary(items_with_kbju, profile)
-        missing_part = "\n\n⚠️ Не добавлены (уточните):\n"
+        prof_dict = None
+        if profile:
+            prof_dict = {
+                "calorie_target": profile.calorie_target,
+                "protein_target": profile.protein_target,
+                "fats_target": profile.fats_target,
+                "carbs_target": profile.carbs_target,
+                "water_target": profile.water_target,
+            }
+
+        totals = {
+            "calories": sum(i["calories"] for i in items_with_kbju),
+            "protein": sum(i["protein"] for i in items_with_kbju),
+            "fats": sum(i["fats"] for i in items_with_kbju),
+            "carbs": sum(i["carbs"] for i in items_with_kbju),
+        }
+
+        widget = {
+            "type": "food_log",
+            "items": items_with_kbju,
+            "totals": totals,
+            "today_totals": today_totals,
+            "profile": prof_dict,
+        }
+
+        missing_text = "\n\n⚠️ Не добавлены (уточните):\n"
         for m in missing_grams:
             if "КБЖУ" in m["reason"]:
-                missing_part += f"• {m['product']} — не удалось найти КБЖУ\n"
+                missing_text += f"• {m['product']} — не удалось найти КБЖУ\n"
             else:
-                missing_part += f"• {m['product']} — укажите граммовку\n"
+                missing_text += f"• {m['product']} — укажите граммовку\n"
 
-        # Return human-readable text
-        return saved_part + missing_part, 0
+        return json.dumps(widget, ensure_ascii=False) + missing_text, 0
 
     # All items saved successfully
     await db.commit()
     today_totals = await _get_today_totals(db, user_id)
 
-    # Build response
-    summary = _format_meal_summary(items_with_kbju, profile)
-    summary += f"\n\n📊 За сегодня: {today_totals['calories']} ккал"
-
+    prof_dict = None
     if profile:
-        remaining = profile.calorie_target - today_totals['calories']
-        summary += f" | Осталось: {remaining} ккал из {profile.calorie_target}"
-        summary += f"\nБелки: {today_totals['protein']}/{profile.protein_target}г | Жиры: {today_totals['fats']}/{profile.fats_target}г | Углеводы: {today_totals['carbs']}/{profile.carbs_target}г"
+        prof_dict = {
+            "calorie_target": profile.calorie_target,
+            "protein_target": profile.protein_target,
+            "fats_target": profile.fats_target,
+            "carbs_target": profile.carbs_target,
+            "water_target": profile.water_target,
+        }
 
-    return summary, 0
+    totals = {
+        "calories": sum(i["calories"] for i in items_with_kbju),
+        "protein": sum(i["protein"] for i in items_with_kbju),
+        "fats": sum(i["fats"] for i in items_with_kbju),
+        "carbs": sum(i["carbs"] for i in items_with_kbju),
+    }
+
+    widget = {
+        "type": "food_log",
+        "items": items_with_kbju,
+        "totals": totals,
+        "today_totals": today_totals,
+        "profile": prof_dict,
+    }
+
+    return json.dumps(widget, ensure_ascii=False), 0
 
 
 async def _estimate_portion(product_name: str) -> int | None:

@@ -281,32 +281,6 @@ const ManualModal = ({ isOpen, onClose }) => {
   );
 };
 
-// ---------- Food Diary Modal ----------
-const getRandomMealsForDate = (dateStr) => {
-  // Generate deterministic-ish mock data per date
-  const seed = dateStr.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  const mealsPool = [
-    [
-      { icon: '🥣', name: 'Овсяная каша на молоке', time: '08:15', portion: '250 г', calories: 320, protein: 10, fats: 8, carbs: 52 },
-      { icon: '☕', name: 'Кофе с молоком без сахара', time: '08:30', portion: '300 мл', calories: 45, protein: 3, fats: 2, carbs: 4 },
-    ],
-    [
-      { icon: '🍲', name: 'Куриный суп с лапшой', time: '13:00', portion: '350 мл', calories: 210, protein: 18, fats: 6, carbs: 22 },
-      { icon: '🥗', name: 'Салат из свежих овощей', time: '13:15', portion: '200 г', calories: 85, protein: 3, fats: 5, carbs: 8 },
-    ],
-    [
-      { icon: '🍗', name: 'Куриная грудка на гриле', time: '19:00', portion: '180 г', calories: 310, protein: 45, fats: 7, carbs: 2 },
-      { icon: '🍚', name: 'Гречка отварная', time: '19:05', portion: '200 г', calories: 220, protein: 8, fats: 2, carbs: 42 },
-    ],
-    [
-      { icon: '🍎', name: 'Яблоко', time: '11:00', portion: '1 шт', calories: 95, protein: 1, fats: 0, carbs: 25 },
-      { icon: '🥜', name: 'Горсть миндаля', time: '16:30', portion: '30 г', calories: 175, protein: 6, fats: 15, carbs: 5 },
-    ],
-  ];
-  const idx = seed % mealsPool.length;
-  return mealsPool[idx];
-};
-
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
@@ -316,21 +290,92 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
   const [viewMode, setViewMode] = useState('day'); // 'day' | 'week' | 'month'
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const [meals, setMeals] = useState([]);
+  const [dayTotals, setDayTotals] = useState({ calories: 0, protein: 0, fats: 0, carbs: 0 });
+  const [weekData, setWeekData] = useState(null);
+  const [monthData, setMonthData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [datesWithFood, setDatesWithFood] = useState({});
 
+  const DEMO_USER_ID = 1;
   const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const selectedDateStr = formatDate(selectedDate);
 
-  const meals = useMemo(() => getRandomMealsForDate(selectedDateStr), [selectedDateStr]);
+  // Load day data
+  useEffect(() => {
+    if (!isOpen) return;
+    const loadDay = async () => {
+      setLoading(true);
+      try {
+        const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-by-date?date=${selectedDateStr}`);
+        setDayTotals(data.totals);
+        const transformed = data.items.map(item => ({
+          id: item.id,
+          icon: getMealEmoji(item.meal_type),
+          name: item.product_name,
+          time: item.consumed_at ? new Date(item.consumed_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '—',
+          portion: `${item.grams} г`,
+          calories: item.calories,
+          protein: item.protein,
+          fats: item.fats,
+          carbs: item.carbs,
+        }));
+        setMeals(transformed);
+      } catch (e) {
+        console.warn('Failed to load food by date:', e);
+        setMeals([]);
+        setDayTotals({ calories: 0, protein: 0, fats: 0, carbs: 0 });
+      }
+      setLoading(false);
+    };
+    loadDay();
+  }, [selectedDateStr, isOpen]);
 
-  const dayTotals = useMemo(() => {
-    return meals.reduce((acc, m) => {
-      acc.calories += m.calories;
-      acc.protein += m.protein;
-      acc.fats += m.fats;
-      acc.carbs += m.carbs;
-      return acc;
-    }, { calories: 0, protein: 0, fats: 0, carbs: 0 });
-  }, [meals]);
+  // Load month's food presence (for calendar dots)
+  useEffect(() => {
+    if (!isOpen) return;
+    const start = formatDate(new Date(calendarYear, calendarMonth, 1));
+    const end = formatDate(new Date(calendarYear, calendarMonth + 1, 0));
+    const load = async () => {
+      try {
+        const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-date-range?start_date=${start}&end_date=${end}`);
+        setDatesWithFood(data.days || {});
+      } catch (e) { console.warn('Failed to load date range:', e); }
+    };
+    load();
+  }, [calendarMonth, calendarYear, isOpen]);
+
+  // Load week data
+  useEffect(() => {
+    if (!isOpen || viewMode !== 'week') return;
+    const end = formatDate(selectedDate);
+    const startDate = new Date(selectedDate);
+    startDate.setDate(startDate.getDate() - 6);
+    const start = formatDate(startDate);
+    const load = async () => {
+      try {
+        const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-date-range?start_date=${start}&end_date=${end}`);
+        setWeekData(data);
+      } catch (e) { console.warn('Failed to load week data:', e); }
+    };
+    load();
+  }, [viewMode, selectedDateStr, isOpen]);
+
+  // Load month data
+  useEffect(() => {
+    if (!isOpen || viewMode !== 'month') return;
+    const end = formatDate(selectedDate);
+    const startDate = new Date(selectedDate);
+    startDate.setDate(startDate.getDate() - 29);
+    const start = formatDate(startDate);
+    const load = async () => {
+      try {
+        const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-date-range?start_date=${start}&end_date=${end}`);
+        setMonthData(data);
+      } catch (e) { console.warn('Failed to load month data:', e); }
+    };
+    load();
+  }, [viewMode, selectedDateStr, isOpen]);
 
   // Calendar helpers
   const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
@@ -352,9 +397,54 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
   const isToday = (day) => day === today.getDate() && calendarMonth === today.getMonth() && calendarYear === today.getFullYear();
   const isSelected = (day) => day === selectedDate.getDate() && calendarMonth === selectedDate.getMonth() && calendarYear === selectedDate.getFullYear();
 
-  // Weekly totals (mock)
-  const weeklyTotals = { calories: 12450, protein: 680, fats: 420, carbs: 1580 };
-  const monthlyTotals = { calories: 53400, protein: 2890, fats: 1800, carbs: 6720 };
+  // Compute week stats
+  const weekStats = useMemo(() => {
+    if (!weekData?.days) return { calories: 0, days: 0, daysData: {} };
+    const days = weekData.days;
+    const total = Object.values(days).reduce((s, d) => s + d.calories, 0);
+    const count = Object.keys(days).length;
+    return { calories: total, days: count, daysData: days };
+  }, [weekData]);
+
+  // Compute month stats
+  const monthStats = useMemo(() => {
+    if (!monthData?.days) return { calories: 0, days: 0, daysData: {} };
+    const days = monthData.days;
+    const total = Object.values(days).reduce((s, d) => s + d.calories, 0);
+    const count = Object.keys(days).length;
+    return { calories: total, days: count, daysData: days };
+  }, [monthData]);
+
+  // Generate week bar data
+  const weekBars = useMemo(() => {
+    const bars = [];
+    const goal = nutritionGoal || 2000;
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(selectedDate);
+      d.setDate(d.getDate() - i);
+      const key = formatDate(d);
+      const dayOfWeek = WEEKDAYS[d.getDay() === 0 ? 6 : d.getDay() - 1];
+      const val = weekStats.daysData[key]?.calories || 0;
+      bars.push({ label: dayOfWeek, val, key });
+    }
+    const maxVal = Math.max(...bars.map(b => b.val), goal);
+    return bars.map(b => ({ ...b, maxVal, over: b.val > goal }));
+  }, [weekStats, selectedDate, nutritionGoal]);
+
+  // Generate month bar data
+  const monthBars = useMemo(() => {
+    const bars = [];
+    const goal = nutritionGoal || 2000;
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(selectedDate);
+      d.setDate(d.getDate() - i);
+      const key = formatDate(d);
+      const val = monthStats.daysData[key]?.calories || 0;
+      bars.push({ val, key, over: val > goal });
+    }
+    const maxVal = Math.max(...bars.map(b => b.val), goal || 2800);
+    return bars.map(b => ({ ...b, maxVal }));
+  }, [monthStats, selectedDate, nutritionGoal]);
 
   if (!isOpen) return null;
 
@@ -419,7 +509,8 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
               ))}
               {Array.from({ length: daysInMonth(calendarYear, calendarMonth) }).map((_, i) => {
                 const day = i + 1;
-                const hasMeals = day <= today.getDate() && calendarMonth === today.getMonth() && calendarYear === today.getFullYear();
+                const dateKey = formatDate(new Date(calendarYear, calendarMonth, day));
+                const hasFood = datesWithFood[dateKey]?.count > 0;
                 return (
                   <button
                     key={day}
@@ -427,7 +518,7 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
                     className={`aspect-square rounded-full text-sm font-medium flex flex-col items-center justify-center transition-all relative ${isSelected(day) ? 'bg-green-500 text-white' : isToday(day) ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
                   >
                     {day}
-                    {hasMeals && !isSelected(day) && <span className="absolute bottom-1 w-1 h-1 rounded-full bg-green-500" />}
+                    {hasFood && !isSelected(day) && <span className="absolute bottom-1 w-1 h-1 rounded-full bg-green-500" />}
                   </button>
                 );
               })}
@@ -444,7 +535,9 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
                 </h3>
               </div>
 
-              {meals.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-6 text-gray-400">Загрузка...</div>
+              ) : meals.length === 0 ? (
                 <div className="text-center py-6 text-gray-400 dark:text-gray-500">
                   <Coffee size={32} className="mx-auto mb-2 opacity-50" />
                   <p>Нет записей о питании</p>
@@ -508,20 +601,17 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
                 Анализ за неделю
               </h3>
 
-              {/* Week bar chart (mock) */}
+              {/* Week bar chart */}
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] p-4 mb-4">
                 <p className="text-xs text-gray-400 mb-3 text-center">Калории по дням</p>
                 <div className="flex items-end justify-between gap-1 h-32">
-                  {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day, i) => {
-                    const vals = [1850, 2100, 1720, 2380, 1950, 2600, 1450];
-                    const max = Math.max(...vals);
-                    const h = (vals[i] / max) * 100;
-                    const over = vals[i] > (nutritionGoal || 2000);
+                  {weekBars.map((bar) => {
+                    const h = bar.maxVal > 0 ? (bar.val / bar.maxVal) * 100 : 0;
                     return (
-                      <div key={day} className="flex-1 flex flex-col items-center gap-1">
-                        <span className="text-xs text-gray-500">{vals[i]}</span>
-                        <div className={`w-full rounded-t-lg ${over ? 'bg-red-400' : 'bg-green-400'}`} style={{ height: `${h}%` }} />
-                        <span className="text-xs text-gray-400">{day}</span>
+                      <div key={bar.key} className="flex-1 flex flex-col items-center gap-1">
+                        <span className="text-xs text-gray-500">{bar.val}</span>
+                        <div className={`w-full rounded-t-lg ${bar.over ? 'bg-red-400' : 'bg-green-400'}`} style={{ height: `${Math.max(h, 2)}%` }} />
+                        <span className="text-xs text-gray-400">{bar.label}</span>
                       </div>
                     );
                   })}
@@ -536,20 +626,12 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
                 <p className="text-xs font-medium text-gray-500 mb-3">Сводка за неделю</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] p-3 text-center">
-                    <p className="font-bold text-gray-800 dark:text-white">{weeklyTotals.calories.toLocaleString()}</p>
+                    <p className="font-bold text-gray-800 dark:text-white">{weekStats.calories.toLocaleString()}</p>
                     <p className="text-xs text-gray-400">всего ккал</p>
                   </div>
                   <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] p-3 text-center">
-                    <p className="font-bold text-gray-800 dark:text-white">{Math.round(weeklyTotals.calories / 7).toLocaleString()}</p>
+                    <p className="font-bold text-gray-800 dark:text-white">{weekStats.days > 0 ? Math.round(weekStats.calories / weekStats.days).toLocaleString() : 0}</p>
                     <p className="text-xs text-gray-400">среднее ккал/день</p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] p-3 text-center">
-                    <p className="font-bold text-gray-800 dark:text-white">{weeklyTotals.protein} г</p>
-                    <p className="text-xs text-gray-400">белки</p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] p-3 text-center">
-                    <p className="font-bold text-gray-800 dark:text-white">{weeklyTotals.fats} г</p>
-                    <p className="text-xs text-gray-400">жиры</p>
                   </div>
                 </div>
               </div>
@@ -564,18 +646,15 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
                 Анализ за месяц
               </h3>
 
-              {/* Month line chart (mock — simplified as bar) */}
+              {/* Month bar chart */}
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] p-4 mb-4">
                 <p className="text-xs text-gray-400 mb-3 text-center">Калории по дням (последние 30 дней)</p>
                 <div className="flex items-end gap-[2px] h-24">
-                  {Array.from({ length: 30 }).map((_, i) => {
-                    const val = 1500 + Math.floor(Math.random() * 1200);
-                    const max = 2800;
-                    const h = (val / max) * 100;
-                    const over = val > (nutritionGoal || 2000);
+                  {monthBars.map((bar, i) => {
+                    const h = bar.maxVal > 0 ? (bar.val / bar.maxVal) * 100 : 0;
                     return (
-                      <div key={i} className="flex-1 flex flex-col items-center">
-                        <div className={`w-full rounded-t-sm ${over ? 'bg-red-400' : 'bg-green-400'}`} style={{ height: `${h}%` }} />
+                      <div key={bar.key} className="flex-1 flex flex-col items-center">
+                        <div className={`w-full rounded-t-sm ${bar.over ? 'bg-red-400' : 'bg-green-400'}`} style={{ height: `${Math.max(h, 2)}%` }} />
                       </div>
                     );
                   })}
@@ -590,33 +669,27 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
                 <p className="text-xs font-medium text-gray-500 mb-3">Сводка за месяц</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] p-3 text-center">
-                    <p className="font-bold text-gray-800 dark:text-white">{monthlyTotals.calories.toLocaleString()}</p>
+                    <p className="font-bold text-gray-800 dark:text-white">{monthStats.calories.toLocaleString()}</p>
                     <p className="text-xs text-gray-400">всего ккал</p>
                   </div>
                   <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] p-3 text-center">
-                    <p className="font-bold text-gray-800 dark:text-white">{Math.round(monthlyTotals.calories / 30).toLocaleString()}</p>
+                    <p className="font-bold text-gray-800 dark:text-white">{monthStats.days > 0 ? Math.round(monthStats.calories / monthStats.days).toLocaleString() : 0}</p>
                     <p className="text-xs text-gray-400">среднее ккал/день</p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] p-3 text-center">
-                    <p className="font-bold text-gray-800 dark:text-white">{monthlyTotals.protein.toLocaleString()} г</p>
-                    <p className="text-xs text-gray-400">белки</p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] p-3 text-center">
-                    <p className="font-bold text-gray-800 dark:text-white">{monthlyTotals.fats.toLocaleString()} г</p>
-                    <p className="text-xs text-gray-400">жиры</p>
                   </div>
                 </div>
 
                 {/* Trend insight */}
-                <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-[1.5rem] border border-amber-200 dark:border-amber-800">
-                  <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1">📈 Тренд</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    В среднем вы потребляете {Math.round(monthlyTotals.calories / 30).toLocaleString()} ккал в день.
-                    {(nutritionGoal || 2000) > Math.round(monthlyTotals.calories / 30)
-                      ? ` Это на ${(nutritionGoal || 2000) - Math.round(monthlyTotals.calories / 30)} ккал ниже нормы — добавьте полезные перекусы.`
-                      : ` Это на ${Math.round(monthlyTotals.calories / 30) - (nutritionGoal || 2000)} ккал выше нормы — подумайте о снижении порций.`}
-                  </p>
-                </div>
+                {monthStats.days > 0 && (
+                  <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-[1.5rem] border border-amber-200 dark:border-amber-800">
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1">📈 Тренд</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      В среднем вы потребляете {Math.round(monthStats.calories / monthStats.days).toLocaleString()} ккал в день.
+                      {(nutritionGoal || 2000) > Math.round(monthStats.calories / monthStats.days)
+                        ? ` Это на ${(nutritionGoal || 2000) - Math.round(monthStats.calories / monthStats.days)} ккал ниже нормы — добавьте полезные перекусы.`
+                        : ` Это на ${Math.round(monthStats.calories / monthStats.days) - (nutritionGoal || 2000)} ккал выше нормы — подумайте о снижении порций.`}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}

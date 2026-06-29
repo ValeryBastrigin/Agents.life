@@ -643,6 +643,101 @@ async def get_food_today(user_id: int, db: AsyncSession = Depends(get_db)):
         }
     }
 
+@router.get("/user/{user_id}/food-by-date")
+async def get_food_by_date(user_id: int, date: str, db: AsyncSession = Depends(get_db)):
+    """Get food consumption for a specific date (YYYY-MM-DD)."""
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    day_start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=timezone.utc)
+    day_end = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, tzinfo=timezone.utc)
+    
+    result = await db.execute(
+        select(FoodConsumption)
+        .where(
+            FoodConsumption.user_id == user_id,
+            FoodConsumption.consumed_at >= day_start,
+            FoodConsumption.consumed_at <= day_end
+        )
+        .order_by(FoodConsumption.consumed_at.asc())
+    )
+    items = result.scalars().all()
+    
+    items_data = []
+    total_cal = total_protein = total_fats = total_carbs = 0
+    
+    for item in items:
+        items_data.append({
+            "id": item.id,
+            "product_name": item.product_name,
+            "grams": item.grams,
+            "calories": item.calories,
+            "protein": item.protein,
+            "fats": item.fats,
+            "carbs": item.carbs,
+            "meal_type": item.meal_type,
+            "consumed_at": item.consumed_at.isoformat() if item.consumed_at else None
+        })
+        total_cal += item.calories
+        total_protein += item.protein
+        total_fats += item.fats
+        total_carbs += item.carbs
+    
+    return {
+        "date": date,
+        "items": items_data,
+        "totals": {
+            "calories": total_cal,
+            "protein": total_protein,
+            "fats": total_fats,
+            "carbs": total_carbs,
+            "items_count": len(items_data)
+        }
+    }
+
+@router.get("/user/{user_id}/food-date-range")
+async def get_food_date_range(user_id: int, start_date: str, end_date: str, db: AsyncSession = Depends(get_db)):
+    """Get food consumption for a date range (YYYY-MM-DD)."""
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    day_start = datetime(start.year, start.month, start.day, 0, 0, 0, tzinfo=timezone.utc)
+    day_end = datetime(end.year, end.month, end.day, 23, 59, 59, tzinfo=timezone.utc)
+    
+    result = await db.execute(
+        select(FoodConsumption)
+        .where(
+            FoodConsumption.user_id == user_id,
+            FoodConsumption.consumed_at >= day_start,
+            FoodConsumption.consumed_at <= day_end
+        )
+        .order_by(FoodConsumption.consumed_at.asc())
+    )
+    items = result.scalars().all()
+    
+    # Group by date
+    by_date = {}
+    for item in items:
+        dt = item.consumed_at.astimezone(timezone.utc).date().isoformat()
+        if dt not in by_date:
+            by_date[dt] = {"calories": 0, "protein": 0, "fats": 0, "carbs": 0, "count": 0}
+        by_date[dt]["calories"] += item.calories
+        by_date[dt]["protein"] += item.protein
+        by_date[dt]["fats"] += item.fats
+        by_date[dt]["carbs"] += item.carbs
+        by_date[dt]["count"] += 1
+    
+    return {
+        "start_date": start_date,
+        "end_date": end_date,
+        "days": {d: by_date[d] for d in sorted(by_date.keys())}
+    }
+
 @router.delete("/food/{food_id}")
 async def delete_food_item(food_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(FoodConsumption).where(FoodConsumption.id == food_id))
