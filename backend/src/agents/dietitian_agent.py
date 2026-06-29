@@ -80,6 +80,8 @@ async def _detect_food_intent(message: str) -> bool:
 - "сколько белка мне нужно?"
 - "привет"
 - "спасибо"
+- "удали пюре из рациона"
+- "убери шоколадный пончик"
 
 Сообщение: "{message}"
 
@@ -103,6 +105,134 @@ async def _detect_food_intent(message: str) -> bool:
                    "завтракал", "обедал", "ужинал", "грамм", "порцию", "порция"]
         msg_lower = message.lower()
         return any(kw in msg_lower for kw in food_kw)
+
+
+async def _detect_food_delete_intent(message: str) -> bool:
+    """
+    Determine if the user wants to DELETE food from their consumption log.
+    """
+    delete_kw = ["удали", "убрать", "убери", "удалить", "вычеркни", "сотри", "убери"]
+    msg_lower = message.lower()
+    has_delete = any(kw in msg_lower for kw in delete_kw)
+    
+    if not has_delete:
+        return False
+    
+    # Check if food-related
+    food_nouns = ["рацион", "продукт", "еду", "съеден", "блюдо", "пюре", "суп", "каш", "салат", 
+                  "пончик", "булк", "хлеб", "мяс", "куриц", "рыб", "яблок", "банан", "шоколад",
+                  "конфет", "торт", "пирож", "печен", "молок", "кефир", "йогурт", "творог",
+                  "макарон", "греч", "рис", "овсян", "яйц", "колбас", "сосиск", "котлет",
+                  "напиток", "сок", "кол", "чай", "кофе", "вода", "компот"]
+    
+    return any(kw in msg_lower for kw in food_nouns)
+
+
+async def _extract_delete_target(message: str) -> str | None:
+    """
+    Extract the food product name to delete from a delete command.
+    """
+    prompt = f"""Извлеки название продукта/блюда, которое пользователь ХОЧЕТ УДАЛИТЬ из своего рациона.
+
+Примеры:
+- "удали пюре быстрого приготовления из рациона" → "пюре быстрого приготовления"
+- "убери шоколадный пончик" → "шоколадный пончик"
+- "сотри куриную грудку" → "куриная грудка"
+- "вычеркни колу без сахара" → "кола без сахара"
+
+Сообщение: "{message}"
+
+Верни ТОЛЬКО название продукта, без лишних слов. Если не можешь определить — верни "null"."""
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=50,
+            timeout=10.0
+        )
+        raw = (response.choices[0].message.content or "").strip()
+        if raw.lower() == "null" or raw.lower() == "none" or raw == "":
+            return None
+        return raw
+    except Exception as e:
+        print(f"Error extracting delete target: {e}")
+        return None
+
+
+async def _handle_food_delete(message: str, db: AsyncSession, user_id: int) -> tuple[str, int]:
+    """
+    Handle a food deletion request:
+    1. Extract the target product name
+    2. Find matching items in today's consumption
+    3. Delete and return confirmation
+    """
+    target = await _extract_delete_target(message)
+    
+    if not target:
+        return (
+            "Не понял, какой именно продукт нужно удалить. Уточните, например: «удали шоколадный пончик из рациона».",
+            0,
+        )
+    
+    # Search for matching items in today's consumption
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    result = await db.execute(
+        select(FoodConsumption).where(
+            FoodConsumption.user_id == user_id,
+            FoodConsumption.consumed_at >= today_start
+        )
+    )
+    items = result.scalars().all()
+    
+    if not items:
+        return "У вас нет записей о питании за сегодня.", 0
+    
+    # Fuzzy match: find items that contain the target product name
+    target_lower = target.lower().strip()
+    matched = []
+    
+    for item in items:
+        item_name_lower = item.product_name.lower()
+        # Check if target is contained in product name or vice versa
+        if target_lower in item_name_lower or item_name_lower in target_lower:
+            matched.append(item)
+    
+    # If no exact substring match, try word-by-word match
+    if not matched:
+        target_words = set(target_lower.split())
+        for item in items:
+            item_words = set(item.product_name.lower().split())
+            common = target_words & item_words
+            if len(common) >= max(1, len(target_words) // 2):  # At least half of words match
+                matched.append(item)
+    
+    if not matched:
+        # List today's items to help user
+        item_names = [f"• {item.product_name} ({item.grams}г, {item.calories} ккал)" for item in items]
+        names_text = "\n".join(item_names)
+        return (
+            f"Не нашёл «{target}» в сегодняшнем рационе. Вот что у вас за сегодня:\n{names_text}\n\nУточните, какой именно продукт удалить.",
+            0,
+        )
+    
+    if len(matched) == 1:
+        item = matched[0]
+        name = item.product_name
+        cal = item.calories
+        await db.delete(item)
+        await db.commit()
+        return (
+            f"✅ Удалил «{name}» ({item.grams}г, {cal} ккал) из сегодняшнего рациона.",
+            0,
+        )
+    
+    # Multiple matches — ask user to clarify
+    item_list = "\n".join([f"• {it.product_name} ({it.grams}г, {it.calories} ккал)" for it in matched])
+    return (
+        f"Нашлось несколько продуктов похожих на «{target}»:\n{item_list}\n\nУточните, какой именно удалить.",
+        0,
+    )
 
 
 async def _extract_food_items(message: str) -> list[dict]:
@@ -224,6 +354,11 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
             select(UserDietProfile).where(UserDietProfile.user_id == user_id)
         )
         profile = result.scalar_one_or_none()
+
+        # Detect if this is a food DELETE command (check BEFORE food log)
+        is_food_delete = await _detect_food_delete_intent(message)
+        if is_food_delete:
+            return await _handle_food_delete(message, db, user_id)
 
         # Detect if this is a food consumption log
         is_food_log = await _detect_food_intent(message)

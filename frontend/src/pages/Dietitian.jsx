@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock } from 'lucide-react';
+import { ArrowLeft, X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient } from '../utils/apiClient';
 
@@ -853,6 +853,16 @@ const Dietitian = () => {
     }
   }, []);
 
+  const handleDeleteMeal = useCallback(async (foodId) => {
+    try {
+      await apiClient.delete(`/api/food/${foodId}`);
+      // Refresh after delete
+      loadFoodToday();
+    } catch (e) {
+      console.warn('Failed to delete food item:', e);
+    }
+  }, [loadFoodToday]);
+
   const caloriesProgress = Math.min(
     nutrition.calories.goal > 0 ? (nutrition.calories.current / nutrition.calories.goal) * 100 : 0, 100
   );
@@ -865,7 +875,7 @@ const Dietitian = () => {
       <div className="max-w-2xl mx-auto">
         {/* Back Button + Title */}
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate('/')} className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors">
+          <button onClick={() => navigate('/chat')} className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors">
             <ArrowLeft size={22} className="text-gray-700 dark:text-gray-300" />
           </button>
           <div>
@@ -1003,7 +1013,7 @@ const Dietitian = () => {
           ) : (
             <div className="space-y-3">
               {todayMeals.map((meal, i) => (
-                <div key={i} className="flex items-center gap-3 bg-gray-100 dark:bg-gray-700/50 rounded-[2rem] p-3">
+                <div key={meal.id || i} className="flex items-center gap-3 bg-gray-100 dark:bg-gray-700/50 rounded-[2rem] p-3 group relative">
                   <div className="text-2xl flex-shrink-0">{meal.icon}</div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-800 dark:text-white text-sm truncate">{meal.name}</p>
@@ -1013,6 +1023,13 @@ const Dietitian = () => {
                     <p className="font-semibold text-gray-800 dark:text-white text-sm">{meal.calories} ккал</p>
                     <p className="text-xs text-gray-400">Б {meal.protein} · Ж {meal.fats} · У {meal.carbs}</p>
                   </div>
+                  <button
+                    onClick={() => handleDeleteMeal(meal.id)}
+                    className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                    title="Удалить"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               ))}
             </div>

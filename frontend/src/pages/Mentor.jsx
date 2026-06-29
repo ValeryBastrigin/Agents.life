@@ -54,7 +54,7 @@ const Mentor = () => {
         {/* Back Button + Title */}
         <div className="flex items-center gap-3 mb-6">
           <button
-            onClick={() => navigate('/')}
+onClick={() => navigate('/chat')}
             className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors"
           >
             <ArrowLeft size={22} className="text-gray-700 dark:text-gray-300" />

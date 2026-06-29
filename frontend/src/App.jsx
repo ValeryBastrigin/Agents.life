@@ -126,7 +126,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   };
 
   const handleNewChat = () => {
-    navigate('/');
+    navigate('/chat');
   };
 
   const handleDeleteChat = (deletedChatId) => {
@@ -136,7 +136,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
     // If current chat was deleted, navigate to home
     const currentChatId = location.pathname.match(/^\/chat\/(\d+)$/);
     if (currentChatId && parseInt(currentChatId[1]) === deletedChatId) {
-      navigate('/');
+      navigate('/chat');
     }
   };
 
@@ -170,7 +170,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   return (
     <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark ${theme} relative overflow-hidden`}>
       {/* Animated Background - Only visible on chat pages */}
-      {location.pathname !== '/profile' && location.pathname !== '/secretary' && location.pathname !== '/accountant' && location.pathname !== '/dietitian' && location.pathname !== '/psychologist' && location.pathname !== '/mentor' && (
+      {!location.pathname.startsWith('/profile') && !location.pathname.startsWith('/secretary') && !location.pathname.startsWith('/accountant') && !location.pathname.startsWith('/dietitian') && !location.pathname.startsWith('/psychologist') && !location.pathname.startsWith('/mentor') && (
         <div className="absolute inset-0 pointer-events-none z-0">
           <AnimatedBackground theme={theme} isLoading={false} />
         </div>
@@ -195,7 +195,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <div className="flex items-center gap-3">
           {location.pathname === '/secretary' || location.pathname === '/secretary/logs' || location.pathname === '/accountant' || location.pathname === '/dietitian' || location.pathname === '/psychologist' || location.pathname === '/mentor' ? (
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/chat')}
               className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
             >
               <ArrowLeft size={20} className="text-gray-700 dark:text-gray-300" />
@@ -209,7 +209,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
             </button>
           )}
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {location.pathname === '/' ? 'Ixteria' :
+            {location.pathname === '/chat' ? 'Ixteria' :
               location.pathname === '/secretary' ? 'Секретарь' :
               location.pathname === '/secretary/logs' ? 'Секретарь' :
               location.pathname === '/accountant' ? 'Бухгалтер' :
@@ -231,8 +231,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Routes */}
       <Routes>
-        <Route path="/" element={<Home key="home" onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
-        <Route path="/chat/:chatId" element={<Home key={location.pathname} onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
+        <Route path="/chat/:chatId?" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
         <Route path="/secretary/logs" element={<ActivityLog theme={theme} />} />
         <Route path="/secretary/guide" element={<SecretaryGuide />} />
@@ -242,7 +241,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/dietitian" element={<Dietitian />} />
         <Route path="/psychologist" element={<Psychologist />} />
         <Route path="/mentor" element={<Mentor />} />
-        <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/')} />} />
+        <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/chat')} />} />
       </Routes>
     </div>
   );

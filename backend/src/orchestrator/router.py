@@ -152,6 +152,12 @@ async def route_to_agent(message: str) -> str:
         print(f"DEBUG: Keyword fallback — routing to dietitian")
         return "dietitian"
     
+    # --- FAST KEYWORD FALLBACK: detect food deletion ---
+    delete_food_kw = ["удали", "убрать", "убери", "удалить", "убери", "вычеркни", "сотри"]
+    if any(kw in msg_lower for kw in delete_food_kw) and ("рацион" in msg_lower or "продукт" in msg_lower or "еду" in msg_lower or "съеден" in msg_lower or "блюдо" in msg_lower or "пюре" in msg_lower or "суп" in msg_lower or "каш" in msg_lower or "салат" in msg_lower or "питани" in msg_lower):
+        print(f"DEBUG: Keyword fallback — routing food deletion to dietitian")
+        return "dietitian"
+    
     # Secretary keywords
     sec_kw = ["встреча", "запланировать", "записать", "назначить", "расписание", "календарь",
               "событие", "напоминание", "напомни"]
