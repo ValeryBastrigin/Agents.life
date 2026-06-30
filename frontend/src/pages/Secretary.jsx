@@ -46,7 +46,8 @@ const Secretary = ({ theme }) => {
         title: event.title,
         start: new Date(event.start),
         end: new Date(event.end),
-        color: event.color
+        color: event.color,
+        completed: event.completed
       }));
       setEvents(formattedEvents);
     } catch (error) {
@@ -148,7 +149,8 @@ const Secretary = ({ theme }) => {
           title: response.data.title,
           start: new Date(response.data.start),
           end: new Date(response.data.end),
-          color: response.data.color
+          color: response.data.color,
+          completed: false
         };
         setEvents([...events, newEvent]);
         setShowEventModal(false);
@@ -180,7 +182,7 @@ const Secretary = ({ theme }) => {
       });
       setEvents(events.map(ev =>
         ev.id === event.id
-          ? { ...ev, start, end }
+          ? { ...ev, start, end, completed: ev.completed }
           : ev
       ));
     } catch (error) {
@@ -202,7 +204,7 @@ const Secretary = ({ theme }) => {
       });
       setEvents(events.map(ev =>
         ev.id === event.id
-          ? { ...ev, start, end }
+          ? { ...ev, start, end, completed: ev.completed }
           : ev
       ));
     } catch (error) {
@@ -272,6 +274,17 @@ const Secretary = ({ theme }) => {
     }
   };
 
+  const toggleEventCompleted = async (eventId) => {
+    try {
+      await axios.put(`${API_URL}/api/events/${eventId}/toggle`);
+      setEvents(events.map(e =>
+        e.id === eventId ? { ...e, completed: !e.completed } : e
+      ));
+    } catch (error) {
+      console.error('Failed to toggle event completion:', error);
+    }
+  };
+
   // Stats for hero section
   const eventsCount = events.filter(e => moment(e.start).isSameOrAfter(moment(), 'day')).length;
   const remindersCount = reminders.filter(r => !r.completed).length;
@@ -288,7 +301,7 @@ const Secretary = ({ theme }) => {
     return (
       <>
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl xl:max-w-8xl 2xl:max-w-9xl mx-auto">
             {/* Header */}
             <div className="flex items-center gap-4 mb-8">
               <button
@@ -307,7 +320,7 @@ const Secretary = ({ theme }) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {/* Schedule Section */}
               <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-5 sm:p-6">
                 <div className="flex items-center gap-3 mb-5">
@@ -319,7 +332,7 @@ const Secretary = ({ theme }) => {
                   </h2>
                 </div>
 
-                <div className="h-[480px] rounded-[2rem] overflow-hidden bg-background-light dark:bg-background-dark">
+                <div className="h-[480px] sm:h-[550px] lg:h-[650px] rounded-[2rem] overflow-hidden bg-background-light dark:bg-background-dark">
                   <BigCalendar
                     localizer={localizer}
                     events={events.filter(event => moment(event.start).isSame(selectedDate, 'day'))}
@@ -371,7 +384,7 @@ const Secretary = ({ theme }) => {
               </div>
 
               {/* Events & Reminders Section */}
-              <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-5 sm:p-6">
+              <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-5 sm:p-6 lg:col-span-2 xl:col-span-1">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900/30">
@@ -389,7 +402,7 @@ const Secretary = ({ theme }) => {
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[380px] sm:max-h-[450px] lg:max-h-[500px] overflow-y-auto pr-1">
                   {dayReminders.length === 0 ? (
                     <div className="text-center py-12">
                       <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
@@ -607,7 +620,7 @@ const Secretary = ({ theme }) => {
   // Month Overview View
   return (
     <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl xl:max-w-8xl 2xl:max-w-9xl mx-auto">
         {/* Hero Section — ultra-compact flat bar */}
         <div className="bg-blue-600 dark:bg-blue-700 rounded-[2.5rem] px-3.5 py-2 mb-4 shadow-sm">
           <button
@@ -741,7 +754,7 @@ const Secretary = ({ theme }) => {
             </button>
           </div>
 
-          <div className="h-[420px] rounded-[2rem] overflow-hidden bg-gray-100 dark:bg-background-dark border border-gray-200 dark:border-gray-800">
+          <div className="h-[420px] sm:h-[500px] lg:h-[600px] rounded-[2rem] overflow-hidden bg-gray-100 dark:bg-background-dark border border-gray-200 dark:border-gray-800">
             <BigCalendar
               localizer={localizer}
               events={events}
@@ -882,7 +895,7 @@ const Secretary = ({ theme }) => {
 
           {/* Content */}
           <div className="bg-gray-100 dark:bg-background-dark rounded-[2.5rem] p-4 border border-gray-200 dark:border-gray-800">
-            <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[240px] sm:max-h-[300px] lg:max-h-[400px] overflow-y-auto pr-1">
               {widgetMode === 'schedule' ? (
                 events.filter(event => moment(event.start).isSame(widgetDate, 'day')).length === 0 ? (
                   <div className="text-center py-10">
@@ -903,12 +916,27 @@ const Secretary = ({ theme }) => {
                         className="flex items-center gap-4 p-3.5 bg-white dark:bg-surface-dark rounded-[2.5rem] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group border border-gray-100 dark:border-transparent"
                         onClick={() => setSelectedDate(event.start)}
                       >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleEventCompleted(event.id);
+                          }}
+                          className={`p-2 rounded-full transition-colors ${
+                            event.completed
+                              ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-green-500'
+                          }`}
+                        >
+                          {event.completed ? <Check size={16} /> : <div className="w-4 h-4 rounded-full border-2 border-current" />}
+                        </button>
                         <div 
                           className="w-3 h-3 rounded-full shrink-0" 
                           style={{ backgroundColor: event.color }} 
                         />
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-800 dark:text-white mb-0.5 truncate text-sm">
+                          <h4 className={`font-semibold text-gray-800 dark:text-white mb-0.5 truncate text-sm ${
+                            event.completed ? 'line-through text-gray-400 dark:text-gray-500' : ''
+                          }`}>
                             {event.title}
                           </h4>
                           <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">

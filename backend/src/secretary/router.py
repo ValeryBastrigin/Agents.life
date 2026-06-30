@@ -71,7 +71,8 @@ async def get_calendar_events(user_id: int, db: AsyncSession = Depends(get_db)):
             "start": event.start_time.isoformat(),
             "end": event.end_time.isoformat(),
             "color": event.color,
-            "description": event.description
+            "description": event.description,
+            "completed": event.completed
         }
         for event in events
     ]
@@ -136,6 +137,22 @@ async def update_calendar_event(event_id: int, event_data: CalendarEventUpdate, 
         "end": event.end_time.isoformat(),
         "color": event.color,
         "description": event.description
+    }
+
+@router.put("/events/{event_id}/toggle")
+async def toggle_event_completed(event_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(CalendarEvent).where(CalendarEvent.id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    event.completed = not event.completed
+    await db.commit()
+    await db.refresh(event)
+    
+    return {
+        "id": event.id,
+        "completed": event.completed
     }
 
 @router.delete("/events/{event_id}")

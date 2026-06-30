@@ -82,6 +82,7 @@ class CalendarEvent(Base):
     end_time = Column(DateTime(timezone=True), nullable=False)
     color = Column(String(7), default="#3B82F6")
     description = Column(Text)
+    completed = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

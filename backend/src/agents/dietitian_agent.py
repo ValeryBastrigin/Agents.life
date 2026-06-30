@@ -447,7 +447,7 @@ async def _handle_food_log(message: str, db: AsyncSession, user_id: int, profile
             fats=total_fats,
             carbs=total_carbs,
             meal_type=meal_type,
-            consumed_at=datetime.now()
+            consumed_at=datetime.now(timezone.utc)
         )
         db.add(consumption)
 
