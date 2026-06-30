@@ -27,10 +27,10 @@ const ChatWidgetRenderer = ({ content }) => {
     }
     
     // If it's JSON but not a recognized widget type, render as formatted text
-    return <div className="text-gray-800 dark:text-white whitespace-pre-wrap">{content}</div>;
+    return <div className="whitespace-pre-wrap">{content}</div>;
   } catch (e) {
     // If it's not JSON, render as regular text with basic formatting
-    return <div className="text-gray-800 dark:text-white whitespace-pre-wrap">{content}</div>;
+    return <div className="whitespace-pre-wrap">{content}</div>;
   }
 };
 

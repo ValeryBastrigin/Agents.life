@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2 } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient } from '../utils/apiClient';
 
@@ -703,8 +704,11 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
 };
 
 // ========== Main Dietitian Page ==========
+const FOOD_CHAT_STORAGE_KEY = 'dietitian_food_chat_id';
+
 const Dietitian = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showManual, setShowManual] = useState(false);
@@ -859,6 +863,38 @@ const Dietitian = () => {
     }
   }, [loadFoodToday]);
 
+  const handleAddFood = useCallback(async () => {
+    try {
+      // 1. Проверяем, есть ли уже существующий чат с food-query
+      const existingRes = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-query-chat`);
+      const existingChatId = existingRes.data?.chat_id;
+
+      if (existingChatId) {
+        // Чат уже существует — отправляем повторный запрос о еде и редиректим
+        await apiClient.post(`/api/chats/${existingChatId}/food-query`);
+        localStorage.setItem(FOOD_CHAT_STORAGE_KEY, String(existingChatId));
+        navigate(`/chat/${existingChatId}`);
+        return;
+      }
+
+      // 2. Существующего чата нет — создаём новый
+      const { data } = await apiClient.post('/api/chats', {
+        title: '🍽️ Дневник питания',
+        user_id: DEMO_USER_ID,
+        agent_type: 'dietitian',
+      });
+      const chatId = data.id || data.chat_id;
+
+      // Отправляем приветственное сообщение от диетолога
+      await apiClient.post(`/api/chats/${chatId}/food-query`);
+
+      localStorage.setItem(FOOD_CHAT_STORAGE_KEY, String(chatId));
+      navigate(`/chat/${chatId}`);
+    } catch (e) {
+      console.error('Не удалось открыть дневник питания:', e);
+    }
+  }, [navigate, DEMO_USER_ID]);
+
   const caloriesProgress = Math.min(
     nutrition.calories.goal > 0 ? (nutrition.calories.current / nutrition.calories.goal) * 100 : 0, 100
   );
@@ -869,15 +905,9 @@ const Dietitian = () => {
   return (
 <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
       <div className="max-w-2xl mx-auto">
-        {/* Title */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">🍎 Диетолог</h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Отслеживайте питание, калории и получайте персональные рекомендации.</p>
-        </div>
-
-        {/* ===== Two Dashboard Cards ABOVE the calorie ring ===== */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          {/* Card 1: Manual */}
+        {/* ===== Dashboard Widgets (3 columns) ===== */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {/* Widget 1: Manual */}
           <button
             onClick={() => setShowManual(true)}
             className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
@@ -892,7 +922,7 @@ const Dietitian = () => {
             </div>
           </button>
 
-          {/* Card 2: Food Diary */}
+          {/* Widget 2: Food Diary */}
           <button
             onClick={() => setShowDiary(true)}
             className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
@@ -904,6 +934,26 @@ const Dietitian = () => {
               <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
                 Дневник питания
               </span>
+            </div>
+          </button>
+
+          {/* Widget 3: Profile */}
+          <button
+            onClick={() => setShowOnboarding(true)}
+            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
+          >
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <Settings size={20} className="text-green-600 dark:text-green-400" />
+              </div>
+              <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+                {userProfile ? 'Ваш профиль' : 'Настроить профиль'}
+              </span>
+              {userProfile && (
+                <span className="text-[10px] text-gray-400 text-center leading-tight">
+                  {GOAL_LABELS[userProfile.goal]}
+                </span>
+              )}
             </div>
           </button>
         </div>
@@ -925,72 +975,39 @@ const Dietitian = () => {
           </div>
         </div>
 
-        {/* ===== БЖУ + Water row ===== */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {/* ===== БЖУ row ===== */}
+        <div className="grid grid-cols-3 gap-2 mb-6">
           {[
             { label: 'Белки', current: nutrition.protein.current, goal: nutrition.protein.goal, unit: 'г', color: 'bg-blue-500', icon: '🥩' },
             { label: 'Жиры', current: nutrition.fats.current, goal: nutrition.fats.goal, unit: 'г', color: 'bg-amber-500', icon: '🥑' },
             { label: 'Углеводы', current: nutrition.carbs.current, goal: nutrition.carbs.goal, unit: 'г', color: 'bg-orange-500', icon: '🍞' },
-            { label: 'Вода', current: nutrition.water.current, goal: nutrition.water.goal, unit: 'ст.', color: 'bg-cyan-500', icon: '💧' },
           ].map((item) => (
-            <div key={item.label} className="p-3 bg-surface-light dark:bg-surface-dark rounded-[2rem] text-center">
-              <div className="text-xl mb-1">{item.icon}</div>
-              <div className="text-base font-bold text-gray-800 dark:text-white">
-                {item.current}<span className="text-xs font-normal text-gray-400">/{item.goal} {item.unit}</span>
+            <div key={item.label} className="p-2.5 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] text-center">
+              <div className="text-sm font-bold text-gray-800 dark:text-white mb-0.5">
+                {item.current}<span className="text-[10px] font-normal text-gray-400">/{item.goal} {item.unit}</span>
               </div>
-              <div className="mt-1.5 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div className={`h-full ${item.color} rounded-full transition-all`} style={{ width: `${Math.min((item.current / (item.goal || 1)) * 100, 100)}%` }} />
               </div>
+              <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mt-1">{item.icon} {item.label}</div>
             </div>
           ))}
         </div>
 
-        {/* ===== Настройте агента под вас ===== */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-6 mb-6">
-          {userProfile ? (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">⚙️ Ваш профиль</h2>
-                <button onClick={() => setShowOnboarding(true)} className="flex items-center gap-1 px-3 py-1.5 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-[1.5rem] transition-colors">
-                  <Settings size={14} />Изменить
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-[1.5rem] p-3 text-center">
-                  <p className="text-gray-500 text-xs">Рост</p>
-                  <p className="font-semibold text-gray-800 dark:text-white">{userProfile.profile.height} см</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-[1.5rem] p-3 text-center">
-                  <p className="text-gray-500 text-xs">Вес</p>
-                  <p className="font-semibold text-gray-800 dark:text-white">{userProfile.profile.weight} кг</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-[1.5rem] p-3 text-center">
-                  <p className="text-gray-500 text-xs">Возраст</p>
-                  <p className="font-semibold text-gray-800 dark:text-white">{userProfile.profile.age} лет</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-[1.5rem] p-3 text-center">
-                  <p className="text-gray-500 text-xs">Цель</p>
-                  <p className="font-semibold text-gray-800 dark:text-white">{GOAL_LABELS[userProfile.goal]}</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-[1.5rem] p-3 text-center">
-                  <p className="text-gray-500 text-xs">Активность</p>
-                  <p className="font-semibold text-gray-800 dark:text-white">{ACTIVITY_LEVELS[userProfile.activity]?.label}</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => setShowOnboarding(true)} className="w-full text-left group">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-1 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">⚙️ Настройте агента под вас</h2>
-              <p className="text-sm text-gray-400 dark:text-gray-500">Ответьте на несколько вопросов, чтобы диетолог рассчитал вашу персональную норму КБЖУ.</p>
-            </button>
-          )}
-        </div>
-
         {/* ===== Съедено сегодня ===== */}
         <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            🍽️ Съедено сегодня
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+              🍽️ Съедено сегодня
+            </h2>
+            <button
+              onClick={handleAddFood}
+              className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md"
+              title="Добавить еду через чат"
+            >
+              <Plus size={20} />
+            </button>
+          </div>
           {todayMeals.length === 0 ? (
             <div className="text-center py-6">
               <div className="text-4xl mb-3">🍴</div>

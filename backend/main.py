@@ -21,7 +21,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(orchestrator_router)
-app.include_router(secretary_router)
+app.include_router(secretary_router, prefix="/api")
 
 # Exception handler for validation errors
 @app.exception_handler(ValidationError)

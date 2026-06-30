@@ -7,7 +7,7 @@ from typing import Optional
 from src.database import get_db
 from src.models import CalendarEvent, Reminder, Note
 
-router = APIRouter(prefix="/api", tags=["secretary"])
+router = APIRouter(tags=["secretary"])
 
 # Pydantic models
 class CalendarEventCreate(BaseModel):

@@ -74,6 +74,12 @@ class ChatRequest(BaseModel):
     chat_id: Optional[int] = None
     history: Optional[List[dict]] = None
 
+class CreateChatRequest(BaseModel):
+    title: str
+    user_id: int
+    agent_type: str
+    initial_message: Optional[str] = None
+
 class ChatResponse(BaseModel):
     response: str
     tokens_used: int
@@ -743,6 +749,123 @@ async def get_food_date_range(user_id: int, start_date: str, end_date: str, db: 
         "end_date": end_date,
         "days": {d: by_date[d] for d in sorted(by_date.keys())}
     }
+
+@router.post("/chats")
+async def create_chat(request: CreateChatRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Create a new chat and optionally post an initial message from the agent.
+    Used by agent pages (e.g. Dietitian) to create a pre-configured chat.
+    """
+    # Get or create agent
+    result = await db.execute(select(Agent).where(Agent.name == request.agent_type))
+    agent = result.scalar_one_or_none()
+    if not agent:
+        agent = Agent(
+            name=request.agent_type,
+            description=f"{request.agent_type.capitalize()} agent",
+            system_prompt=f"You are a {request.agent_type} agent.",
+            is_active=True
+        )
+        db.add(agent)
+        await db.flush()
+
+    # Create chat
+    chat = Chat(user_id=request.user_id, agent_id=agent.id, title=request.title)
+    db.add(chat)
+    await db.flush()
+
+    # If initial_message is provided, save it as an assistant message
+    if request.initial_message:
+        assistant_msg = Message(
+            chat_id=chat.id,
+            role="assistant",
+            content=request.initial_message,
+            tokens_used=0
+        )
+        db.add(assistant_msg)
+
+    await db.commit()
+    await db.refresh(chat)
+
+    return {
+        "chat_id": chat.id,
+        "title": chat.title,
+        "agent_type": request.agent_type,
+        "initial_message": request.initial_message,
+    }
+
+
+@router.post("/chats/{chat_id}/food-query")
+async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Send a food query prompt from the dietitian agent in an existing chat.
+    Used when user clicks + button but a food-query chat already exists.
+    """
+    result = await db.execute(select(Chat).where(Chat.id == chat_id))
+    chat = result.scalar_one_or_none()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    food_query_message = (
+        "🍽️ *Добавим продукт в ваш дневник питания!*\n\n"
+        "Напишите, что вы съели, и я добавлю это в ваш рацион.\n\n"
+        "📝 *Для точного трекинга укажите:*\n"
+        "• Название продукта или блюда\n"
+        "• Количество в граммах (например: «250 г»)\n"
+        "• Приём пищи: завтрак, обед, ужин или перекус\n\n"
+        "✨ *Пример:* «На завтрак съел овсянку на молоке, 250 г»\n\n"
+        "Чем точнее данные — тем лучше анализ! 📊"
+    )
+
+    assistant_msg = Message(
+        chat_id=chat.id,
+        role="assistant",
+        content=food_query_message,
+        tokens_used=0
+    )
+    db.add(assistant_msg)
+    await db.commit()
+
+    return {
+        "chat_id": chat_id,
+        "message": food_query_message,
+    }
+
+
+@router.get("/user/{user_id}/food-query-chat")
+async def get_food_query_chat(user_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Find an existing chat where the dietitian agent has asked the user
+    about what they ate (food query prompt). Returns chat_id or null.
+    """
+    FOOD_QUERY_MARKER = "добавлю это в ваш рацион"
+
+    # Find all chats for user with dietitian agent
+    result = await db.execute(
+        select(Chat)
+        .join(Agent, Chat.agent_id == Agent.id)
+        .where(Chat.user_id == user_id, Agent.name == "dietitian")
+        .order_by(Chat.created_at.desc())
+    )
+    chats = result.scalars().all()
+
+    for chat in chats:
+        # Check if this chat has a food query message from assistant
+        msg_result = await db.execute(
+            select(Message)
+            .where(
+                Message.chat_id == chat.id,
+                Message.role == "assistant",
+                Message.content.contains(FOOD_QUERY_MARKER)
+            )
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        )
+        if msg_result.scalar_one_or_none():
+            return {"chat_id": chat.id, "title": chat.title}
+
+    return {"chat_id": None, "title": None}
+
 
 @router.delete("/food/{food_id}")
 async def delete_food_item(food_id: int, db: AsyncSession = Depends(get_db)):

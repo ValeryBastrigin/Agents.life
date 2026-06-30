@@ -369,28 +369,48 @@ function Home({ onChatCreated, theme, onScroll }) {
           </div>
         ) : (
           <div className="max-w-3xl mx-auto flex flex-col space-y-4 pt-20 pb-4">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
-              >
+            {messages.map((message, index) => {
+              const isWidget = (() => {
+                if (message.role !== 'assistant') return false;
+                try {
+                  const parsed = JSON.parse(message.content);
+                  return ['schedule', 'event_created', 'note_created', 'food_log'].includes(parsed.type);
+                } catch {
+                  return false;
+                }
+              })();
+
+              if (isWidget) {
+                return (
+                  <div key={index} className="flex justify-start">
+                    <ChatWidgetRenderer content={message.content} />
+                  </div>
+                );
+              }
+
+              return (
                 <div
-                  className={`max-w-[80%] sm:max-w-[70%] ${
-                    message.role === 'user'
-                      ? 'bg-blue-500 text-white px-4 py-2 rounded-[2.5rem]'
-                      : 'w-full'
+                  key={index}
+                  className={`flex ${
+                    message.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
-                  {message.role === 'assistant' ? (
-                    <ChatWidgetRenderer content={message.content} />
-                  ) : (
-                    <div className="px-4 py-2">{message.content}</div>
-                  )}
+                  <div
+                    className={`max-w-[80%] sm:max-w-[70%] px-4 py-2 rounded-[2.5rem] ${
+                      message.role === 'user'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-indigo-500 dark:bg-indigo-600 text-white'
+                    }`}
+                  >
+                    {message.role === 'assistant' ? (
+                      <ChatWidgetRenderer content={message.content} />
+                    ) : (
+                      <div>{message.content}</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-surface-light dark:bg-surface-dark px-4 py-2 rounded-[2.5rem]">

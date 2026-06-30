@@ -608,74 +608,65 @@ const Secretary = ({ theme }) => {
   return (
     <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
       <div className="max-w-7xl mx-auto">
-        {/* Hero Section — compact flat bar */}
-        <div className="bg-blue-600 dark:bg-blue-700 rounded-[3.5rem] px-5 py-3.5 mb-6 shadow-sm">
+        {/* Hero Section — ultra-compact flat bar */}
+        <div className="bg-blue-600 dark:bg-blue-700 rounded-[2.5rem] px-3.5 py-2 mb-4 shadow-sm">
           <button
             onClick={() => setHeroExpanded(!heroExpanded)}
-            className="flex items-center justify-between gap-4 w-full"
+            className="flex items-center justify-between gap-3 w-full"
           >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="hidden sm:flex w-10 h-10 rounded-full bg-white/20 items-center justify-center shrink-0">
-                <Sparkles size={18} className="text-white" />
-              </div>
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles size={16} className="text-white/80 shrink-0" />
               <div className="min-w-0 text-left">
-                <p className="text-white/90 text-sm truncate">
+                <p className="text-white/90 text-xs sm:text-sm truncate font-medium">
                   {moment().locale(language === 'ru' ? 'ru' : 'en').format('dddd, DD MMMM YYYY')}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/20 rounded-full">
-                <Calendar size={14} className="text-white" />
-                <span className="text-sm font-bold text-white">{eventsCount}</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/20 rounded-full">
-                <Bell size={14} className="text-white" />
-                <span className="text-sm font-bold text-white">{remindersCount}</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/20 rounded-full">
-                <Zap size={14} className="text-white" />
-                <span className="text-sm font-bold text-white">{todayEvents}</span>
-              </div>
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 transition-colors ml-1">
-                {heroExpanded ? (
-                  <ChevronUp size={18} className="text-white" />
-                ) : (
-                  <ChevronDown size={18} className="text-white" />
-                )}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="flex items-center gap-1 px-2 py-1 bg-white/15 rounded-full text-xs font-semibold text-white">
+                <Calendar size={12} />{eventsCount}
+              </span>
+              <span className="flex items-center gap-1 px-2 py-1 bg-white/15 rounded-full text-xs font-semibold text-white">
+                <Bell size={12} />{remindersCount}
+              </span>
+              <span className="flex items-center gap-1 px-2 py-1 bg-white/15 rounded-full text-xs font-semibold text-white">
+                <Zap size={12} />{todayEvents}
+              </span>
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+                {heroExpanded ? <ChevronUp size={14} className="text-white" /> : <ChevronDown size={14} className="text-white" />}
               </div>
             </div>
           </button>
 
           {/* Expanded content */}
-          <div className={`overflow-hidden transition-all duration-300 ${heroExpanded ? 'max-h-48 opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
-            <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-white/20">
-              <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-[2.5rem]">
-                <Calendar size={16} className="text-white" />
+          <div className={`overflow-hidden transition-all duration-300 ${heroExpanded ? 'max-h-40 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/15">
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/10 rounded-[2rem]">
+                <Calendar size={14} className="text-white" />
                 <div>
-                  <div className="text-lg font-bold text-white leading-none">{eventsCount}</div>
-                  <div className="text-white/70 text-xs">{language === 'ru' ? 'Предстоящих событий' : 'Upcoming events'}</div>
+                  <div className="text-sm font-bold text-white leading-none">{eventsCount}</div>
+                  <div className="text-white/60 text-[10px]">{language === 'ru' ? 'Предстоящих событий' : 'Upcoming events'}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-[2.5rem]">
-                <Bell size={16} className="text-white" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/10 rounded-[2rem]">
+                <Bell size={14} className="text-white" />
                 <div>
-                  <div className="text-lg font-bold text-white leading-none">{remindersCount}</div>
-                  <div className="text-white/70 text-xs">{language === 'ru' ? 'Активных напоминаний' : 'Active reminders'}</div>
+                  <div className="text-sm font-bold text-white leading-none">{remindersCount}</div>
+                  <div className="text-white/60 text-[10px]">{language === 'ru' ? 'Активных напоминаний' : 'Active reminders'}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-[2.5rem]">
-                <Zap size={16} className="text-white" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/10 rounded-[2rem]">
+                <Zap size={14} className="text-white" />
                 <div>
-                  <div className="text-lg font-bold text-white leading-none">{todayEvents}</div>
-                  <div className="text-white/70 text-xs">{language === 'ru' ? 'Событий сегодня' : "Today's events"}</div>
+                  <div className="text-sm font-bold text-white leading-none">{todayEvents}</div>
+                  <div className="text-white/60 text-[10px]">{language === 'ru' ? 'Событий сегодня' : "Today's events"}</div>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedDate(new Date())}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/20 hover:bg-white/30 text-white rounded-[2.5rem] text-sm font-medium transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-[2rem] text-xs font-medium transition-colors"
               >
-                <Zap size={16} />
+                <Zap size={14} />
                 {language === 'ru' ? 'План на сегодня' : "Today's plan"}
               </button>
             </div>
