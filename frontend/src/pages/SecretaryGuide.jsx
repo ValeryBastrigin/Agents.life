@@ -11,38 +11,38 @@ export default function SecretaryGuide() {
 
   var steps = ru ? [
     { icon: MessageSquare, color: 'from-blue-500 to-indigo-600', bgColor: 'bg-blue-500/10', textColor: 'text-blue-600', t: 'Шаг 1', title: 'Откройте чат с Ixteria',
-      body: 'Нажмите на иконку Ixteria в боковом меню. Оркестратор направит запрос Секретарю.',
+      body: 'Нажмите на иконку Ixteria в боковом меню. Оркестратор направит запрос Тайм-Менеджеру.',
       cmd: 'Начните диалог в главном чате' },
     { icon: Zap, color: 'from-amber-500 to-orange-600', bgColor: 'bg-amber-500/10', textColor: 'text-amber-600', t: 'Шаг 2', title: 'Опишите задачу',
-      body: 'Напишите что нужно. Ixteria сам поймёт что это для Секретаря.',
+      body: 'Напишите что нужно. Ixteria сам поймёт что это для Тайм-Менеджера.',
       cmd: 'Запланируй встречу с Мариной 30 июня в 15:00' },
     { icon: Calendar, color: 'from-emerald-500 to-green-600', bgColor: 'bg-emerald-500/10', textColor: 'text-emerald-600', t: 'Шаг 3', title: 'С временем → Расписание',
       body: 'Если указано время — событие попадёт в Календарь (Расписание).',
       cmd: 'Встреча с командой завтра с 10 до 11' },
     { icon: Bell, color: 'from-yellow-500 to-amber-600', bgColor: 'bg-yellow-500/10', textColor: 'text-yellow-600', t: 'Шаг 4', title: 'Без времени → Напоминание',
-      body: 'Если времени нет, но есть дата — Secretary создаст напоминание.',
+      body: 'Если времени нет, но есть дата — Тайм-Менеджер создаст напоминание.',
       cmd: 'Напомни купить подарок 1 июля' },
     { icon: Clock, color: 'from-purple-500 to-violet-600', bgColor: 'bg-purple-500/10', textColor: 'text-purple-600', t: 'Шаг 5', title: 'Проверьте расписание',
-      body: 'Спросите о событиях на дату — Secretary покажет всё.',
+      body: 'Спросите о событиях на дату — Тайм-Менеджер покажет всё.',
       cmd: 'Что у меня запланировано на 30 июня?' },
     { icon: FileText, color: 'from-rose-500 to-pink-600', bgColor: 'bg-rose-500/10', textColor: 'text-rose-600', t: 'Шаг 6', title: 'Создавайте заметки голосом',
       body: 'Скажите «Создай заметку» и надиктуйте что угодно — AI сам выделит суть, придумает заголовок и оформит.',
       cmd: 'Создай заметку: купить молоко, хлеб и масло завтра утром' },
     { icon: ListTodo, color: 'from-cyan-500 to-teal-600', bgColor: 'bg-cyan-500/10', textColor: 'text-cyan-600', t: 'Шаг 7', title: 'Журнал действий',
-      body: 'Все операции фиксируются в Журнале — нажмите «Журнал действий» на странице Секретаря.',
-      cmd: 'Кнопка на главной странице Секретаря' },
+      body: 'Все операции фиксируются в Журнале — нажмите «Журнал действий» на странице Тайм-Менеджера.',
+      cmd: 'Кнопка на главной странице Тайм-Менеджера' },
   ] : [
     { icon: MessageSquare, color: 'from-blue-500 to-indigo-600', bgColor: 'bg-blue-500/10', textColor: 'text-blue-600', t: 'Step 1', title: 'Open chat with Ixteria',
-      body: 'Click Ixteria in the sidebar. The Orchestrator will route to Secretary.',
+      body: 'Click Ixteria in the sidebar. The Orchestrator will route to Time-Manager.',
       cmd: 'Start a conversation in the main chat' },
     { icon: Zap, color: 'from-amber-500 to-orange-600', bgColor: 'bg-amber-500/10', textColor: 'text-amber-600', t: 'Step 2', title: 'Describe your task',
-      body: 'Write what you need. Ixteria detects it is for Secretary.',
+      body: 'Write what you need. Ixteria detects it is for Time-Manager.',
       cmd: 'Schedule a meeting with Marina on June 30 at 3 PM' },
     { icon: Calendar, color: 'from-emerald-500 to-green-600', bgColor: 'bg-emerald-500/10', textColor: 'text-emerald-600', t: 'Step 3', title: 'With time = Calendar Event',
       body: 'If a time is given, the event goes to Calendar.',
       cmd: 'Team standup tomorrow from 10 to 11' },
     { icon: Bell, color: 'from-yellow-500 to-amber-600', bgColor: 'bg-yellow-500/10', textColor: 'text-yellow-600', t: 'Step 4', title: 'Date only = Reminder',
-      body: 'If no time but a date exists, Secretary creates a reminder.',
+      body: 'If no time but a date exists, Time-Manager creates a reminder.',
       cmd: 'Remind me to buy a gift on July 1' },
     { icon: Clock, color: 'from-purple-500 to-violet-600', bgColor: 'bg-purple-500/10', textColor: 'text-purple-600', t: 'Step 5', title: 'Check schedule',
       body: 'Ask about events on a date.',
@@ -52,7 +52,7 @@ export default function SecretaryGuide() {
       cmd: 'Create a note: buy milk, bread and butter tomorrow morning' },
     { icon: ListTodo, color: 'from-cyan-500 to-teal-600', bgColor: 'bg-cyan-500/10', textColor: 'text-cyan-600', t: 'Step 7', title: 'Activity Log',
       body: 'All operations are recorded in the Activity Log.',
-      cmd: 'Click Activity Log on the Secretary page' },
+      cmd: 'Click Activity Log on the Time-Manager page' },
   ];
 
   return (
@@ -69,7 +69,7 @@ export default function SecretaryGuide() {
             <button onClick={function(){nav('/secretary')}}
               className='mb-4 inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white rounded-[3.5rem] font-medium transition-all duration-200 border border-white/15 hover:border-white/30 text-sm'>
               <ArrowLeft size={16} />
-              <span>{ru ? 'Назад к Секретарю' : 'Back to Secretary'}</span>
+              <span>{ru ? 'Назад к Тайм-Менеджеру' : 'Back to Time-Manager'}</span>
             </button>
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <div className='flex items-center gap-2 mb-2'>
@@ -79,11 +79,11 @@ export default function SecretaryGuide() {
                 </span>
               </div>
               <h1 className='text-2xl sm:text-3xl font-bold text-white mb-3'>
-                {ru ? 'Как пользоваться Секретарём' : 'How to Use Secretary'}
+                {ru ? 'Как пользоваться Тайм-Менеджером' : 'How to Use Time-Manager'}
               </h1>
               <p className='text-white/70 text-sm max-w-lg leading-relaxed'>
-                {ru ? 'Secretary — AI-агент для встреч и напоминаний. Работает через оркестратор Ixteria: пишите в общий чат, Ixteria направит запрос Секретарю.'
-                   : 'Secretary is an AI agent for meetings and reminders. Works through the Ixteria orchestrator: write in the main chat, Ixteria routes to Secretary.'}
+                {ru ? 'Секретарь-Планировщик — AI-агент для встреч и напоминаний. Работает через оркестратор Ixteria: пишите в общий чат, Ixteria направит запрос Тайм-Менеджеру.'
+                   : 'Secretary-Planner is an AI agent for meetings and reminders. Works through the Ixteria orchestrator: write in the main chat, Ixteria routes to Time-Manager.'}
               </p>
             </motion.div>
           </div>
@@ -131,7 +131,7 @@ export default function SecretaryGuide() {
             <Zap size={22} className='text-white' />
           </div>
           <p className='text-sm text-blue-700 dark:text-blue-300 font-medium'>
-            {ru ? 'Секретарь работает только через чат с Ixteria — просто пишите!' : 'Secretary works through the Ixteria chat — just type!'}
+            {ru ? 'Тайм-Менеджер работает через чат с Ixteria — просто пишите!' : 'Time-Manager works through the Ixteria chat — just type!'}
           </p>
         </div>
       </div>

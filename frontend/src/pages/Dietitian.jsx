@@ -83,7 +83,7 @@ const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-[3rem] w-full max-w-md shadow-2xl overflow-hidden">
+      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
         <div className="flex items-center justify-between px-6 pt-6 pb-2">
           <div className="flex gap-1.5">
             {[1, 2, 3].map(i => (
@@ -196,7 +196,7 @@ const ManualModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-[3rem] w-full max-w-md shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden max-h-[85vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50">
         <div className="flex items-center justify-between px-6 pt-6 pb-2">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
             <BookOpen size={22} className="text-green-500" />
@@ -447,7 +447,7 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-[3rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50">
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-2">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
@@ -880,35 +880,31 @@ const Dietitian = () => {
           {/* Card 1: Manual */}
           <button
             onClick={() => setShowManual(true)}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-[2.5rem] p-4 text-left hover:shadow-lg hover:scale-[1.02] transition-all group"
+            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
           >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                 <BookOpen size={20} className="text-blue-600 dark:text-blue-400" />
               </div>
-              <span className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-full">Мануал</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+                Как пользоваться
+              </span>
             </div>
-            <h3 className="font-semibold text-gray-800 dark:text-white text-sm mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              Как пользоваться диетологом?
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-500">Инструкция по добавлению продуктов через чат</p>
           </button>
 
           {/* Card 2: Food Diary */}
           <button
             onClick={() => setShowDiary(true)}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-[2.5rem] p-4 text-left hover:shadow-lg hover:scale-[1.02] transition-all group"
+            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
           >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                 <Calendar size={20} className="text-amber-600 dark:text-amber-400" />
               </div>
-              <span className="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">Дневник</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+                Дневник питания
+              </span>
             </div>
-            <h3 className="font-semibold text-gray-800 dark:text-white text-sm mb-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-              Дневник записей
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-500">Календарь питания и анализ за неделю/месяц</p>
           </button>
         </div>
 
@@ -937,7 +933,7 @@ const Dietitian = () => {
             { label: 'Углеводы', current: nutrition.carbs.current, goal: nutrition.carbs.goal, unit: 'г', color: 'bg-orange-500', icon: '🍞' },
             { label: 'Вода', current: nutrition.water.current, goal: nutrition.water.goal, unit: 'ст.', color: 'bg-cyan-500', icon: '💧' },
           ].map((item) => (
-            <div key={item.label} className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-[2.5rem] text-center">
+            <div key={item.label} className="p-3 bg-surface-light dark:bg-surface-dark rounded-[2rem] text-center">
               <div className="text-xl mb-1">{item.icon}</div>
               <div className="text-base font-bold text-gray-800 dark:text-white">
                 {item.current}<span className="text-xs font-normal text-gray-400">/{item.goal} {item.unit}</span>
@@ -950,7 +946,7 @@ const Dietitian = () => {
         </div>
 
         {/* ===== Настройте агента под вас ===== */}
-        <div className="bg-white dark:bg-gray-800 rounded-[3.5rem] p-6 mb-6 border-2 border-dashed border-gray-300 dark:border-gray-600 shadow-sm">
+        <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-6 mb-6">
           {userProfile ? (
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -991,7 +987,7 @@ const Dietitian = () => {
         </div>
 
         {/* ===== Съедено сегодня ===== */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-[3.5rem] p-6 mb-6">
+        <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
             🍽️ Съедено сегодня
           </h2>
@@ -1028,17 +1024,17 @@ const Dietitian = () => {
         </div>
 
         {/* ===== Анализ рациона за день ===== */}
-        <div className="bg-gradient-to-br from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700 rounded-[3.5rem] p-6 text-white mb-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">📊 Анализ рациона за день</h2>
+        <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">📊 Анализ рациона за день</h2>
           {todayMeals.length === 0 && nutrition.calories.current === 0 ? (
-            <div className="bg-white/10 rounded-[1.5rem] p-4">
-              <p className="text-sm leading-relaxed">Информации пока нет — добавьте приёмы пищи через чат, чтобы увидеть анализ рациона за сегодня.</p>
+            <div className="bg-background-light dark:bg-background-dark rounded-[1.5rem] p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">Информации пока нет — добавьте приёмы пищи через чат, чтобы увидеть анализ рациона за сегодня.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="bg-white/10 rounded-[1.5rem] p-4">
-                <p className="text-sm leading-relaxed">
-                  Сегодня вы употребили <span className="font-bold">{nutrition.calories.current}</span> из <span className="font-bold">{nutrition.calories.goal}</span> ккал.
+              <div className="bg-background-light dark:bg-background-dark rounded-[1.5rem] p-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                  Сегодня вы употребили <span className="font-bold text-gray-800 dark:text-white">{nutrition.calories.current}</span> из <span className="font-bold text-gray-800 dark:text-white">{nutrition.calories.goal}</span> ккал.
                   {nutrition.calories.current < nutrition.calories.goal
                     ? ` Осталось ${nutrition.calories.goal - nutrition.calories.current} ккал.`
                     : nutrition.calories.current > nutrition.calories.goal
@@ -1046,21 +1042,21 @@ const Dietitian = () => {
                       : ` Норма выполнена точно!`}
                 </p>
               </div>
-              <div className="bg-white/10 rounded-[1.5rem] p-4">
-                <p className="text-sm leading-relaxed">
-                  Белки: <span className="font-bold">{nutrition.protein.current}/{nutrition.protein.goal} г</span>
+              <div className="bg-background-light dark:bg-background-dark rounded-[1.5rem] p-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                  Белки: <span className="font-bold text-gray-800 dark:text-white">{nutrition.protein.current}/{nutrition.protein.goal} г</span>
                   {nutrition.protein.current < nutrition.protein.goal ? ` (недобор ${nutrition.protein.goal - nutrition.protein.current} г)` : ` (норма)`}
                 </p>
-                <p className="text-sm leading-relaxed mt-1">
-                  Жиры: <span className="font-bold">{nutrition.fats.current}/{nutrition.fats.goal} г</span>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mt-1">
+                  Жиры: <span className="font-bold text-gray-800 dark:text-white">{nutrition.fats.current}/{nutrition.fats.goal} г</span>
                   {nutrition.fats.current < nutrition.fats.goal ? ` (недобор ${nutrition.fats.goal - nutrition.fats.current} г)` : ` (норма)`}
                 </p>
-                <p className="text-sm leading-relaxed mt-1">
-                  Углеводы: <span className="font-bold">{nutrition.carbs.current}/{nutrition.carbs.goal} г</span>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mt-1">
+                  Углеводы: <span className="font-bold text-gray-800 dark:text-white">{nutrition.carbs.current}/{nutrition.carbs.goal} г</span>
                   {nutrition.carbs.current < nutrition.carbs.goal ? ` (недобор ${nutrition.carbs.goal - nutrition.carbs.current} г)` : ` (норма)`}
                 </p>
-                <p className="text-sm leading-relaxed mt-1">
-                  Вода: <span className="font-bold">{nutrition.water.current}/{nutrition.water.goal} ст.</span>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mt-1">
+                  Вода: <span className="font-bold text-gray-800 dark:text-white">{nutrition.water.current}/{nutrition.water.goal} ст.</span>
                   {nutrition.water.current < nutrition.water.goal ? ` (недобор ${nutrition.water.goal - nutrition.water.current} ст.)` : ` (норма)`}
                 </p>
               </div>

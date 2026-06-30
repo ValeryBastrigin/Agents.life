@@ -210,8 +210,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
           )}
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
             {location.pathname === '/chat' ? 'Ixteria' :
-              location.pathname === '/secretary' ? 'Секретарь' :
-              location.pathname === '/secretary/logs' ? 'Секретарь' :
+              location.pathname === '/secretary' ? 'Тайм-Менеджер' :
+              location.pathname === '/secretary/logs' ? 'Тайм-Менеджер' :
               location.pathname === '/accountant' ? 'Бухгалтер' :
              location.pathname === '/dietitian' ? 'Диетолог' :
              location.pathname === '/psychologist' ? 'Психолог' :

@@ -8,7 +8,7 @@ const AGENT_CATEGORIES = {
     title_en: 'Time & Money',
     color: 'from-violet-500 to-purple-500',
     agents: [
-      { id: 'secretary', name_ru: 'Секретарь', name_en: 'Secretary', icon: '📅', desc_ru: 'Планирование, встречи, напоминания', desc_en: 'Schedule, meetings, reminders' },
+{ id: 'secretary', name_ru: 'Тайм-Менеджер', name_en: 'Time-Manager', icon: '📅', desc_ru: 'Секретарь-Планировщик: встречи, напоминания', desc_en: 'Secretary-Planner: meetings, reminders' },
       { id: 'accountant', name_ru: 'Бухгалтер', name_en: 'Accountant', icon: '💰', desc_ru: 'Бюджет, расходы, финансы', desc_en: 'Budget, expenses, finance' },
     ]
   },

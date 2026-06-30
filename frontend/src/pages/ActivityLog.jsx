@@ -129,7 +129,7 @@ function EmptyState({ language }) {
         {language === 'ru' ? 'Пока нет записей' : 'No entries yet'}
       </h3>
       <p className='text-sm text-gray-500 dark:text-gray-400 max-w-[260px] sm:max-w-xs'>
-        {language === 'ru' ? 'Действия AI-секретаря появятся здесь' : 'AI secretary actions will appear here'}
+        {language === 'ru' ? 'Действия Тайм-Менеджера появятся здесь' : 'Time-Manager actions will appear here'}
       </p>
     </motion.div>
   );

@@ -8,9 +8,9 @@ export const translations = {
     agents: 'Агенты',
     yourChats: 'Ваши диалоги с Ixteria',
     noChats: 'Нет диалогов',
-    secretary: 'Секретарь',
+    secretary: 'Тайм-Менеджер',
     accountant: 'Бухгалтер',
-    secretaryDesc: 'Персональный ассистент для планирования и организации',
+    secretaryDesc: 'Секретарь-Планировщик: тайм-менеджмент, расписание и организация',
     accountantDesc: 'Финансовый ассистент для бюджета и расходов',
     
     // Home
@@ -79,14 +79,14 @@ export const translations = {
 
     // Activity Log
     activityLog: 'Журнал действий',
-    activityLogDesc: 'История всех действий AI-секретаря',
+    activityLogDesc: 'История всех действий Секретаря-Планировщика',
     allActions: 'Все',
     calendarActions: 'Календарь',
     taskActions: 'Задачи',
     noteActions: 'Заметки',
     chatReplies: 'Ответы',
     noActionsYet: 'Пока нет записей',
-    noActionsHint: 'Как только AI-секретарь выполнит действие, оно появится здесь.',
+    noActionsHint: 'Как только Секретарь-Планировщик выполнит действие, оно появится здесь.',
     loadMore: 'Загрузить ещё',
     loadingActivity: 'Загрузка журнала...',
     totalEntries: 'Всего записей',
@@ -120,9 +120,9 @@ export const translations = {
     agents: 'Ixteria',
     yourChats: 'Your chats with Ixteria',
     noChats: 'No chats',
-    secretary: 'Secretary',
+    secretary: 'Time-Manager',
     accountant: 'Accountant',
-    secretaryDesc: 'Personal assistant for scheduling and organization',
+    secretaryDesc: 'Secretary-Planner: time management, schedule and organization',
     accountantDesc: 'Financial assistant for budgeting and expenses',
     
     // Home
@@ -191,14 +191,14 @@ export const translations = {
 
     // Activity Log
     activityLog: 'Activity Log',
-    activityLogDesc: 'History of all AI secretary actions',
+    activityLogDesc: 'History of all Secretary-Planner actions',
     allActions: 'All',
     calendarActions: 'Calendar',
     taskActions: 'Tasks',
     noteActions: 'Notes',
     chatReplies: 'Replies',
     noActionsYet: 'No entries yet',
-    noActionsHint: 'AI secretary actions will appear here once performed.',
+    noActionsHint: 'Secretary-Planner actions will appear here once performed.',
     loadMore: 'Load More',
     loadingActivity: 'Loading activity log...',
     totalEntries: 'Total entries',

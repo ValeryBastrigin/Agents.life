@@ -36,7 +36,7 @@ export default function NotesList() {
             <button onClick={function(){nav('/secretary')}}
               className='mb-4 inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white rounded-[3.5rem] font-medium transition-all duration-200 border border-white/15 hover:border-white/30 text-sm'>
               <ArrowLeft size={16} />
-              <span>{ru ? 'Назад к Секретарю' : 'Back to Secretary'}</span>
+              <span>{ru ? 'Назад к Тайм-Менеджеру' : 'Back to Time-Manager'}</span>
             </button>
             <div className='flex items-center justify-between'>
               <div>
