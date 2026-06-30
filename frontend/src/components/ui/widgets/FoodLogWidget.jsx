@@ -59,22 +59,25 @@ const FoodLogWidget = ({ data }) => {
     >
       <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 backdrop-blur-xl rounded-[2.5rem] shadow-xl border border-green-200/50 dark:border-green-700/30 overflow-hidden">
         
-        {/* Header */}
-        <div className="p-5 pb-3">
-          <div className="flex items-center gap-3 mb-1">
-            <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ delay: 0.1, duration: 0.5, type: 'spring', stiffness: 200 }}
-              className="p-2 rounded-[2rem] bg-gradient-to-br from-green-500 to-emerald-600"
-            >
-              <CheckCircle className="w-5 h-5 text-white" />
-            </motion.div>
-            <span className="text-sm font-semibold text-green-600 dark:text-green-400">
-              Добавлено в дневник
-            </span>
+          {/* Header */}
+          <div className="p-5 pb-3 flex justify-between items-center">
+            <div className="flex items-center gap-3 mb-1">
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.1, duration: 0.5, type: 'spring', stiffness: 200 }}
+                className="p-2 rounded-[2rem] bg-gradient-to-br from-green-500 to-emerald-600"
+              >
+                <CheckCircle className="w-5 h-5 text-white" />
+              </motion.div>
+              <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                Добавлено в дневник
+              </span>
+            </div>
+            <div className="p-2 bg-green-100 text-green-700 rounded-full">
+              +
+            </div>
           </div>
-        </div>
 
         {/* Meal Groups */}
         <div className="px-5 pb-4 space-y-3">

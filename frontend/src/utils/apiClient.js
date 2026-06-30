@@ -28,4 +28,14 @@ apiClient.interceptors.response.use(
   }
 );
 
+/**
+ * Send message to chat (non-streaming).
+ * @param {Object} payload - { user_id, message, chat_id?, agent? }
+ * @returns {Promise<{ response: string, chat_id: number, tokens_used: number, remaining_balance: number }>}
+ */
+export async function sendMessage(payload) {
+  const response = await apiClient.post('/api/chat', payload);
+  return response.data;
+}
+
 export { apiClient };

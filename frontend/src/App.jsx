@@ -17,6 +17,7 @@ import NotesList from './pages/NotesList';
 import NoteEditor from './pages/NoteEditor';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import axios from 'axios';
+import { sendMessage } from './utils/apiClient';
 
 const API_URL = 'http://localhost:8001';
 
@@ -316,44 +317,42 @@ function Home({ onChatCreated, theme, onScroll }) {
     }
   };
 
-  const handleSendMessage = async (message) => {
+  const handleSendMessage = (message) => {
     setIsLoading(true);
     
     // Add user message to chat
     const userMessage = { role: 'user', content: message };
+    const currentChatId = chatIdRef.current;
+    
     setMessages((prev) => [...prev, userMessage]);
-
-    try {
-      const currentChatId = chatIdRef.current;
-      const response = await axios.post(`${API_URL}/api/chat`, {
-        user_id: userId,
-        message: message,
-        chat_id: currentChatId,
-        history: messages,
-      });
-
-      // Only create new chat if we didn't have one before
-      if (!currentChatId && response.data.chat_id) {
-        setChatId(response.data.chat_id);
-        chatIdRef.current = response.data.chat_id;
-        // Navigate to the new chat URL
-        navigate(`/chat/${response.data.chat_id}`);
-        // Refresh chats list in sidebar
-        if (onChatCreated) {
-          onChatCreated();
+    
+    sendMessage({
+      user_id: userId,
+      message: message,
+      chat_id: currentChatId,
+      history: messages,
+    })
+      .then((data) => {
+        // Add the full assistant response
+        setMessages((prev) => [...prev, { role: 'assistant', content: data.response }]);
+        
+        setIsLoading(false);
+        
+        // Update chat ID if this is a new chat
+        if (!currentChatId && data.chat_id) {
+          setChatId(data.chat_id);
+          chatIdRef.current = data.chat_id;
+          navigate(`/chat/${data.chat_id}`);
+          if (onChatCreated) {
+            onChatCreated();
+          }
         }
-      }
-
-      // Add assistant response to chat
-      const assistantMessage = { role: 'assistant', content: response.data.response };
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      const errorMessage = { role: 'assistant', content: 'Sorry, there was an error processing your message.' };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
+      })
+      .catch((error) => {
+        console.error('Failed to send message:', error);
+        setIsLoading(false);
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Извините, произошла ошибка. Попробуйте ещё раз.' }]);
+      });
   };
 
   return (

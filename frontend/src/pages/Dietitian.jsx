@@ -863,35 +863,22 @@ const Dietitian = () => {
     }
   }, [loadFoodToday]);
 
+  const WELCOME_MESSAGE = '👋 Привет! Я твой диетолог. Расскажи, что ты съел сегодня — я помогу посчитать калории и БЖУ! 📝';
+
   const handleAddFood = useCallback(async () => {
     try {
-      // 1. Проверяем, есть ли уже существующий чат с food-query
-      const existingRes = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-query-chat`);
-      const existingChatId = existingRes.data?.chat_id;
-
-      if (existingChatId) {
-        // Чат уже существует — отправляем повторный запрос о еде и редиректим
-        await apiClient.post(`/api/chats/${existingChatId}/food-query`);
-        localStorage.setItem(FOOD_CHAT_STORAGE_KEY, String(existingChatId));
-        navigate(`/chat/${existingChatId}`);
-        return;
-      }
-
-      // 2. Существующего чата нет — создаём новый
-      const { data } = await apiClient.post('/api/chats', {
+      const chatResponse = await apiClient.post('/api/chats', {
         title: '🍽️ Дневник питания',
         user_id: DEMO_USER_ID,
         agent_type: 'dietitian',
+        welcome_message: WELCOME_MESSAGE,
       });
-      const chatId = data.id || data.chat_id;
+      const chatId = chatResponse.data.id || chatResponse.data.chat_id;
 
-      // Отправляем приветственное сообщение от диетолога
-      await apiClient.post(`/api/chats/${chatId}/food-query`);
-
-      localStorage.setItem(FOOD_CHAT_STORAGE_KEY, String(chatId));
+      // Редиректим в чат — сообщение уже сохранено мгновенно, без LLM
       navigate(`/chat/${chatId}`);
     } catch (e) {
-      console.error('Не удалось открыть дневник питания:', e);
+      console.error('Не удалось создать новый чат:', e);
     }
   }, [navigate, DEMO_USER_ID]);
 
