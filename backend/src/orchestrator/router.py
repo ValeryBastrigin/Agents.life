@@ -28,6 +28,48 @@ Respond ONLY with the agent name. No explanation."""
 TITLE_GENERATION_PROMPT = """Generate a short (max 5 words) chat title in Russian based on user's first message.
 Title should be clear and concise. Return ONLY the title, no quotes, no explanation."""
 
+
+def calculate_max_tokens(message: str) -> int:
+    """Calculate dynamic max_tokens based on question complexity.
+    
+    - Very short questions (1-3 words): 150 tokens
+    - Short questions (4-10 words): 300 tokens
+    - Medium questions (11-30 words): 500 tokens
+    - Long questions (31-60 words): 800 tokens
+    - Very long questions (60+ words): 1200 tokens
+    - If message mentions code/script/explain/analyse/расскажи/объясни/проанализируй: increase by 50%
+    """
+    word_count = len(message.split())
+    
+    # Base tokens by word count
+    if word_count <= 3:
+        base = 150
+    elif word_count <= 10:
+        base = 300
+    elif word_count <= 30:
+        base = 500
+    elif word_count <= 60:
+        base = 800
+    else:
+        base = 1200
+    
+    # Boost for complex requests
+    complex_keywords = [
+        "код", "code", "script", "программа", "функция", "алгоритм",
+        "расскажи", "объясни", "explain", "describe", "analyse", "analyze",
+        "проанализируй", "подробно", "детально", "in detail",
+        "напиши", "write", "create", "создай", "разработай",
+        "сравни", "compare", "contrast", "summarize", "резюмируй",
+        "инструкция", "guide", "руководство", "tutorial",
+    ]
+    
+    msg_lower = message.lower()
+    if any(kw in msg_lower for kw in complex_keywords):
+        base = int(base * 1.5)
+    
+    # Cap at 2048 to be safe
+    return min(base, 2048)
+
 # --- Pydantic models ---
 class ChatRequest(BaseModel):
     user_id: int
@@ -170,14 +212,14 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
             agent = Agent(
                 name="agents",
                 description="Main AI orchestrator and personal assistant",
-                system_prompt="Ты — Ixteria, ИИ-управляющий. МАКСИМАЛЬНАЯ ДЛИНА ОТВЕТА: 20 слов. Никаких «Как проходит твой день?» или «Чем могу быть полезен?». Отвечай ТОЛЬКО на суть вопроса. На приветствие: «Привет! Я Ixteria, твой ИИ-управляющий. Чем помочь?». Никакой воды. Кратко. По делу.",
+                system_prompt="Ты — Ixteria, ИИ-управляющий. Отвечай по существу, без лишних формальностей и пустых фраз. Длина ответа должна соответствовать сложности и объёму вопроса пользователя: на простые вопросы отвечай кратко, на сложные — развёрнуто и детально. Не задавай встречных вопросов вроде «Как проходит день?». Используй приветствие только если пользователь поздоровался. Никакой воды.",
                 is_active=True
             )
             db.add(agent)
             await db.flush()
         else:
             # Update system prompt if it's different
-            correct_prompt = "Ты — Ixteria, ИИ-управляющий. МАКСИМАЛЬНАЯ ДЛИНА ОТВЕТА: 20 слов. Никаких «Как проходит твой день?» или «Чем могу быть полезен?». Отвечай ТОЛЬКО на суть вопроса. На приветствие: «Привет! Я Ixteria, твой ИИ-управляющий. Чем помочь?». Никакой воды. Кратко. По делу."
+            correct_prompt = "Ты — Ixteria, ИИ-управляющий. Отвечай по существу, без лишних формальностей и пустых фраз. Длина ответа должна соответствовать сложности и объёму вопроса пользователя: на простые вопросы отвечай кратко, на сложные — развёрнуто и детально. Не задавай встречных вопросов вроде «Как проходит день?». Используй приветствие только если пользователь поздоровался. Никакой воды."
             if agent.system_prompt != correct_prompt:
                 agent.system_prompt = correct_prompt
                 await db.flush()
@@ -230,11 +272,12 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
         messages.append({"role": "user", "content": request.message})
 
         try:
+            max_tokens = calculate_max_tokens(request.message)
             response = client.chat.completions.create(
                 model="google/gemini-3.1-flash-lite",
                 messages=messages,
                 temperature=0.7,
-                max_tokens=500,
+                max_tokens=max_tokens,
                 timeout=60.0
             )
             response_text = response.choices[0].message.content
@@ -261,19 +304,206 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
         chat_id=chat.id
     )
 
-# ======================== OTHER ENDPOINTS (unchanged) ========================
+
+# ======================== STREAMING CHAT ENDPOINT ========================
+
+@router.post("/chat/stream")
+async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+    """Streaming chat endpoint. Yields SSE events with tokens and final response."""
+    # Get user
+    result = await db.execute(select(User).where(User.id == request.user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Route message to appropriate agent
+    agent_name = await route_to_agent(request.message)
+
+    # Get or create agent
+    if agent_name == "default":
+        result = await db.execute(select(Agent).where(Agent.name == "agents"))
+        agent = result.scalar_one_or_none()
+        if not agent:
+            agent = Agent(
+                name="agents",
+                description="Main AI orchestrator and personal assistant",
+                system_prompt="Ты — Ixteria, ИИ-управляющий. Отвечай по существу, без лишних формальностей и пустых фраз. Длина ответа должна соответствовать сложности и объёму вопроса пользователя: на простые вопросы отвечай кратко, на сложные — развёрнуто и детально. Не задавай встречных вопросов вроде «Как проходит день?». Используй приветствие только если пользователь поздоровался. Никакой воды.",
+                is_active=True
+            )
+            db.add(agent)
+            await db.flush()
+        else:
+            correct_prompt = "Ты — Ixteria, ИИ-управляющий. Отвечай по существу, без лишних формальностей и пустых фраз. Длина ответа должна соответствовать сложности и объёму вопроса пользователя: на простые вопросы отвечай кратко, на сложные — развёрнуто и детально. Не задавай встречных вопросов вроде «Как проходит день?». Используй приветствие только если пользователь поздоровался. Никакой воды."
+            if agent.system_prompt != correct_prompt:
+                agent.system_prompt = correct_prompt
+                await db.flush()
+    else:
+        result = await db.execute(select(Agent).where(Agent.name == agent_name))
+        agent = result.scalar_one_or_none()
+        if not agent:
+            agent = Agent(
+                name=agent_name,
+                description=f"{agent_name.capitalize()} agent",
+                system_prompt=f"Ты — {agent_name}, специализированный ИИ-агент.",
+                is_active=True
+            )
+            db.add(agent)
+            await db.flush()
+
+    # Create or get chat
+    is_new_chat = False
+    if request.chat_id:
+        result = await db.execute(select(Chat).where(Chat.id == request.chat_id))
+        chat = result.scalar_one_or_none()
+        if not chat:
+            is_new_chat = True
+            chat_title = await generate_chat_title(request.message, client)
+            chat = Chat(user_id=request.user_id, agent_id=agent.id, title=chat_title)
+            db.add(chat)
+            await db.flush()
+    else:
+        is_new_chat = True
+        chat_title = await generate_chat_title(request.message, client)
+        chat = Chat(user_id=request.user_id, agent_id=agent.id, title=chat_title)
+        db.add(chat)
+        await db.flush()
+
+    # Save user message
+    user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
+    db.add(user_message)
+    await db.flush()
+
+    # Prepare messages for LLM
+    if agent_name in AGENT_REGISTRY:
+        # For specialized agents, get full response first, then stream it
+        agent_process = AGENT_REGISTRY[agent_name]
+        response_text, tokens_used = await agent_process(request.message, agent.system_prompt, db, request.user_id)
+        
+        if response_text is None:
+            response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
+
+        # Save assistant message
+        assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
+        db.add(assistant_message)
+        await db.commit()
+
+        # Return as JSON event with the full response (specialized agents may return widget JSON)
+        return StreamingResponse(
+            _stream_final_response(response_text, chat.id, is_new_chat),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+
+    # For default LLM, stream tokens
+    async def generate():
+        full_response = ""
+        messages = []
+        messages.append({"role": "system", "content": agent.system_prompt})
+        if request.history:
+            history_to_send = []
+            for h in request.history:
+                history_to_send.append({"role": h.get("role", "user"), "content": h.get("content", "")})
+            messages.extend(history_to_send)
+        messages.append({"role": "user", "content": request.message})
+
+        try:
+            max_tokens = calculate_max_tokens(request.message)
+            stream = client.chat.completions.create(
+                model="google/gemini-3.1-flash-lite",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=max_tokens,
+                timeout=60.0,
+                stream=True,
+            )
+
+            for chunk in stream:
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if delta and delta.content:
+                        token = delta.content
+                        full_response += token
+                        yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+
+            if not full_response.strip():
+                full_response = "Извините, произошла ошибка. Попробуйте ещё раз."
+                yield f"data: {json.dumps({'type': 'token', 'content': full_response})}\n\n"
+
+        except Exception as e:
+            full_response = f"Извините, произошла ошибка при обработке запроса: {str(e)[:100]}..."
+            yield f"data: {json.dumps({'type': 'token', 'content': full_response})}\n\n"
+
+        # Save assistant message
+        assistant_message = Message(chat_id=chat.id, role="assistant", content=full_response, tokens_used=0)
+        db.add(assistant_message)
+        await db.commit()
+
+        # Send done event with metadata
+        metadata = {
+            'type': 'done',
+            'chat_id': chat.id,
+            'is_new_chat': is_new_chat,
+            'full_content': full_response,
+        }
+        yield f"data: {json.dumps(metadata)}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+async def _stream_final_response(response_text, chat_id, is_new_chat):
+    """Stream a pre-computed response as tokens for specialized agents."""
+    # If it looks like widget JSON, send as one chunk
+    try:
+        parsed = json.loads(response_text)
+        if isinstance(parsed, dict) and 'type' in parsed:
+            metadata = {
+                'type': 'widget',
+                'content': response_text,
+                'chat_id': chat_id,
+                'is_new_chat': is_new_chat,
+            }
+            yield f"data: {json.dumps(metadata)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'chat_id': chat_id, 'is_new_chat': is_new_chat, 'full_content': response_text})}\n\n"
+            return
+    except json.JSONDecodeError:
+        pass
+
+    # Stream text tokens
+    words = response_text.split(' ')
+    for i, word in enumerate(words):
+        chunk = word + (' ' if i < len(words) - 1 else '')
+        yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
+        await asyncio.sleep(0.03)  # Simulate streaming
+
+    metadata = {
+        'type': 'done',
+        'chat_id': chat_id,
+        'is_new_chat': is_new_chat,
+        'full_content': response_text,
+    }
+    yield f"data: {json.dumps(metadata)}\n\n"
+
+
+# ======================== OTHER ENDPOINTS ========================
 
 @router.get("/agents")
 async def get_agents(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Agent).where(Agent.is_active == True))
     agents = result.scalars().all()
     return [{"id": a.id, "name": a.name, "description": a.description} for a in agents]
-
-@router.get("/chats/{chat_id}/messages")
-async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at))
-    messages = result.scalars().all()
-    return [{"role": msg.role, "content": msg.content, "tokens_used": msg.tokens_used} for msg in messages]
 
 @router.get("/user-chats")
 async def get_user_chats(user_id: int, db: AsyncSession = Depends(get_db)):
@@ -316,25 +546,7 @@ async def update_theme(user_id: int, request: UpdateThemeRequest, db: AsyncSessi
     
     return {"message": "Theme updated successfully"}
 
-@router.get("/chats/{user_id}")
-async def get_user_chats(user_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Chat).where(Chat.user_id == user_id).options(selectinload(Chat.agent)).order_by(Chat.updated_at.desc())
-    )
-    chats = result.scalars().all()
-    
-    return [
-        {
-            "id": c.id,
-            "title": c.title,
-            "agent_name": c.agent.name if c.agent else "agents",
-            "created_at": c.created_at.isoformat(),
-            "updated_at": c.updated_at.isoformat()
-        }
-        for c in chats
-    ]
-
-@router.get("/chat/{chat_id}/messages")
+@router.get("/chats/{chat_id}/messages")
 async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at.asc())

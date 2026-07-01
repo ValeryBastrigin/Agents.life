@@ -103,3 +103,68 @@ code {
 .animate-slide-in-left {
   animation: slideInLeft 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
+
+/* Streaming fade-in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Blinking cursor for streaming */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Loading dots bounce animation */
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+}
+
+/* Typography prose overrides for AI responses */
+.prose-ai {
+  @apply prose prose-sm dark:prose-invert max-w-none;
+}
+
+.prose-ai p {
+  @apply leading-relaxed mb-2;
+}
+
+.prose-ai p:first-child {
+  @apply mt-0;
+}
+
+.prose-ai ul, .prose-ai ol {
+  @apply my-2;
+}
+
+.prose-ai li {
+  @apply my-0.5;
+}
+
+.prose-ai code {
+  @apply text-sm font-mono;
+}
+
+.prose-ai pre {
+  @apply my-3 rounded-lg;
+}
+
+.prose-ai blockquote {
+  @apply my-2 italic;
+}
+
+.prose-ai h1, .prose-ai h2, .prose-ai h3, .prose-ai h4 {
+  @apply mt-4 mb-2;
+}

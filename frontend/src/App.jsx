@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useParams, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import ChatInput from './components/ChatInput';
 import AnimatedBackground from './components/AnimatedBackground';
 import ChatWidgetRenderer from './components/ui/widgets/ChatWidgetRenderer';
-import { User, Menu, ArrowLeft } from 'lucide-react';
+import MarkdownRenderer from './components/MarkdownRenderer';
+import { User, Menu, ArrowLeft, Sparkles, Bot, User as UserIcon } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Dietitian from './pages/Dietitian';
@@ -17,7 +18,7 @@ import NotesList from './pages/NotesList';
 import NoteEditor from './pages/NoteEditor';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import axios from 'axios';
-import { sendMessage } from './utils/apiClient';
+import { sendMessageStream } from './utils/apiClient';
 
 const API_URL = 'http://localhost:8001';
 
@@ -25,7 +26,7 @@ function App() {
   const [theme, setTheme] = useState('light');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
-  const [userId] = useState(1); // Default user for MVP
+  const [userId] = useState(1);
 
   // Apply theme to document
   useEffect(() => {
@@ -249,22 +250,42 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   );
 }
 
+// ── Determine if content is a widget JSON ──
+function isWidgetContent(content) {
+  try {
+    const parsed = JSON.parse(content);
+    return parsed && typeof parsed === 'object' && ['schedule', 'event_created', 'note_created', 'food_log'].includes(parsed.type);
+  } catch {
+    return false;
+  }
+}
+
+// ── Helper: detect markdown formatting ──
+function hasMarkdown(content) {
+  return /[*_~`#>\[\]|\\-]/.test(content) || /\*\*|__|`|#|>|---|\||\[.+\]\(.+\)/.test(content);
+}
+
 function Home({ onChatCreated, theme, onScroll }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
   const [chatId, setChatId] = useState(null);
-  const chatIdRef = React.useRef(null);
+  const chatIdRef = useRef(null);
   const [userId] = useState(1);
-  const messagesEndRef = React.useRef(null);
-  const messagesContainerRef = React.useRef(null);
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { t, language } = useLanguage();
+  const abortControllerRef = useRef(null);
+  const streamingStartRef = useRef(null);
+  const pendingWidgetRef = useRef(null);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages or streaming content change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streamingContent]);
 
   // Track scroll in messages container
   useEffect(() => {
@@ -282,7 +303,7 @@ function Home({ onChatCreated, theme, onScroll }) {
   }, [onScroll]);
 
   // Keep ref in sync with state
-  React.useEffect(() => {
+  useEffect(() => {
     chatIdRef.current = chatId;
   }, [chatId]);
 
@@ -292,13 +313,11 @@ function Home({ onChatCreated, theme, onScroll }) {
       const pathMatch = location.pathname.match(/^\/chat\/(\d+)$/);
       
       if (pathMatch) {
-        // Load specific chat from URL
         const id = parseInt(pathMatch[1]);
         setChatId(id);
         chatIdRef.current = id;
         await loadChatMessages(id);
       } else {
-        // Start new chat - clear messages
         setMessages([]);
         setChatId(null);
         chatIdRef.current = null;
@@ -317,110 +336,192 @@ function Home({ onChatCreated, theme, onScroll }) {
     }
   };
 
-  const handleSendMessage = (message) => {
+  // ── Send message with streaming ──
+  const handleSendMessage = useCallback((message) => {
     setIsLoading(true);
-    
-    // Add user message to chat
+    setIsStreaming(true);
+    setStreamingContent('');
+    pendingWidgetRef.current = null;
+
     const userMessage = { role: 'user', content: message };
     const currentChatId = chatIdRef.current;
-    
+
     setMessages((prev) => [...prev, userMessage]);
-    
-    sendMessage({
-      user_id: userId,
-      message: message,
-      chat_id: currentChatId,
-      history: messages,
-    })
-      .then((data) => {
-        // Add the full assistant response
-        setMessages((prev) => [...prev, { role: 'assistant', content: data.response }]);
-        
-        setIsLoading(false);
-        
-        // Update chat ID if this is a new chat
-        if (!currentChatId && data.chat_id) {
-          setChatId(data.chat_id);
-          chatIdRef.current = data.chat_id;
-          navigate(`/chat/${data.chat_id}`);
-          if (onChatCreated) {
-            onChatCreated();
+
+    sendMessageStream(
+      {
+        user_id: userId,
+        message: message,
+        chat_id: currentChatId,
+        history: messages.map(m => ({ role: m.role, content: m.content })),
+      },
+      {
+        onToken: (token) => {
+          setStreamingContent((prev) => prev + token);
+        },
+        onWidget: (widgetContent) => {
+          // Buffer widget content until done event
+          pendingWidgetRef.current = widgetContent;
+          setStreamingContent(widgetContent);
+        },
+        onDone: (metadata) => {
+          setIsLoading(false);
+          setIsStreaming(false);
+
+          const finalContent = metadata.full_content || streamingContent;
+
+          // If widget was received, use widget content
+          const contentToSave = pendingWidgetRef.current || finalContent;
+
+          setMessages((prev) => [...prev, { role: 'assistant', content: contentToSave }]);
+          setStreamingContent('');
+
+          // Update chat ID if this is a new chat
+          if (metadata.is_new_chat && metadata.chat_id) {
+            setChatId(metadata.chat_id);
+            chatIdRef.current = metadata.chat_id;
+            navigate(`/chat/${metadata.chat_id}`, { replace: true });
+            if (onChatCreated) {
+              onChatCreated();
+            }
           }
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to send message:', error);
-        setIsLoading(false);
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Извините, произошла ошибка. Попробуйте ещё раз.' }]);
-      });
+        },
+        onError: (error) => {
+          console.error('Failed to stream message:', error);
+          setIsLoading(false);
+          setIsStreaming(false);
+          setStreamingContent('');
+          setMessages((prev) => [...prev, { role: 'assistant', content: 'Извините, произошла ошибка. Попробуйте ещё раз.' }]);
+        },
+      }
+    );
+  }, [userId, messages, navigate, onChatCreated]);
+
+  // ── Render a single message ──
+  const renderMessage = (message, index) => {
+    const isUser = message.role === 'user';
+    const content = message.content;
+
+    // Check if it's a widget
+    if (!isUser && isWidgetContent(content)) {
+      return (
+        <div key={index} className="flex justify-start my-2">
+          <ChatWidgetRenderer content={content} />
+        </div>
+      );
+    }
+
+    // ── Assistant message (no bubble, clean markdown) ──
+    if (!isUser) {
+      return (
+        <div key={index} className="flex justify-start my-2 group">
+          <div className="max-w-[85%] sm:max-w-[75%]">
+            <div className="flex items-start gap-3">
+              {/* AI Avatar indicator */}
+              <div className="flex-shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
+                  <Sparkles size={16} className="text-white" />
+                </div>
+              </div>
+              {/* Content */}
+              <div className="min-w-0 flex-1 pt-1">
+                {hasMarkdown(content) ? (
+                  <MarkdownRenderer content={content} />
+                ) : (
+                  <div className="text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
+                    {content}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── User message (rounded bubble on right) ──
+    return (
+      <div key={index} className="flex justify-end my-2 group">
+        <div className="max-w-[85%] sm:max-w-[75%] flex items-end gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="bg-blue-500 dark:bg-blue-600 text-white px-4 py-3 rounded-2xl rounded-br-md shadow-sm">
+              <div className="leading-relaxed whitespace-pre-wrap">
+                {content}
+              </div>
+            </div>
+          </div>
+          {/* User avatar */}
+          <div className="flex-shrink-0 mb-0.5">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-sm">
+              <UserIcon size={16} className="text-white" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div className="flex flex-col h-full relative animate-slide-in-left">
       {/* Messages Container */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 relative z-10 pb-0 -mb-2">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
-            <div className="text-6xl mb-4">💬</div>
+        {messages.length === 0 && !isStreaming ? (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 select-none">
+            <div className="text-6xl mb-4 opacity-50">💬</div>
             <p className="text-lg">
               {t('chatWithAgents')}
             </p>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto flex flex-col space-y-4 pt-20 pb-4">
-            {messages.map((message, index) => {
-              const isWidget = (() => {
-                if (message.role !== 'assistant') return false;
-                try {
-                  const parsed = JSON.parse(message.content);
-                  return ['schedule', 'event_created', 'note_created', 'food_log'].includes(parsed.type);
-                } catch {
-                  return false;
-                }
-              })();
+          <div className="max-w-3xl mx-auto flex flex-col pt-20 pb-4 space-y-4">
+            {messages.map((message, index) => renderMessage(message, index))}
 
-              if (isWidget) {
-                return (
-                  <div key={index} className="flex justify-start">
-                    <ChatWidgetRenderer content={message.content} />
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  key={index}
-                  className={`flex ${
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  <div
-                    className={`max-w-[80%] sm:max-w-[70%] px-4 py-2 rounded-[2.5rem] ${
-                      message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-indigo-500 dark:bg-indigo-600 text-white'
-                    }`}
-                  >
-                    {message.role === 'assistant' ? (
-                      <ChatWidgetRenderer content={message.content} />
-                    ) : (
-                      <div>{message.content}</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-surface-light dark:bg-surface-dark px-4 py-2 rounded-[2.5rem]">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+            {/* ═══ Streaming AI Response ═══ */}
+            {isStreaming && streamingContent && (
+              <div className="flex justify-start my-2 group">
+                <div className="max-w-[85%] sm:max-w-[75%]">
+                  <div className="flex items-start gap-3">
+                    {/* AI Avatar */}
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
+                        <Sparkles size={16} className="text-white" />
+                      </div>
+                    </div>
+                    {/* Streaming content */}
+                    <div className="min-w-0 flex-1 pt-1">
+                      {isWidgetContent(streamingContent) ? (
+                        <ChatWidgetRenderer content={streamingContent} />
+                      ) : hasMarkdown(streamingContent) ? (
+                        <MarkdownRenderer content={streamingContent} isStreaming={true} />
+                      ) : (
+                        <div className="text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
+                          {streamingContent}
+                          <span className="inline-block w-1.5 h-4 bg-indigo-500 dark:bg-indigo-400 ml-0.5 rounded-sm animate-pulse" />
+                        </div>
+                      )}
+                      {/* Cursor for markdown */}
+                      {!isWidgetContent(streamingContent) && hasMarkdown(streamingContent) && (
+                        <span className="inline-block w-1.5 h-4 bg-indigo-500 dark:bg-indigo-400 ml-0.5 rounded-sm animate-pulse" />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* ═══ Loading dots when waiting for first token ═══ */}
+            {isLoading && !streamingContent && (
+              <div className="flex justify-start my-2">
+                <div className="flex items-start gap-3 pl-11">
+                  <div className="flex gap-1.5 py-2">
+                    <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -430,7 +531,7 @@ function Home({ onChatCreated, theme, onScroll }) {
       <div className="absolute bottom-0 left-0 right-0 px-4 py-4 relative z-20 bg-transparent">
         <ChatInput
           onSendMessage={handleSendMessage}
-          disabled={isLoading}
+          disabled={isLoading || isStreaming}
         />
       </div>
     </div>

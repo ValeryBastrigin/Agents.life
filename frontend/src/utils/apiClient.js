@@ -38,4 +38,86 @@ export async function sendMessage(payload) {
   return response.data;
 }
 
+/**
+ * Send message to chat with SSE streaming.
+ * 
+ * @param {Object} payload - { user_id, message, chat_id?, agent?, history? }
+ * @param {Object} callbacks
+ * @param {Function} callbacks.onToken - Called with (token: string) for each text chunk
+ * @param {Function} callbacks.onWidget - Called with (widgetData: object) for widget JSON
+ * @param {Function} callbacks.onDone - Called with (metadata: { chat_id, is_new_chat, full_content })
+ * @param {Function} callbacks.onError - Called with (error: Error)
+ * @returns {Promise<void>}
+ */
+export async function sendMessageStream(payload, callbacks) {
+  const { onToken, onWidget, onDone, onError } = callbacks;
+
+  try {
+    const response = await fetch(`${API_URL}/api/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      
+      // Parse complete SSE events from buffer (separated by double newlines)
+      const eventSeparator = '\n\n';
+      let eventEndIndex;
+      
+      while ((eventEndIndex = buffer.indexOf(eventSeparator)) !== -1) {
+        const eventBlock = buffer.substring(0, eventEndIndex);
+        buffer = buffer.substring(eventEndIndex + eventSeparator.length);
+        
+        // Parse all data lines within this event block
+        const lines = eventBlock.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.substring(6);
+            try {
+              const data = JSON.parse(jsonStr);
+              
+              switch (data.type) {
+                case 'token':
+                  if (onToken) onToken(data.content);
+                  break;
+                case 'widget':
+                  if (onWidget) onWidget(data.content);
+                  break;
+                case 'done':
+                  if (onDone) onDone({
+                    chat_id: data.chat_id,
+                    is_new_chat: data.is_new_chat,
+                    full_content: data.full_content,
+                  });
+                  break;
+              }
+            } catch (e) {
+              // Silently skip unparseable events
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Streaming error:', error);
+    if (onError) onError(error);
+  }
+}
+
 export { apiClient };

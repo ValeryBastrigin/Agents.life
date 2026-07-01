@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from src.config import client
 from src.models import UserDietProfile, FoodConsumption
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import re
 
