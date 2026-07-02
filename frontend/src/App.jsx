@@ -43,6 +43,18 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Listen for avatar changes from Profile page
+  useEffect(() => {
+    const handleAvatarChange = (e) => {
+      setUserProfile((prev) => {
+        if (!prev) return prev;
+        return { ...prev, avatar_url: e.detail };
+      });
+    };
+    window.addEventListener('avatar-changed', handleAvatarChange);
+    return () => window.removeEventListener('avatar-changed', handleAvatarChange);
+  }, []);
+
   // Set initial theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -234,7 +246,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       {/* Routes */}
       <Routes>
         <Route path="/" element={<Navigate to="/chat" replace />} />
-        <Route path="/chat/:chatId?" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} />} />
+        <Route path="/chat/:chatId?" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} userProfile={userProfile} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
         <Route path="/secretary/logs" element={<ActivityLog theme={theme} />} />
         <Route path="/secretary/guide" element={<SecretaryGuide />} />
@@ -302,7 +314,7 @@ function parseUserMessageContent(content) {
   return content;
 }
 
-function Home({ onChatCreated, theme, onScroll }) {
+function Home({ onChatCreated, theme, onScroll, userProfile }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -534,9 +546,26 @@ function Home({ onChatCreated, theme, onScroll }) {
               </div>
             </div>
           </div>
-          {/* User avatar */}
+          {/* User avatar — real image if set, otherwise gradient fallback */}
           <div className="flex-shrink-0 mb-0.5">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-sm">
+            {userProfile?.avatar_url ? (
+              <img
+                src={resolveUploadUrl(userProfile.avatar_url)}
+                alt=""
+                className="w-8 h-8 rounded-full object-cover shadow-sm"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  const fallback = e.target.nextSibling;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div
+              className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-sm"
+              style={{
+                display: userProfile?.avatar_url ? 'none' : 'flex',
+              }}
+            >
               <UserIcon size={16} className="text-white" />
             </div>
           </div>

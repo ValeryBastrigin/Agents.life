@@ -1,9 +1,35 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { User, Moon, Sun, CreditCard, Bell, LogOut, ArrowLeft, Globe } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { apiClient } from '../utils/apiClient';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+
+function resolveUploadUrl(url) {
+  if (!url) return url;
+  if (url.startsWith('/uploads/')) {
+    return `${API_URL}${url}`;
+  }
+  return url;
+}
 
 const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
   const { t, language, changeLanguage } = useLanguage();
+  const fileInputRef = useRef(null);
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiClient.post(`/api/user/${userProfile?.id || 1}/avatar`, formData);
+      const avatarUrl = res.data.url;
+      window.dispatchEvent(new CustomEvent('avatar-changed', { detail: avatarUrl }));
+    } catch (err) {
+      console.error('Failed to upload avatar:', err);
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8 animate-slide-in-right">
@@ -24,9 +50,35 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         {/* Profile Section */}
         <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">
           <div className="flex items-center gap-6">
-            <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-              <User size={40} className="text-blue-500 dark:text-blue-400" />
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => fileInputRef.current?.click()}
+              title="Нажмите, чтобы изменить аватар"
+            >
+              {userProfile?.avatar_url ? (
+                <img
+                  src={resolveUploadUrl(userProfile.avatar_url)}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div
+                className={`w-full h-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center ${userProfile?.avatar_url ? 'hidden' : ''}`}
+              >
+                <User size={40} className="text-blue-500 dark:text-blue-400" />
+              </div>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleAvatarUpload}
+            />
             <div>
               <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-1">
                 {userProfile?.username || 'User'}

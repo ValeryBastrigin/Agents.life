@@ -41,20 +41,20 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
       gradient: 'from-purple-500 to-pink-500'
     },
     { 
-      id: 'accountant', 
-      name: t('accountant'), 
-      icon: '💰', 
-      path: '/accountant', 
-      description: t('accountantDesc'),
-      gradient: 'from-green-500 to-emerald-500'
-    },
-    { 
       id: 'dietitian', 
       name: 'Диетолог', 
       icon: '🍎', 
       path: '/dietitian', 
       description: 'Питание, диета, калории и здоровый рацион',
       gradient: 'from-green-400 to-teal-500'
+    },
+    { 
+      id: 'accountant', 
+      name: t('accountant'), 
+      icon: '💰', 
+      path: '/accountant', 
+      description: t('accountantDesc'),
+      gradient: 'from-green-500 to-emerald-500'
     },
     { 
       id: 'psychologist', 

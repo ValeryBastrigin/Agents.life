@@ -216,28 +216,49 @@ const ManualModal = ({ isOpen, onClose }) => {
               <div>
                 <p className="font-semibold text-gray-800 dark:text-white mb-1">Настройте профиль</p>
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                  Нажмите <span className="font-medium text-green-600 dark:text-green-400">⚙️ Настройте агента под вас</span> и ответьте на несколько вопросов: рост, вес, пол, возраст, уровень активности и цель. Ixteria автоматически рассчитает вашу норму КБЖУ и воды.
+                  Нажмите <span className="font-medium text-green-600 dark:text-green-400">⚙️ Ваш профиль</span> и ответьте на несколько вопросов: рост, вес, пол, возраст, уровень активности и цель. Ixteria автоматически рассчитает вашу норму КБЖУ и воды для персонализированных рекомендаций.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Step 2 */}
+          {/* Step 2 — 3 способа отслеживания КБЖУ */}
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] p-4">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
               <div>
-                <p className="font-semibold text-gray-800 dark:text-white mb-1">Добавляйте еду через чат</p>
-                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                  Просто <span className="font-medium text-blue-600 dark:text-blue-400">напишите в чат</span>, что вы съели. Например: <span className="italic">«Я съел овсянку на молоке с бананом на завтрак»</span> или <span className="italic">«На обед была куриная грудка с гречкой и салатом»</span>.
-                </p>
-                <div className="mt-2 bg-white dark:bg-gray-800 rounded-[1rem] p-3 border border-blue-200 dark:border-blue-800">
-                  <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 mb-1">
-                    <MessageCircle size={14} />
-                    <span className="font-medium">Пример сообщения в чат:</span>
+                <p className="font-semibold text-gray-800 dark:text-white mb-2">3 способа отслеживать КБЖУ</p>
+
+                {/* Способ 1: Фото */}
+                <div className="mb-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">📸</span>
+                    <span className="font-medium text-sm text-blue-700 dark:text-blue-300">Фото блюда</span>
                   </div>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    «На завтрак съел омлет из 2 яиц с помидором и тост с авокадо, выпил кофе с молоком без сахара»
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed pl-8">
+                    Сфотографируйте еду и отправьте снимок в чат — диетолог сам проанализирует состав блюда, определит продукты и рассчитает калорийность.
+                  </p>
+                </div>
+
+                {/* Способ 2: Список продуктов в чате */}
+                <div className="mb-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">📝</span>
+                    <span className="font-medium text-sm text-blue-700 dark:text-blue-300">Список продуктов в чате</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed pl-8">
+                    Напишите в чат, что и в каком количестве вы съели. Например: <span className="italic">«На завтрак овсянка на молоке 250 г с бананом, кофе с молоком без сахара»</span>. Диетолог разберёт каждое блюдо по КБЖУ и внесёт в дневник.
+                  </p>
+                </div>
+
+                {/* Способ 3: Штрихкод */}
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">📊</span>
+                    <span className="font-medium text-sm text-blue-700 dark:text-blue-300">Сканирование штрихкода</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed pl-8">
+                    Воспользуйтесь сканированием штрихкодов продуктов в разделе <span className="font-medium text-blue-600 dark:text-blue-400">«Диетолог»</span> для максимально точного и быстрого добавления в рацион. Просто наведите камеру на штрихкод упаковки — все данные подтянутся автоматически.
                   </p>
                 </div>
               </div>
@@ -251,7 +272,7 @@ const ManualModal = ({ isOpen, onClose }) => {
               <div>
                 <p className="font-semibold text-gray-800 dark:text-white mb-1">Ixteria всё посчитает</p>
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                  Ассистент автоматически распознает продукты, добавит их в ваш дневник питания, посчитает калории и БЖУ. Вы сразу увидите, сколько осталось до дневной нормы, и получите персональные рекомендации.
+                  Ассистент автоматически распознает продукты любым из способов, добавит их в ваш дневник питания, посчитает калории и БЖУ. Вы сразу увидите, сколько осталось до дневной нормы, и получите персональные рекомендации.
                 </p>
               </div>
             </div>
@@ -264,7 +285,7 @@ const ManualModal = ({ isOpen, onClose }) => {
               <div>
                 <p className="font-semibold text-gray-800 dark:text-white mb-1">Анализируйте прогресс</p>
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                  В <span className="font-medium text-amber-600 dark:text-amber-400">📅 Дневнике записей</span> смотрите историю питания по дням, аналитику за неделю и месяц. Отслеживайте, каких нутриентов не хватает, а каких — перебор.
+                  В <span className="font-medium text-amber-600 dark:text-amber-400">📅 Дневнике записей</span> смотрите историю питания по дням, аналитику за неделю и месяц. Отслеживайте, каких нутриентов не хватает, а каких — перебор. Корректируйте рацион на основе данных.
                 </p>
               </div>
             </div>
@@ -781,7 +802,7 @@ const Dietitian = () => {
   // Load today's food consumption from API
   const loadFoodToday = useCallback(async () => {
     try {
-      const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-today`);
+      const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-today?_t=${Date.now()}`);
       if (data) {
         setNutrition(prev => ({
           ...prev,
@@ -817,6 +838,27 @@ const Dietitian = () => {
     loadFoodToday();
     const interval = setInterval(loadFoodToday, 30000); // refresh every 30s
     return () => clearInterval(interval);
+  }, [loadFoodToday]);
+
+  // Immediately refresh when page becomes visible or gets focus
+  // (fixes issue where circular chart doesn't update after returning from chat)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadFoodToday();
+      }
+    };
+    const handleFocus = () => {
+      loadFoodToday();
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [loadFoodToday]);
 
   const handleOnboardingComplete = useCallback(async ({ profile, goal, speed, activity, nutrition: calcNutrition }) => {
@@ -863,7 +905,18 @@ const Dietitian = () => {
     }
   }, [loadFoodToday]);
 
-  const WELCOME_MESSAGE = '👋 Привет! Я твой диетолог. Расскажи, что ты съел сегодня — я помогу посчитать калории и БЖУ! 📝';
+  const WELCOME_MESSAGE = `👋 Привет! Я твой диетолог.
+Расскажи, что ты съел сегодня — я помогу посчитать калории и БЖУ!
+
+🥗 Как мне помочь тебе с расчетами:
+
+📸 Фото блюда: отправь снимок, и я проанализирую его состав и калорийность.
+
+📝 Список продуктов: напиши продукты и их граммовки напрямую, и я внесу их в твой рацион.
+
+📊 Штрихкод: воспользуйся сканированием в разделе «Диетолог» для максимально точного отслеживания.
+
+Жду твой рацион!`;
 
   const handleAddFood = useCallback(async () => {
     try {

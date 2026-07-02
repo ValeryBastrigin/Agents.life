@@ -626,6 +626,34 @@ async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):
         theme_preference=user.theme_preference
     )
 
+@router.post("/user/{user_id}/avatar")
+async def upload_avatar(user_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    """Upload a user avatar image. Returns the URL."""
+    import shutil
+    import uuid
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    UPLOAD_DIR = "uploads"
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR)
+
+    file_extension = os.path.splitext(file.filename)[1]
+    filename = f"avatar_{user_id}_{uuid.uuid4().hex[:8]}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    avatar_url = f"/uploads/{filename}"
+    user.avatar_url = avatar_url
+    await db.commit()
+
+    return {"url": avatar_url, "message": "Avatar uploaded successfully"}
+
 @router.put("/user/{user_id}/theme")
 async def update_theme(user_id: int, request: UpdateThemeRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.id == user_id))
@@ -1050,10 +1078,10 @@ async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):
                 max_tokens=400,
                 timeout=60.0,
             )
-            response_text = response.choices[0].message.content or "Привет! Я твой диетолог. Расскажи, что ты съел сегодня — помогу посчитать калории и БЖУ."
+            response_text = response.choices[0].message.content or "👋 **Привет! Я твой диетолог.**\n\nРасскажи, что ты съел сегодня — я помогу посчитать калории и БЖУ!\n\n🥗 **Как мне помочь тебе с расчетами:**\n\n📸 **Фото блюда:** отправь снимок, и я проанализирую его состав и калорийность.\n\n📝 **Список продуктов:** напиши продукты и их граммовки напрямую, и я внесу их в твой рацион.\n\n📊 **Штрихкод:** воспользуйся сканированием в разделе «Диетолог» для максимально точного отслеживания.\n\nЖду твой рацион!"
             tokens_used = 0
         except Exception as e:
-            response_text = "Привет! Я твой диетолог. Расскажи, что ты съел сегодня — помогу посчитать калории и БЖУ."
+            response_text = "👋 **Привет! Я твой диетолог.**\n\nРасскажи, что ты съел сегодня — я помогу посчитать калории и БЖУ!\n\n🥗 **Как мне помочь тебе с расчетами:**\n\n📸 **Фото блюда:** отправь снимок, и я проанализирую его состав и калорийность.\n\n📝 **Список продуктов:** напиши продукты и их граммовки напрямую, и я внесу их в твой рацион.\n\n📊 **Штрихкод:** воспользуйся сканированием в разделе «Диетолог» для максимально точного отслеживания.\n\nЖду твой рацион!"
             tokens_used = 0
 
     assistant_msg = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
