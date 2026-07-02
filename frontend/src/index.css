@@ -73,6 +73,16 @@ code {
   animation: gradient 8s ease infinite;
 }
 
+/* Bottom sheet slide up animation */
+@keyframes slideUpIn {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 /* Page transition animations */
 @keyframes slideInRight {
   from {

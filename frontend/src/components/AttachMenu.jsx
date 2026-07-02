@@ -147,16 +147,21 @@ const AttachMenu = ({ isOpen, onClose, onFileSelected, theme = 'light', anchorRe
 
       {/* ============ Мобильная версия: Bottom Sheet ============ */}
       <div className="md:hidden">
-        {/* Затемнение фона */}
+        {/* Оверлей для закрытия по клику */}
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity"
+          className="fixed inset-0 bg-transparent z-40"
           onClick={onClose}
         />
         {/* Панель снизу */}
         <div
-          className={`fixed bottom-0 left-0 right-0 z-50 transform transition-transform duration-300 ease-out shadow-2xl rounded-t-3xl ${
-            isDark ? 'bg-background-dark' : 'bg-white'
+          className={`fixed bottom-0 left-0 right-0 z-50 shadow-2xl rounded-t-3xl border-t-2 ${
+            isDark
+              ? 'bg-background-dark border-gray-600/60'
+              : 'bg-white border-gray-300'
           }`}
+          style={{
+            animation: 'slideUpIn 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) forwards',
+          }}
         >
           {/* Drag indicator */}
           <div className="flex justify-center pt-3 pb-2">
