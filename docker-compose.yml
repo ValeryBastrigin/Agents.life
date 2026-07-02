@@ -47,6 +47,8 @@ services:
       BACKEND_URL: http://localhost:8001
       REACT_APP_API_URL: http://localhost:8001
       PYTHONPATH: /app
+    volumes:
+      - ./uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy

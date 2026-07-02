@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from src.config import client
+from src.image_utils import build_vision_message_parts, attachment_to_image_url, is_image_attachment
 from src.models import UserDietProfile, FoodConsumption
 from datetime import datetime, timedelta, timezone
 import json
@@ -342,10 +343,11 @@ async def _get_today_totals(db: AsyncSession, user_id: int) -> dict:
     }
 
 
-async def process(message: str, system_prompt: str, db: AsyncSession, user_id: int) -> tuple[str, int]:
+async def process(message: str, system_prompt: str, db: AsyncSession, user_id: int, attachments: list[dict] | None = None) -> tuple[str, int]:
     """
     Process message with Dietitian agent.
     Handles both general diet questions AND food consumption logging.
+    attachments: optional list of file attachments (images etc.)
     Returns: (response_text, tokens_used)
     """
     try:
@@ -363,17 +365,33 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
         # Detect if this is a food consumption log
         is_food_log = await _detect_food_intent(message)
 
-        if is_food_log:
-            return await _handle_food_log(message, db, user_id, profile)
+        # If there are image attachments, always pass them to LLM for analysis
+        has_images = any(
+            str(a.get("type") or a.get("content_type") or "").startswith("image/")
+            or str(a.get("url", "")).startswith("/uploads/")
+            or str(a.get("url", "")).startswith("data:image/")
+            for a in (attachments or [])
+        )
+
+        if is_food_log or has_images:
+            return await _handle_food_log(message, db, user_id, profile, attachments)
 
         # Regular dietitian chat
         user_context = _build_profile_context(profile)
+        
+        # Build LLM messages - include images if present
+        llm_messages = [{"role": "system", "content": DIETITIAN_SYSTEM_PROMPT + user_context}]
+        
+        # Use shared image_utils to build content with images
+        vision_parts = build_vision_message_parts(message, attachments)
+        if len(vision_parts) == 1 and vision_parts[0]["type"] == "text":
+            llm_messages.append({"role": "user", "content": vision_parts[0]["text"]})
+        else:
+            llm_messages.append({"role": "user", "content": vision_parts})
+
         response = client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
-            messages=[
-                {"role": "system", "content": DIETITIAN_SYSTEM_PROMPT + user_context},
-                {"role": "user", "content": message}
-            ],
+            messages=llm_messages,
             temperature=0.5,
             max_tokens=300,
             timeout=60.0
@@ -387,14 +405,62 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
         return "Извините, произошла ошибка при обработке вашего запроса.", 0
 
 
-async def _handle_food_log(message: str, db: AsyncSession, user_id: int, profile: UserDietProfile | None) -> tuple[str, int]:
+async def _handle_food_log(message: str, db: AsyncSession, user_id: int, profile: UserDietProfile | None, attachments: list[dict] | None = None) -> tuple[str, int]:
     """
     Handle a food consumption log request:
-    1. Extract food items
+    1. Extract food items from message (or from image if present)
     2. Search KBJU for each item
     3. If grams missing and not found — ask user
     4. Save to DB and return JSON widget
     """
+    # If there are image attachments, first use LLM to analyze the image and extract food info
+    has_images = any(
+        str(a.get("type") or a.get("content_type") or "").startswith("image/")
+        or str(a.get("url", "")).startswith("/uploads/")
+        or str(a.get("url", "")).startswith("data:image/")
+        for a in (attachments or [])
+    )
+
+    if has_images:
+        image_prompt = f"""Пользователь отправил изображение еды. Проанализируй фото и определи ЧТО это за еда.
+        
+Текст пользователя: "{message}"
+
+Если на фото еда — опиши её. Если пользователь написал что-то вроде "съел это" — запиши продукт.
+Если на фото НЕТ еды — просто опиши что на фото.
+
+ВАЖНО: Если на фото тарелка с едой — определи название блюда/продуктов и примерный вес порции.
+Не выдумывай, если не видишь содержимое чётко — так и напиши.
+
+Верни краткое описание того, что видно на фото (1-2 предложения)."""
+
+        # Use shared image_utils to build content with images
+        vision_parts = build_vision_message_parts(image_prompt, attachments)
+        
+        try:
+            vision_response = client.chat.completions.create(
+                model="google/gemini-3.1-flash-lite",
+                messages=[{"role": "user", "content": vision_parts}],
+                temperature=0.3,
+                max_tokens=300,
+                timeout=30.0
+            )
+            vision_text = vision_response.choices[0].message.content or ""
+            # Use vision description as the message for food extraction
+            enriched_message = f"{message}\n\n(На фото: {vision_text})"
+            print(f"DEBUG: Vision analysis result: {vision_text}")
+            return await _handle_food_log_text(enriched_message, db, user_id, profile)
+        except Exception as e:
+            print(f"Error in vision analysis: {e}")
+            # Fall back to text-only extraction
+            return await _handle_food_log_text(message, db, user_id, profile)
+    
+    # No images - use text only
+    return await _handle_food_log_text(message, db, user_id, profile)
+
+
+async def _handle_food_log_text(message: str, db: AsyncSession, user_id: int, profile: UserDietProfile | None) -> tuple[str, int]:
+    """Handle food log from text message only (extract, lookup KBJU, save)."""
     # Step 1: Extract food items from message
     items = await _extract_food_items(message)
 

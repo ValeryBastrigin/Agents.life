@@ -8,7 +8,7 @@ from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietPro
 from datetime import datetime, timedelta, timezone
 from src.config import client
 from pydantic import BaseModel, ValidationError
-from typing import Optional, List
+from typing import Optional, List, Union, Any
 import importlib
 import os
 import json
@@ -16,6 +16,9 @@ import httpx
 import base64
 import asyncio
 import re
+import mimetypes
+from pathlib import Path
+from src.image_utils import is_image_attachment, attachment_display_name, attachment_to_image_url, build_llm_user_message, build_vision_message_parts
 
 router = APIRouter(prefix="/api")
 
@@ -28,20 +31,120 @@ Respond ONLY with the agent name. No explanation."""
 TITLE_GENERATION_PROMPT = """Generate a short (max 5 words) chat title in Russian based on user's first message.
 Title should be clear and concise. Return ONLY the title, no quotes, no explanation."""
 
+VISION_HALLUCINATION_GUARD = """
+ВАЖНОЕ ПРАВИЛО ДЛЯ ИЗОБРАЖЕНИЙ И ФАЙЛОВ:
+- Отвечай только по тем данным, которые явно есть в тексте пользователя и в прикреплённых изображениях.
+- Если изображение не загрузилось, не открылось, размыто, обрезано или по нему невозможно уверенно определить детали — так и пиши: «Я не вижу содержимое изображения достаточно ясно, поэтому не могу это определить».
+- Если ты НЕ ВИДИШЬ изображение (оно не было передано или недоступно) — НЕ ВЫДУМЫВАЙ его содержимое. Напиши: «Я не вижу изображение. Пожалуйста, отправьте его ещё раз или опишите текстом».
+- Не выдумывай текст на изображении, бренды, людей, эмоции, еду, цвета, количество предметов, действия, диагнозы, суммы, даты или другие детали.
+- Если пользователь просит проанализировать изображение, но изображение не было передано модели или его содержимое недоступно, не давай анализ: попроси отправить изображение ещё раз или описать его текстом.
+- Для еды по фото можно давать только приблизительную оценку и обязательно предупреждай, что без веса/КБЖУ расчёт примерный.
+"""
+
+# ─── Message normalization ────────────────────────────────────────────────────
+
+def _normalize_user_message_content(content: Any) -> tuple[str, list[dict]]:
+    """Return (text, attachments). Supports structured content and legacy Markdown image syntax."""
+    attachments: list[dict] = []
+
+    if isinstance(content, dict):
+        text = str(content.get("text") or content.get("content") or content.get("message") or "")
+        raw_attachments = content.get("attachments") or []
+        if isinstance(raw_attachments, list):
+            attachments = [a for a in raw_attachments if isinstance(a, dict)]
+        print(f"DEBUG: Structured content - text: {text[:100]}, attachments: {len(attachments)}")
+        return text, attachments
+
+    if isinstance(content, str):
+        text = content
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict) and "attachments" in parsed:
+                raw_attachments = parsed.get("attachments") or []
+                if isinstance(raw_attachments, list):
+                    attachments = [a for a in raw_attachments if isinstance(a, dict)]
+                text = str(parsed.get("text") or parsed.get("message") or "")
+                print(f"DEBUG: JSON content - text: {text[:100]}, attachments: {len(attachments)}")
+                return text, attachments
+        except Exception:
+            pass
+
+        # Legacy compatibility: messages saved as Markdown images like ![Изображение](/uploads/foo.jpg)
+        for url in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text):
+            attachments.append({
+                "url": url,
+                "filename": os.path.basename(url.split("?")[0]),
+                "type": mimetypes.guess_type(url)[0] or "",
+                "is_image": True,
+            })
+        print(f"DEBUG: Markdown content - text: {text[:100]}, extracted attachments: {len(attachments)}")
+        if attachments:
+            print(f"DEBUG: Extracted attachments: {attachments}")
+        return text, attachments
+
+    print(f"DEBUG: Unknown content type: {type(content)}")
+    return str(content or ""), attachments
+
+
+def _build_user_llm_content(text: str, attachments: list[dict] | None = None, force_parts: bool = False) -> Union[str, list[dict]]:
+    """Build LLM message content parts. Images from attachments are inlined as data URLs."""
+    attachments = attachments or []
+    parts: list[dict] = []
+    image_count = 0
+
+    for attachment in attachments:
+        if not isinstance(attachment, dict):
+            continue
+
+        if is_image_attachment(attachment):
+            image_url = attachment_to_image_url(attachment)
+            if image_url:
+                parts.append({"type": "image_url", "image_url": {"url": image_url}})
+                image_count += 1
+            else:
+                parts.append({
+                    "type": "text",
+                    "text": f"К сообщению был прикреплён файл «{attachment_display_name(attachment)}», но его содержимое недоступно модели.",
+                })
+        else:
+            parts.append({
+                "type": "text",
+                "text": f"К сообщению был прикреплён файл «{attachment_display_name(attachment)}».",
+            })
+
+    if text:
+        parts.append({"type": "text", "text": text})
+
+    if image_count:
+        parts.append({"type": "text", "text": VISION_HALLUCINATION_GUARD})
+
+    # If there are images or force_parts, return array
+    if parts and (image_count > 0 or force_parts):
+        return parts
+
+    # Otherwise return as plain text
+    return parts[0]["text"] if len(parts) == 1 else text
+
+
+def _append_user_message(messages: list[dict], text: str, attachments: list[dict] | None = None):
+    messages.append({"role": "user", "content": _build_user_llm_content(text, attachments)})
+
+
+def _history_to_llm_messages(history: list[dict] | None) -> list[dict]:
+    messages: list[dict] = []
+    for item in history or []:
+        if not isinstance(item, dict):
+            continue
+        role = str(item.get("role") or "user")
+        text, attachments = _normalize_user_message_content(item.get("content", ""))
+        messages.append({"role": role, "content": _build_user_llm_content(text, attachments)})
+    return messages
+
 
 def calculate_max_tokens(message: str) -> int:
-    """Calculate dynamic max_tokens based on question complexity.
-    
-    - Very short questions (1-3 words): 150 tokens
-    - Short questions (4-10 words): 300 tokens
-    - Medium questions (11-30 words): 500 tokens
-    - Long questions (31-60 words): 800 tokens
-    - Very long questions (60+ words): 1200 tokens
-    - If message mentions code/script/explain/analyse/расскажи/объясни/проанализируй: increase by 50%
-    """
+    """Calculate dynamic max_tokens based on question complexity."""
     word_count = len(message.split())
-    
-    # Base tokens by word count
+
     if word_count <= 3:
         base = 150
     elif word_count <= 10:
@@ -52,8 +155,7 @@ def calculate_max_tokens(message: str) -> int:
         base = 800
     else:
         base = 1200
-    
-    # Boost for complex requests
+
     complex_keywords = [
         "код", "code", "script", "программа", "функция", "алгоритм",
         "расскажи", "объясни", "explain", "describe", "analyse", "analyze",
@@ -62,21 +164,22 @@ def calculate_max_tokens(message: str) -> int:
         "сравни", "compare", "contrast", "summarize", "резюмируй",
         "инструкция", "guide", "руководство", "tutorial",
     ]
-    
+
     msg_lower = message.lower()
     if any(kw in msg_lower for kw in complex_keywords):
         base = int(base * 1.5)
-    
-    # Cap at 2048 to be safe
+
     return min(base, 2048)
 
-# --- Pydantic models ---
+
+# ─── Pydantic models ──────────────────────────────────────────────────────────
+
 class ChatRequest(BaseModel):
     user_id: int
-    message: str
+    message: Any
     chat_id: Optional[int] = None
     history: Optional[List[dict]] = None
-    agent: Optional[str] = None  # 'orchestrator', 'secretary', etc.
+    agent: Optional[str] = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -100,7 +203,9 @@ class UserProfile(BaseModel):
     carbs_target: Optional[int] = None
     water_target: Optional[int] = None
 
-# Agent registry - dynamically load agents from /src/agents/
+
+# ─── Agent registry ────────────────────────────────────────────────────────────
+
 AGENT_REGISTRY = {}
 
 def load_agents():
@@ -117,44 +222,49 @@ def load_agents():
                 except Exception as e:
                     print(f"Failed to load agent {module_name}: {e}")
 
-# Load agents on startup
 load_agents()
 
-async def route_to_agent(message: str) -> str:
+
+# ─── Routing ───────────────────────────────────────────────────────────────────
+
+async def route_to_agent(message: Any) -> str:
     """Route message to appropriate agent using LLM with keyword fallback."""
-    msg_lower = message.lower()
-    
+    text, attachments = _normalize_user_message_content(message)
+    msg_lower = text.lower()
+
     # --- FAST KEYWORD FALLBACK: detect food consumption ---
     food_kw = ["съел", "съела", "поел", "поела", "скушал", "скушала", "выпил", "выпила",
                "позавтракал", "пообедал", "поужинал", "перекусил", "перекусила",
                "на завтрак", "на обед", "на ужин", "на перекус",
                "завтракал", "обедал", "ужинал", "запил", "запила"]
     food_nouns = ["грамм", "порцию", "порция", "рацион", "калори", "кбжу", "белк", "жир", "углевод"]
-    
+
     if any(kw in msg_lower for kw in food_kw) or any(kw in msg_lower for kw in food_nouns):
         print(f"DEBUG: Keyword fallback — routing to dietitian")
         return "dietitian"
-    
-    # --- FAST KEYWORD FALLBACK: detect food deletion ---
+
     delete_food_kw = ["удали", "убрать", "убери", "удалить", "убери", "вычеркни", "сотри"]
     if any(kw in msg_lower for kw in delete_food_kw) and ("рацион" in msg_lower or "продукт" in msg_lower or "еду" in msg_lower or "съеден" in msg_lower or "блюдо" in msg_lower or "пюре" in msg_lower or "суп" in msg_lower or "каш" in msg_lower or "салат" in msg_lower or "питани" in msg_lower):
         print(f"DEBUG: Keyword fallback — routing food deletion to dietitian")
         return "dietitian"
-    
+
     # Secretary keywords
     sec_kw = ["встреча", "запланировать", "записать", "назначить", "расписание", "календарь",
               "событие", "напоминание", "напомни"]
     if any(kw in msg_lower for kw in sec_kw):
         print(f"DEBUG: Keyword fallback — routing to secretary")
         return "secretary"
-    
+
     try:
+        user_msg = build_llm_user_message(text, attachments)
+        messages_for_route = [
+            {"role": "system", "content": ORCHESTRATOR_SYSTEM_PROMPT},
+            # Use build_llm_user_message which handles both text and images
+            user_msg if isinstance(user_msg, dict) else {"role": "user", "content": str(user_msg)},
+        ]
         response = client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
-            messages=[
-                {"role": "system", "content": ORCHESTRATOR_SYSTEM_PROMPT},
-                {"role": "user", "content": message}
-            ],
+            messages=messages_for_route,
             temperature=0.1,
             max_tokens=20,
             timeout=15.0
@@ -164,20 +274,23 @@ async def route_to_agent(message: str) -> str:
             print("Warning: route_to_agent received None content from LLM, falling back to default")
             return "default"
         agent_name = raw_content.strip().lower()
-        print(f"DEBUG: LLM routing '{message[:50]}...' -> agent: {agent_name}")
+        print(f"DEBUG: LLM routing '{text[:50]}...' -> agent: {agent_name}")
         return agent_name if agent_name in AGENT_REGISTRY else "default"
     except Exception as e:
         print(f"Error routing message: {e}")
         return "default"
 
-async def generate_chat_title(first_message: str, client) -> str:
+
+async def generate_chat_title(first_message: Any, client) -> str:
     """Generate a chat title from the first message."""
+    text, _ = _normalize_user_message_content(first_message)
+    title_text = text or "Новое изображение"
     try:
         response = client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=[
                 {"role": "system", "content": TITLE_GENERATION_PROMPT},
-                {"role": "user", "content": first_message}
+                {"role": "user", "content": title_text}
             ],
             temperature=0.3,
             max_tokens=50,
@@ -190,7 +303,8 @@ async def generate_chat_title(first_message: str, client) -> str:
     except Exception:
         return "New Chat"
 
-# ======================== EXISTING ENDPOINTS ========================
+
+# ─── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/chat", response_model=ChatResponse)
 async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
@@ -201,7 +315,6 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Route message to appropriate agent
     agent_name = await route_to_agent(request.message)
 
     # Get or create agent
@@ -218,7 +331,6 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
             db.add(agent)
             await db.flush()
         else:
-            # Update system prompt if it's different
             correct_prompt = "Ты — Ixteria, ИИ-управляющий. Отвечай по существу, без лишних формальностей и пустых фраз. Длина ответа должна соответствовать сложности и объёму вопроса пользователя: на простые вопросы отвечай кратко, на сложные — развёрнуто и детально. Не задавай встречных вопросов вроде «Как проходит день?». Используй приветствие только если пользователь поздоровался. Никакой воды."
             if agent.system_prompt != correct_prompt:
                 agent.system_prompt = correct_prompt
@@ -227,7 +339,6 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
         result = await db.execute(select(Agent).where(Agent.name == agent_name))
         agent = result.scalar_one_or_none()
         if not agent:
-            # Create agent if it doesn't exist
             agent = Agent(
                 name=agent_name,
                 description=f"{agent_name.capitalize()} agent",
@@ -242,17 +353,17 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
         result = await db.execute(select(Chat).where(Chat.id == request.chat_id))
         chat = result.scalar_one_or_none()
         if not chat:
-            # Chat not found, create new one
             chat_title = await generate_chat_title(request.message, client)
             chat = Chat(user_id=request.user_id, agent_id=agent.id, title=chat_title)
             db.add(chat)
             await db.flush()
     else:
-        # Generate chat title using AI
         chat_title = await generate_chat_title(request.message, client)
         chat = Chat(user_id=request.user_id, agent_id=agent.id, title=chat_title)
         db.add(chat)
         await db.flush()
+
+    message_text, message_attachments = _normalize_user_message_content(request.message)
 
     # Save user message
     user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
@@ -260,19 +371,17 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
 
     # Process message
     if agent_name in AGENT_REGISTRY:
-        # Use specialized agent
         agent_process = AGENT_REGISTRY[agent_name]
-        response_text, tokens_used = await agent_process(request.message, agent.system_prompt, db, request.user_id)
+        # >>> Передаём attachments агентам
+        response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id, attachments=message_attachments)
     else:
-        # Use default LLM mode
         messages = []
         messages.append({"role": "system", "content": agent.system_prompt})
-        if request.history:
-            messages.extend(request.history)
-        messages.append({"role": "user", "content": request.message})
+        messages.extend(_history_to_llm_messages(request.history))
+        _append_user_message(messages, message_text, message_attachments)
 
         try:
-            max_tokens = calculate_max_tokens(request.message)
+            max_tokens = calculate_max_tokens(message_text)
             response = client.chat.completions.create(
                 model="google/gemini-3.1-flash-lite",
                 messages=messages,
@@ -281,16 +390,13 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
                 timeout=60.0
             )
             response_text = response.choices[0].message.content
-            tokens_used = 0  # Disabled for development
+            tokens_used = 0
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"API error: {str(e)}")
 
-    # --- SAFETY: Ensure response_text is never None before inserting into DB ---
     if response_text is None:
-        print("ERROR: response_text is None — LLM returned no content. Inserting fallback message.")
         response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
 
-    # Save assistant message
     assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
     db.add(assistant_message)
 
@@ -305,11 +411,12 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     )
 
 
-# ======================== STREAMING CHAT ENDPOINT ========================
+# ─── Streaming ─────────────────────────────────────────────────────────────────
 
 @router.post("/chat/stream")
 async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     """Streaming chat endpoint. Yields SSE events with tokens and final response."""
+    print(f"DEBUG: process_chat_stream - message: {str(request.message)[:200]}")
     # Get user
     result = await db.execute(select(User).where(User.id == request.user_id))
     user = result.scalar_one_or_none()
@@ -317,7 +424,6 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Route message to appropriate agent
     agent_name = await route_to_agent(request.message)
 
     # Get or create agent
@@ -369,26 +475,25 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         db.add(chat)
         await db.flush()
 
+    message_text, message_attachments = _normalize_user_message_content(request.message)
+
     # Save user message
     user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
     db.add(user_message)
     await db.flush()
 
-    # Prepare messages for LLM
     if agent_name in AGENT_REGISTRY:
-        # For specialized agents, get full response first, then stream it
         agent_process = AGENT_REGISTRY[agent_name]
-        response_text, tokens_used = await agent_process(request.message, agent.system_prompt, db, request.user_id)
-        
+        # >>> Передаём attachments
+        response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id, attachments=message_attachments)
+
         if response_text is None:
             response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
 
-        # Save assistant message
         assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
         db.add(assistant_message)
         await db.commit()
 
-        # Return as JSON event with the full response (specialized agents may return widget JSON)
         return StreamingResponse(
             _stream_final_response(response_text, chat.id, is_new_chat),
             media_type="text/event-stream",
@@ -399,20 +504,15 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             }
         )
 
-    # For default LLM, stream tokens
     async def generate():
         full_response = ""
         messages = []
         messages.append({"role": "system", "content": agent.system_prompt})
-        if request.history:
-            history_to_send = []
-            for h in request.history:
-                history_to_send.append({"role": h.get("role", "user"), "content": h.get("content", "")})
-            messages.extend(history_to_send)
-        messages.append({"role": "user", "content": request.message})
+        messages.extend(_history_to_llm_messages(request.history))
+        _append_user_message(messages, message_text, message_attachments)
 
         try:
-            max_tokens = calculate_max_tokens(request.message)
+            max_tokens = calculate_max_tokens(message_text)
             stream = client.chat.completions.create(
                 model="google/gemini-3.1-flash-lite",
                 messages=messages,
@@ -438,12 +538,10 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             full_response = f"Извините, произошла ошибка при обработке запроса: {str(e)[:100]}..."
             yield f"data: {json.dumps({'type': 'token', 'content': full_response})}\n\n"
 
-        # Save assistant message
         assistant_message = Message(chat_id=chat.id, role="assistant", content=full_response, tokens_used=0)
         db.add(assistant_message)
         await db.commit()
 
-        # Send done event with metadata
         metadata = {
             'type': 'done',
             'chat_id': chat.id,
@@ -465,7 +563,6 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
 async def _stream_final_response(response_text, chat_id, is_new_chat):
     """Stream a pre-computed response as tokens for specialized agents."""
-    # If it looks like widget JSON, send as one chunk
     try:
         parsed = json.loads(response_text)
         if isinstance(parsed, dict) and 'type' in parsed:
@@ -481,12 +578,11 @@ async def _stream_final_response(response_text, chat_id, is_new_chat):
     except json.JSONDecodeError:
         pass
 
-    # Stream text tokens
     words = response_text.split(' ')
     for i, word in enumerate(words):
         chunk = word + (' ' if i < len(words) - 1 else '')
         yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
-        await asyncio.sleep(0.03)  # Simulate streaming
+        await asyncio.sleep(0.03)
 
     metadata = {
         'type': 'done',
@@ -497,7 +593,7 @@ async def _stream_final_response(response_text, chat_id, is_new_chat):
     yield f"data: {json.dumps(metadata)}\n\n"
 
 
-# ======================== OTHER ENDPOINTS ========================
+# ─── Other endpoints ───────────────────────────────────────────────────────────
 
 @router.get("/agents")
 async def get_agents(db: AsyncSession = Depends(get_db)):
@@ -517,10 +613,10 @@ async def get_user_chats(user_id: int, db: AsyncSession = Depends(get_db)):
 async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     return UserProfile(
         id=user.id,
         username=user.username,
@@ -534,16 +630,16 @@ async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):
 async def update_theme(user_id: int, request: UpdateThemeRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     if request.theme not in ["light", "dark"]:
         raise HTTPException(status_code=400, detail="Invalid theme")
-    
+
     user.theme_preference = request.theme
     await db.commit()
-    
+
     return {"message": "Theme updated successfully"}
 
 @router.get("/chats/{chat_id}/messages")
@@ -552,7 +648,7 @@ async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
         select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at.asc())
     )
     messages = result.scalars().all()
-    
+
     return [
         {
             "id": m.id,
@@ -566,19 +662,16 @@ async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.delete("/chats/{chat_id}")
 async def delete_chat(chat_id: int, db: AsyncSession = Depends(get_db)):
-    # Get chat to verify it exists
     result = await db.execute(select(Chat).where(Chat.id == chat_id))
     chat = result.scalar_one_or_none()
 
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
 
-    # Delete chat (cascade will delete messages)
     await db.delete(chat)
     await db.commit()
 
     return {"message": "Chat deleted successfully"}
-
 
 @router.put("/chats/{chat_id}/rename")
 async def rename_chat(chat_id: int, new_title: str = Body(..., embed=True), db: AsyncSession = Depends(get_db)):
@@ -595,18 +688,33 @@ async def rename_chat(chat_id: int, new_title: str = Body(..., embed=True), db: 
 
     return {"message": "Chat renamed successfully", "chat": chat}
 
+@router.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Upload a file and return its URL."""
+    import shutil
+    import uuid
+
+    UPLOAD_DIR = "uploads"
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR)
+
+    file_extension = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {"url": f"/uploads/{filename}", "filename": filename}
 
 @router.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
-    """Transcribe audio to text using Voxtral via RouterAI."""
-    # Validate file type
     if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="File must be an audio file")
 
     try:
         content = await file.read()
 
-        # Determine audio format from MIME type
         mime_to_format = {
             "audio/webm": "webm",
             "audio/mp3": "mp3",
@@ -615,13 +723,9 @@ async def transcribe_audio(file: UploadFile = File(...)):
             "audio/ogg": "ogg",
         }
         audio_format = mime_to_format.get(file.content_type, "webm")
-
-        # Encode audio to base64
         audio_base64 = base64.b64encode(content).decode("utf-8")
-
         api_key = os.getenv("ROUTER_API_KEY")
 
-        # Voxtral via RouterAI expects JSON with base64-encoded audio
         payload = {
             "model": "mistralai/voxtral-mini-transcribe",
             "input_audio": {
@@ -642,16 +746,12 @@ async def transcribe_audio(file: UploadFile = File(...)):
             )
 
         if response.status_code != 200:
-            print(f"Transcription API error: status={response.status_code}, body={response.text}")
             raise HTTPException(
                 status_code=response.status_code,
                 detail=f"Transcription API error: {response.text}",
             )
 
         result = response.json()
-        print(f"Transcription API response: {json.dumps(result, indent=2, ensure_ascii=False)[:500]}")
-
-        # Extract text from Voxtral response
         transcribed_text = result.get("text", "") if isinstance(result, dict) else str(result)
 
         if not transcribed_text:
@@ -666,7 +766,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 
-# ======================== FOOD / DIET ENDPOINTS ========================
+# ─── Food / Diet endpoints ─────────────────────────────────────────────────────
 
 @router.get("/user/{user_id}/diet-profile")
 async def get_diet_profile(user_id: int, db: AsyncSession = Depends(get_db)):
@@ -719,16 +819,14 @@ async def get_food_today(user_id: int, db: AsyncSession = Depends(get_db)):
         .order_by(FoodConsumption.consumed_at.desc())
     )
     items = result.scalars().all()
-    
-    # Calculate totals
+
     totals = {"calories": 0, "protein": 0, "fats": 0, "carbs": 0}
     for item in items:
         totals["calories"] += item.calories or 0
         totals["protein"] += item.protein or 0
         totals["fats"] += item.fats or 0
         totals["carbs"] += item.carbs or 0
-    
-    # Try to get diet profile for targets
+
     profile_result = await db.execute(select(UserDietProfile).where(UserDietProfile.user_id == user_id))
     profile = profile_result.scalar_one_or_none()
     profile_data = {
@@ -738,7 +836,7 @@ async def get_food_today(user_id: int, db: AsyncSession = Depends(get_db)):
         "carbs_target": profile.carbs_target if profile else 250,
         "water_target": profile.water_target if profile else 8,
     }
-    
+
     return {
         "totals": totals,
         "profile": profile_data,
@@ -769,15 +867,14 @@ async def get_food_by_date(user_id: int, date: str, db: AsyncSession = Depends(g
         .order_by(FoodConsumption.consumed_at.desc())
     )
     items = result.scalars().all()
-    
-    # Calculate totals
+
     totals = {"calories": 0, "protein": 0, "fats": 0, "carbs": 0}
     for item in items:
         totals["calories"] += item.calories or 0
         totals["protein"] += item.protein or 0
         totals["fats"] += item.fats or 0
         totals["carbs"] += item.carbs or 0
-    
+
     return {
         "totals": totals,
         "items": [
@@ -809,8 +906,7 @@ async def get_food_date_range(user_id: int, start_date: str, end_date: str, db: 
         .order_by(FoodConsumption.consumed_at.desc())
     )
     items = result.scalars().all()
-    
-    # Group by date and compute per-day totals
+
     days = {}
     for item in items:
         if item.consumed_at:
@@ -824,7 +920,7 @@ async def get_food_date_range(user_id: int, start_date: str, end_date: str, db: 
         days[date_key]["fats"] += item.fats or 0
         days[date_key]["carbs"] += item.carbs or 0
         days[date_key]["count"] += 1
-    
+
     return {
         "days": days,
         "items": [
@@ -856,7 +952,6 @@ async def delete_food(food_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/user/{user_id}/food-query-chat")
 async def get_food_query_chat(user_id: int, db: AsyncSession = Depends(get_db)):
-    """Return the existing food-query chat for this user, if any."""
     result = await db.execute(
         select(Chat)
         .where(Chat.user_id == user_id)
@@ -872,18 +967,14 @@ async def get_food_query_chat(user_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/chats")
 async def create_chat(data: dict = Body(...), db: AsyncSession = Depends(get_db)):
-    """Create a new chat. Used by dietitian for food-query chat creation.
-    If welcome_message is provided, saves it as an assistant message instantly (no LLM)."""
     user_id = data.get("user_id")
     title = data.get("title", "Новый чат")
     agent_name = data.get("agent_type", "dietitian")
     welcome_message = data.get("welcome_message")
 
-    # Get or create agent (ensure exact name match in DB)
     result = await db.execute(select(Agent).where(Agent.name == agent_name))
     agent = result.scalar_one_or_none()
     if not agent:
-        # Fallback to general agent if needed
         result = await db.execute(select(Agent).where(Agent.name == "agents"))
         agent = result.scalar_one_or_none()
 
@@ -891,7 +982,6 @@ async def create_chat(data: dict = Body(...), db: AsyncSession = Depends(get_db)
     db.add(chat)
     await db.flush()
 
-    # If welcome_message provided, save it as assistant message immediately (no LLM call)
     if welcome_message:
         assistant_msg = Message(
             chat_id=chat.id,
@@ -907,21 +997,16 @@ async def create_chat(data: dict = Body(...), db: AsyncSession = Depends(get_db)
 
 @router.post("/chats/{chat_id}/food-query")
 async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):
-    """Send the dietitian's introductory message to analyse recent food and offer to add more.
-    This creates a pre-filled chat context for the user."""
-    # Verify chat exists
     result = await db.execute(select(Chat).where(Chat.id == chat_id))
     chat = result.scalar_one_or_none()
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
 
-    # Get agent
     result = await db.execute(select(Agent).where(Agent.id == chat.agent_id))
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    # Query what user ate today
     today = datetime.now(timezone.utc).date()
     result = await db.execute(
         select(FoodConsumption)
@@ -930,7 +1015,6 @@ async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):
     )
     today_items = result.scalars().all()
 
-    # Build context for the agent
     if today_items:
         food_list = "\n".join(
             f"- {item.product_name} ({item.grams}г, {item.calories}ккал, Б:{item.protein} Ж:{item.fats} У:{item.carbs}) [{item.meal_type or 'other'}]"
@@ -950,13 +1034,11 @@ async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):
             "поможешь посчитать калории и БЖУ. Говори на русском."
         )
 
-    # Get agent process function
     agent_name = agent.name if agent.name in AGENT_REGISTRY else None
     if agent_name:
         agent_process = AGENT_REGISTRY[agent_name]
-        response_text, tokens_used = await agent_process(user_message, agent.system_prompt, db, chat.user_id)
+        response_text, tokens_used = await agent_process(user_message, agent.system_prompt, db, chat.user_id, attachments=[])
     else:
-        # Fallback: use LLM directly
         try:
             response = client.chat.completions.create(
                 model="google/gemini-3.1-flash-lite",
@@ -974,7 +1056,6 @@ async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):
             response_text = "Привет! Я твой диетолог. Расскажи, что ты съел сегодня — помогу посчитать калории и БЖУ."
             tokens_used = 0
 
-    # Save assistant response
     assistant_msg = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
     db.add(assistant_msg)
 

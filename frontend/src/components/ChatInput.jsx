@@ -1,12 +1,15 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Send, Paperclip, Mic, StopCircle } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
+import AttachMenu from './AttachMenu';
 
-const ChatInput = ({ onSendMessage, disabled }) => {
+const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light' }) => {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [audioLevels, setAudioLevels] = useState([]);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
@@ -14,6 +17,7 @@ const ChatInput = ({ onSendMessage, disabled }) => {
   const analyserRef = useRef(null);
   const animationFrameRef = useRef(null);
   const finishModeRef = useRef('send'); // 'send' or 'edit'
+  const attachButtonRef = useRef(null);
 
   // Start recording
   const startRecording = useCallback(async () => {
@@ -184,9 +188,122 @@ const ChatInput = ({ onSendMessage, disabled }) => {
     }
   };
 
+  // Обработчик выбора файла из AttachMenu
+  const handleFileSelected = async (file) => {
+    // Если родитель передал колбэк — делегируем ему
+    if (onSendAttachment) {
+      onSendAttachment(file);
+      return;
+    }
+
+    // Иначе загружаем файл на сервер и отправляем как структурированное сообщение
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const result = await apiClient.post('/api/upload', formData);
+      const fileUrl = result.data?.url || result.data?.filename || file.name;
+      
+      // Определяем, является ли файл изображением
+      const isImage = file.type?.startsWith('image/');
+      
+      // Формируем текст для отправки:
+      // - для изображений: Markdown-превью (рендерится как картинка)
+      // - для других файлов: ссылка
+      // Для ВСЕХ файлов отправляем структурированное сообщение с attachments,
+      // чтобы бэкенд знал о вложении и мог передать его ИИ (vision).
+      const text = isImage
+        ? `![${file.name}](${fileUrl})`    // Markdown для отображения картинки
+        : `[${file.name}](${fileUrl})`;    // Markdown для ссылки
+      
+      const structuredMessage = JSON.stringify({
+        text: text,
+        attachments: [{
+          url: fileUrl,
+          filename: file.name,
+          type: file.type,
+        }],
+      });
+      onSendMessage(structuredMessage);
+    } catch (err) {
+      console.error('File upload error:', err);
+      alert('Не удалось загрузить файл. Попробуйте ещё раз.');
+    }
+  };
+
+  // Обработчик вставки (Ctrl+V) — загружает изображения из буфера обмена
+  const handlePaste = useCallback(async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    let imageFile = null;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        imageFile = item.getAsFile();
+        break;
+      }
+    }
+
+    if (imageFile) {
+      e.preventDefault(); // Не вставляем как текст
+      // Генерируем имя, если его нет
+      if (!imageFile.name) {
+        imageFile = new File([imageFile], `pasted-image.${imageFile.type.split('/')[1] || 'png'}`, {
+          type: imageFile.type,
+        });
+      }
+      await handleFileSelected(imageFile);
+    }
+  }, [handleFileSelected]);
+
+  // Обработчик drag-and-drop файлов на форму
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    // Обрабатываем первый файл
+    const file = files[0];
+    await handleFileSelected(file);
+  }, [handleFileSelected]);
+
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
+    <form
+      onSubmit={handleSubmit}
+      onPaste={handlePaste}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className="w-full max-w-3xl mx-auto"
+    >
+      {/* Drag-and-drop overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-2xl border-2 border-dashed border-blue-400 dark:border-blue-500 text-center">
+            <p className="text-lg font-semibold text-gray-700 dark:text-gray-200">
+              Отпустите файл для загрузки
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Изображения будут отправлены в чат
+            </p>
+          </div>
+        </div>
+      )}
       {/* Transcribing indicator */}
       {isTranscribing && (
         <div className="mb-3 px-1">
@@ -207,9 +324,11 @@ const ChatInput = ({ onSendMessage, disabled }) => {
         {/* Attachment Button – hidden during recording */}
         {!isRecording && (
           <button
+            ref={attachButtonRef}
             type="button"
+            onClick={() => setAttachMenuOpen((prev) => !prev)}
             className="p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-200/50 dark:hover:bg-white/20 flex-shrink-0"
-            title="Attach file"
+            title="Прикрепить файл"
           >
             <Paperclip size={20} />
           </button>
@@ -288,6 +407,15 @@ const ChatInput = ({ onSendMessage, disabled }) => {
           </>
         )}
       </div>
+
+      {/* Attach Menu – скрытые file input'ы + popover/bottom-sheet */}
+      <AttachMenu
+        isOpen={attachMenuOpen}
+        onClose={() => setAttachMenuOpen(false)}
+        onFileSelected={handleFileSelected}
+        theme={theme}
+        anchorRef={attachButtonRef}
+      />
     </form>
   );
 };

@@ -30,6 +30,13 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
     print(f"REQUEST BODY: {await request.body()}")
     return {"detail": exc.errors(), "body": exc.body}
 
+import os
+upload_dir = os.path.join(os.getcwd(), "uploads")
+if not os.path.exists(upload_dir):
+    os.makedirs(upload_dir)
+from fastapi.staticfiles import StaticFiles
+app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
+
 @app.on_event("startup")
 async def startup_event():
     # Create tables

@@ -29,6 +29,9 @@ COPY backend/src/ ./src/
 # Копирование скомпилированного фронтенда из первого этапа
 COPY --from=frontend-builder /app/frontend/build ./frontend/build
 
+# Создаём директорию для загружаемых файлов
+RUN mkdir -p /app/uploads
+
 # Указываем, что приложение слушает 8000 порт
 EXPOSE 8000
 

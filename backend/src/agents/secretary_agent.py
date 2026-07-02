@@ -2,10 +2,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from src.models import CalendarEvent, Reminder, Note
 from src.config import client
+from src.image_utils import build_llm_user_message
 from datetime import datetime, timedelta, time, date
 import re
 
-async def process(message: str, system_prompt: str, db: AsyncSession, user_id: int) -> tuple[str, int]:
+async def process(message: str, system_prompt: str, db: AsyncSession, user_id: int, attachments: list[dict] | None = None) -> tuple[str, int]:
     """
     Process message with Secretary agent.
     Returns: (response_text, tokens_used)
@@ -264,12 +265,14 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
     # Default: use LLM to respond
     # We force the agent to NOT suggest using the interface.
     try:
+        user_msg = build_llm_user_message(message, attachments)
+        messages = [
+            {"role": "system", "content": secretary_prompt + "\nЗАПРЕЩЕНО предлагать пользователю использовать интерфейс или календарь. Если не можешь выполнить задачу — просто попроси уточнить детали."},
+            user_msg if isinstance(user_msg, dict) else {"role": "user", "content": str(user_msg)},
+        ]
         response = client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
-            messages=[
-                {"role": "system", "content": secretary_prompt + "\nЗАПРЕЩЕНО предлагать пользователю использовать интерфейс или календарь. Если не можешь выполнить задачу — просто попроси уточнить детали."},
-                {"role": "user", "content": message}
-            ],
+            messages=messages,
             temperature=0.5,
             max_tokens=150,
             timeout=60.0

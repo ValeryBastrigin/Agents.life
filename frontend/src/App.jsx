@@ -20,7 +20,7 @@ import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import axios from 'axios';
 import { sendMessageStream } from './utils/apiClient';
 
-const API_URL = 'http://localhost:8001';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
 function App() {
   const [theme, setTheme] = useState('light');
@@ -265,6 +265,43 @@ function hasMarkdown(content) {
   return /[*_~`#>\[\]|\\-]/.test(content) || /\*\*|__|`|#|>|---|\||\[.+\]\(.+\)/.test(content);
 }
 
+// ── Helper: resolve relative /uploads/ URL to absolute ──
+function resolveUploadUrl(url) {
+  if (!url) return url;
+  if (url.startsWith('/uploads/')) {
+    return `${API_URL}${url}`;
+  }
+  return url;
+}
+
+// ── Helper: extract display text from possible JSON-structured message ──
+function parseUserMessageContent(content) {
+  // Try to parse as JSON with attachments structure
+  if (typeof content === 'string') {
+    // Legacy: messages saved as pure Markdown like ![image](/uploads/xxx.jpg)
+    if (content.startsWith('![') || content.startsWith('[http')) {
+      return content;
+    }
+    
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed && typeof parsed === 'object') {
+        // If it has a 'text' field, use it for display
+        if (typeof parsed.text === 'string') {
+          return parsed.text;
+        }
+        // Otherwise try to stringify nicely
+        if (parsed.attachments || parsed.type) {
+          return parsed.text || '';
+        }
+      }
+    } catch {
+      // Not JSON, return as-is
+    }
+  }
+  return content;
+}
+
 function Home({ onChatCreated, theme, onScroll }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -440,13 +477,60 @@ function Home({ onChatCreated, theme, onScroll }) {
     }
 
     // ── User message (rounded bubble on right) ──
+    // Parse user content — may be JSON with attachments or Markdown with images
+    const userDisplayContent = parseUserMessageContent(content);
+    
+    // Detect if user message has images in attachments (for inline gallery under text)
+    let userAttachments = [];
+    if (typeof content === 'string') {
+      try {
+        const parsed = JSON.parse(content);
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.attachments)) {
+          userAttachments = parsed.attachments.filter(a => {
+            const type = (a.type || a.content_type || '').toLowerCase();
+            const filename = (a.filename || a.name || '');
+            const ext = filename.split('.').pop()?.toLowerCase();
+            return type.startsWith('image/') || ['jpg','jpeg','png','webp','gif','bmp','heic','heif'].includes(ext);
+          });
+        }
+      } catch {}
+    }
+
+    // If user message has images AND text is just a Markdown image, prefer raw attachments display
+    const isOnlyImageMarkdown = userDisplayContent && /^!\[.*\]\(.*\)$/.test(userDisplayContent.trim());
+
     return (
       <div key={index} className="flex justify-end my-2 group">
         <div className="max-w-[85%] sm:max-w-[75%] flex items-end gap-3">
           <div className="min-w-0 flex-1">
             <div className="bg-blue-500 dark:bg-blue-600 text-white px-4 py-3 rounded-2xl rounded-br-md shadow-sm">
-              <div className="leading-relaxed whitespace-pre-wrap">
-                {content}
+              <div className="leading-relaxed space-y-2">
+                {/* Text content — скрываем Markdown картинку, если показываем attachments отдельно */}
+                {userDisplayContent && !isOnlyImageMarkdown && (
+                  hasMarkdown(userDisplayContent) ? (
+                    <MarkdownRenderer content={userDisplayContent} />
+                  ) : (
+                    <div className="whitespace-pre-wrap">{userDisplayContent}</div>
+                  )
+                )}
+                
+                {/* Image attachments inline gallery */}
+                {userAttachments.length > 0 && (
+                  <div className={`flex flex-wrap gap-2 ${isOnlyImageMarkdown ? '' : 'mt-2'}`}>
+                    {userAttachments.map((att, i) => {
+                      const imgUrl = resolveUploadUrl(att.url || att.data_url || '');
+                      return (
+                        <img
+                          key={i}
+                          src={imgUrl}
+                          alt={att.filename || 'attachment'}
+                          className="max-w-full max-h-64 rounded-lg shadow-md object-cover"
+                          loading="lazy"
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -532,6 +616,7 @@ function Home({ onChatCreated, theme, onScroll }) {
         <ChatInput
           onSendMessage={handleSendMessage}
           disabled={isLoading || isStreaming}
+          theme={theme}
         />
       </div>
     </div>

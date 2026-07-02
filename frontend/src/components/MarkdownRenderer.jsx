@@ -2,6 +2,8 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+
 const MarkdownRenderer = ({ content, isStreaming }) => {
   if (!content) return null;
 
@@ -63,6 +65,21 @@ const MarkdownRenderer = ({ content, isStreaming }) => {
               >
                 {children}
               </a>
+            );
+          },
+          // Image handling — исправляем относительные /uploads/ URL
+          img({ src, alt }) {
+            // Если src начинается с /uploads/ — добавляем base URL бэкенда
+            const resolvedSrc = src && src.startsWith('/uploads/')
+              ? `${API_URL}${src}`
+              : src;
+            return (
+              <img
+                src={resolvedSrc}
+                alt={alt}
+                className="max-w-full rounded-lg shadow-md my-2"
+                loading="lazy"
+              />
             );
           },
           // Add IDs to headings for potential anchor links
