@@ -9,7 +9,7 @@ const AGENT_CATEGORIES = {
     color: 'from-violet-500 to-purple-500',
     agents: [
 { id: 'secretary', name_ru: 'Тайм-Менеджер', name_en: 'Time-Manager', icon: '📅', desc_ru: 'Секретарь-Планировщик: встречи, напоминания', desc_en: 'Secretary-Planner: meetings, reminders' },
-      { id: 'accountant', name_ru: 'Бухгалтер', name_en: 'Accountant', icon: '💰', desc_ru: 'Бюджет, расходы, финансы', desc_en: 'Budget, expenses, finance' },
+      { id: 'accountant', name_ru: 'Финансовый-помощник', name_en: 'Accountant', icon: '💰', desc_ru: 'Бюджет, расходы, финансы', desc_en: 'Budget, expenses, finance' },
     ]
   },
   health: {

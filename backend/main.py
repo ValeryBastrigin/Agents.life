@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from src.orchestrator.router import router as orchestrator_router
 from src.secretary.router import router as secretary_router
+from src.accountant.router import router as accountant_router
 from src.database import engine, Base, get_db, async_session
 from src.models import User
 from src.config import client
@@ -22,6 +23,7 @@ app.add_middleware(
 # Include routers
 app.include_router(orchestrator_router)
 app.include_router(secretary_router, prefix="/api")
+app.include_router(accountant_router)
 
 # Exception handler for validation errors
 @app.exception_handler(ValidationError)

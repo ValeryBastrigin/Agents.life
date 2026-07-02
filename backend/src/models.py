@@ -118,6 +118,20 @@ class Note(Base):
 
     user = relationship("User", back_populates="notes")
 
+class FinancialObligation(Base):
+    __tablename__ = "financial_obligations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    date = Column(Integer, nullable=False)  # день месяца (1-31)
+    title = Column(String(255), nullable=False)
+    amount = Column(Integer, nullable=False)
+    type = Column(String(20), nullable=False)  # 'income' or 'expense'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
 class UserDietProfile(Base):
     __tablename__ = "user_diet_profiles"
 

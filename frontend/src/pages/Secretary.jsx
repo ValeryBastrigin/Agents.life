@@ -732,7 +732,7 @@ const Secretary = ({ theme }) => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleNavigate('PREV')}
-                className="p-2.5 bg-background-light dark:bg-background-dark hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"
+                className="p-2.5 bg-white dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"
               >
                 <ChevronLeft size={18} className="text-gray-600 dark:text-gray-400" />
               </button>

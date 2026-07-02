@@ -9,9 +9,9 @@ export const translations = {
     yourChats: 'Ваши диалоги с Ixteria',
     noChats: 'Нет диалогов',
     secretary: 'Тайм-Менеджер',
-    accountant: 'Бухгалтер',
+    accountant: 'Финансовый-помощник',
     secretaryDesc: 'Секретарь-Планировщик: тайм-менеджмент, расписание и организация',
-    accountantDesc: 'Финансовый ассистент для бюджета и расходов',
+    accountantDesc: 'Финансовый ассистент для бюджета, расходов и анализа инвестиций',
     
     // Home
     chatWithAgents: 'Chat with Ixteria',

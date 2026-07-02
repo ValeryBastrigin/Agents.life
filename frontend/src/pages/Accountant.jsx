@@ -1,108 +1,700 @@
-import React from 'react';
-import { Wallet, TrendingUp, PieChart, DollarSign } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign, TrendingUp, Upload, Wallet, CreditCard, Bell, PieChart } from 'lucide-react';
+import { apiClient } from '../utils/apiClient';
 
+// ---------- Modal: Как пользоваться ----------
+const ManualModal = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
+        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            <BookOpen size={22} className="text-blue-500" />
+            Как пользоваться бухгалтером
+          </h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        <div className="px-6 py-4 space-y-4 text-sm">
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-white mb-1">Загрузите выписку</p>
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                  Нажмите на кнопку загрузки ниже и прикрепите вашу банковскую выписку в формате PDF, CSV или Excel. Ixteria автоматически проанализирует все транзакции.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-[2rem] p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-white mb-1">Анализ по категориям</p>
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                  Искусственный интеллект распределит все операции по категориям: продукты, транспорт, коммунальные платежи, развлечения и другие. Вы увидите структуру своих расходов.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-[2rem] p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">3</div>
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-white mb-1">Планируйте бюджет</p>
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                  Используйте расчётный календарь для планирования финансовых обязательств. Отмечайте даты платежей, устанавливайте суммы и контролируйте свои финансы.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-[2rem] p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">4</div>
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-white mb-1">Следите за обязательствами</p>
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                  Виджет ближайших финансовых обязательств напомнит о предстоящих платежах, чтобы вы ничего не пропустили.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 pb-6 pt-2">
+          <button onClick={onClose} className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-[2rem] transition-colors">
+            Понятно!
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---------- Modal: Календарь с обязательствами ----------
+const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+const CalendarModal = ({ isOpen, onClose, obligations, onAddObligation, onDeleteObligation }) => {
+  const today = new Date();
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
+  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newObligation, setNewObligation] = useState({ date: '', title: '', amount: '', type: 'expense' });
+
+  const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (year, month) => {
+    const d = new Date(year, month, 1).getDay();
+    return d === 0 ? 6 : d - 1;
+  };
+
+  const handlePrevMonth = () => {
+    if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); }
+    else setCalendarMonth(m => m - 1);
+  };
+
+  const handleNextMonth = () => {
+    if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); }
+    else setCalendarMonth(m => m + 1);
+  };
+
+  const isToday = (day) => day === today.getDate() && calendarMonth === today.getMonth() && calendarYear === today.getFullYear();
+
+  const getObligationsForDay = (day) => obligations.filter(o => o.date === day);
+
+  const handleDayClick = (day) => {
+    setNewObligation(o => ({ ...o, date: String(day) }));
+    setShowAddForm(true);
+  };
+
+  const handleAddObligation = () => {
+    if (!newObligation.date || !newObligation.title || !newObligation.amount) return;
+    onAddObligation({
+      date: parseInt(newObligation.date),
+      title: newObligation.title,
+      amount: parseFloat(newObligation.amount),
+      type: newObligation.type,
+    });
+    setNewObligation({ date: '', title: '', amount: '', type: 'expense' });
+    setShowAddForm(false);
+  };
+
+  const handleDeleteObligation = (index) => {
+    const obligation = obligations[index];
+    if (obligation && obligation.id) {
+      onDeleteObligation(obligation.id);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50">
+        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            <Calendar size={22} className="text-blue-500" />
+            Расчётный календарь
+          </h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        <div className="px-6 overflow-y-auto flex-1 space-y-4 pb-4">
+          {/* Календарь */}
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] p-4">
+            <div className="flex items-center justify-between mb-3">
+              <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                <ChevronLeft size={18} className="text-gray-500" />
+              </button>
+              <span className="font-semibold text-gray-800 dark:text-white">
+                {MONTHS[calendarMonth]} {calendarYear}
+              </span>
+              <button onClick={handleNextMonth} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                <ChevronRight size={18} className="text-gray-500" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 mb-1">
+              {WEEKDAYS.map(w => (
+                <div key={w} className="text-center text-xs font-medium text-gray-400 py-1">{w}</div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: firstDayOfMonth(calendarYear, calendarMonth) }).map((_, i) => (
+                <div key={`empty-${i}`} />
+              ))}
+              {Array.from({ length: daysInMonth(calendarYear, calendarMonth) }).map((_, i) => {
+                const day = i + 1;
+                const dayObligations = getObligationsForDay(day);
+                const hasIncome = dayObligations.some(o => o.type === 'income');
+                const hasExpense = dayObligations.some(o => o.type === 'expense');
+                return (
+                  <div
+                    key={day}
+                    onClick={() => handleDayClick(day)}
+                    className={`aspect-square rounded-full text-sm font-medium flex flex-col items-center justify-center relative cursor-pointer ${
+                      isToday(day) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <span>{day}</span>
+                    <div className="flex gap-0.5 absolute bottom-1">
+                      {hasIncome && <span className="w-1 h-1 rounded-full bg-green-500" />}
+                      {hasExpense && <span className="w-1 h-1 rounded-full bg-red-500" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Список обязательств на выбранную дату */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                <DollarSign size={16} className="text-blue-500" />
+                Финансовые обязательства
+              </h3>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="px-4 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-[2rem] transition-colors"
+              >
+                + Добавить
+              </button>
+            </div>
+
+            {showAddForm && (
+              <div className="mb-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Дата</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      placeholder="15"
+                      value={newObligation.date}
+                      onChange={e => setNewObligation(o => ({ ...o, date: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-[1.5rem] text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Сумма</label>
+                    <input
+                      type="number"
+                      placeholder="10000"
+                      value={newObligation.amount}
+                      onChange={e => setNewObligation(o => ({ ...o, amount: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-[1.5rem] text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Название</label>
+                  <input
+                    type="text"
+                    placeholder="Аренда квартиры"
+                    value={newObligation.title}
+                    onChange={e => setNewObligation(o => ({ ...o, title: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-[1.5rem] text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Тип</label>
+                  <div className="flex gap-2">
+                    {[
+                      { key: 'income', label: '💰 Доход' },
+                      { key: 'expense', label: '💸 Расход' },
+                    ].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        onClick={() => setNewObligation(o => ({ ...o, type: key }))}
+                        className={`flex-1 py-2 rounded-[1.5rem] text-sm font-medium transition-colors ${
+                          newObligation.type === key
+                            ? key === 'income'
+                              ? 'bg-green-500 text-white'
+                              : 'bg-red-500 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddObligation}
+                    disabled={!newObligation.date || !newObligation.title || !newObligation.amount}
+                    className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white text-sm font-medium rounded-[2rem] transition-colors disabled:cursor-not-allowed"
+                  >
+                    Добавить
+                  </button>
+                  <button
+                    onClick={() => setShowAddForm(false)}
+                    className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {obligations.length === 0 ? (
+              <div className="text-center py-6 text-gray-400 dark:text-gray-500">
+                <Calendar size={32} className="mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Нет финансовых обязательств</p>
+                <p className="text-xs mt-1">Добавьте регулярные платежи, чтобы видеть их в календаре</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {obligations.sort((a, b) => a.date - b.date).map((obligation, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-[1.5rem] group"
+                  >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      obligation.type === 'income'
+                        ? 'bg-green-100 dark:bg-green-900/30'
+                        : 'bg-red-100 dark:bg-red-900/30'
+                    }`}>
+                      {obligation.type === 'income' ? (
+                        <TrendingUp size={16} className="text-green-500" />
+                      ) : (
+                        <CreditCard size={16} className="text-red-500" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">{obligation.title}</p>
+                      <p className="text-xs text-gray-400">Каждое {obligation.date}-е число месяца</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-sm font-bold ${
+                        obligation.type === 'income' ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {obligation.type === 'income' ? '+' : '-'}{obligation.amount.toLocaleString()} ₽
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteObligation(idx)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full"
+                    >
+                      <X size={14} className="text-red-500" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 pb-6 pt-2">
+          <button
+            onClick={() => { setShowAddForm(false); onClose(); }}
+            className="w-full py-3 bg-gray-800 dark:bg-white dark:text-gray-900 text-white font-medium rounded-[2rem] transition-colors hover:bg-gray-700 dark:hover:bg-gray-100"
+          >
+            Закрыть
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---------- Modal: История выписок ----------
+const StatementsModal = ({ isOpen, onClose }) => {
+  const [statements] = useState([
+    {
+      id: 1,
+      period: '1–30 июня 2026',
+      bank: 'Сбербанк',
+      type: 'Дебетовая карта',
+      amount: '45 230 ₽',
+      income: '120 000 ₽',
+      expenses: '74 770 ₽',
+      categories: 8,
+    },
+    {
+      id: 2,
+      period: '1–31 мая 2026',
+      bank: 'Тинькофф',
+      type: 'Кредитная карта',
+      amount: '32 150 ₽',
+      income: '120 000 ₽',
+      expenses: '87 850 ₽',
+      categories: 6,
+    },
+    {
+      id: 3,
+      period: '1–30 апреля 2026',
+      bank: 'Сбербанк',
+      type: 'Дебетовая карта',
+      amount: '38 900 ₽',
+      income: '115 000 ₽',
+      expenses: '76 100 ₽',
+      categories: 7,
+    },
+  ]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden max-h-[85vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50">
+        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            <FileText size={22} className="text-blue-500" />
+            История выписок
+          </h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        <div className="px-6 overflow-y-auto flex-1">
+          {statements.length === 0 ? (
+            <div className="text-center py-10 text-gray-400 dark:text-gray-500">
+              <FileText size={40} className="mx-auto mb-3 opacity-50" />
+              <p className="text-sm font-medium">Нет загруженных выписок</p>
+              <p className="text-xs mt-1">Загрузите банковскую выписку, чтобы увидеть анализ</p>
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              {statements.map((stmt) => (
+                <div
+                  key={stmt.id}
+                  className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border border-gray-100 dark:border-transparent"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                        <Wallet size={18} className="text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-white">{stmt.bank}</p>
+                        <p className="text-xs text-gray-400">{stmt.type}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-medium text-gray-500 bg-gray-200 dark:bg-gray-700 px-2.5 py-1 rounded-full">
+                      {stmt.period}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    <div className="text-center p-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
+                      <p className="text-[10px] text-gray-400 mb-0.5">Поступления</p>
+                      <p className="text-sm font-bold text-green-500">{stmt.income}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
+                      <p className="text-[10px] text-gray-400 mb-0.5">Траты</p>
+                      <p className="text-sm font-bold text-red-500">{stmt.expenses}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
+                      <p className="text-[10px] text-gray-400 mb-0.5">Категории</p>
+                      <p className="text-sm font-bold text-gray-800 dark:text-white">{stmt.categories}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 pb-6 pt-2">
+          <button onClick={onClose} className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-[2rem] transition-colors">
+            Закрыть
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ========== Главная страница Финансового-помощника ==========
 const Accountant = () => {
-  const { t } = useLanguage();
+  const [showManual, setShowManual] = useState(false);
+  const [showStatements, setShowStatements] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+
+  const [obligations, setObligations] = useState([]);
+
+  // Активная вкладка: 'main' или 'investments'
+  const [activeTab, setActiveTab] = useState('main');
+
+  // Загрузка обязательств из БД
+  useEffect(() => {
+    const loadObligations = async () => {
+      try {
+        const res = await apiClient.get('/api/accountant/obligations/1');
+        setObligations(res.data);
+      } catch (err) {
+        console.error('Ошибка загрузки обязательств:', err);
+      }
+    };
+    loadObligations();
+  }, []);
+
+  // Добавление обязательства
+  const addObligation = useCallback(async (obligation) => {
+    try {
+      const res = await apiClient.post('/api/accountant/obligations/1', obligation);
+      setObligations(prev => [...prev, res.data]);
+    } catch (err) {
+      console.error('Ошибка добавления обязательства:', err);
+    }
+  }, []);
+
+  // Удаление обязательства
+  const deleteObligation = useCallback(async (id) => {
+    try {
+      await apiClient.delete(`/api/accountant/obligations/${id}`);
+      setObligations(prev => prev.filter(o => o.id !== id));
+    } catch (err) {
+      console.error('Ошибка удаления обязательства:', err);
+    }
+  }, []);
+
+  // Вычисляем ближайшие обязательства на сегодня и ближайшие дни
+  const today = new Date();
+  const currentDay = today.getDate();
+  const upcomingObligations = obligations
+    .map(o => ({
+      ...o,
+      daysLeft: o.date >= currentDay ? o.date - currentDay : (o.date + 30 - currentDay),
+    }))
+    .sort((a, b) => a.daysLeft - b.daysLeft)
+    .slice(0, 10);
 
   return (
     <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Title */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">💰 Бухгалтер</h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Управляйте финансами и следите за бюджетом.</p>
+      <div className="max-w-2xl mx-auto">
+        {/* ===== 3 блока-виджета (как в диетологе) ===== */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {/* Блок 1: Как пользоваться */}
+          <button
+            onClick={() => setShowManual(true)}
+            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
+          >
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <BookOpen size={20} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+                Как пользоваться
+              </span>
+            </div>
+          </button>
+
+          {/* Блок 2: История выписок */}
+          <button
+            onClick={() => setShowStatements(true)}
+            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
+          >
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <FileText size={20} className="text-amber-600 dark:text-amber-400" />
+              </div>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+                История выписок
+              </span>
+            </div>
+          </button>
+
+          {/* Блок 3: Расчётный календарь */}
+          <button
+            onClick={() => setShowCalendar(true)}
+            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
+          >
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+              <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <Calendar size={20} className="text-green-600 dark:text-green-400" />
+              </div>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+                Расчётный календарь
+              </span>
+            </div>
+          </button>
         </div>
 
-        {/* Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="p-6 bg-surface-light dark:bg-surface-dark rounded-[3.5rem]">
-            <div className="flex items-center gap-2 mb-2">
-              <Wallet size={20} className="text-blue-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">{t('totalBalance')}</span>
-            </div>
-            <div className="text-2xl font-bold text-gray-800 dark:text-white">$12,450.00</div>
-          </div>
-          <div className="p-6 bg-surface-light dark:bg-surface-dark rounded-[3.5rem]">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp size={20} className="text-green-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">{t('income')}</span>
-            </div>
-            <div className="text-2xl font-bold text-gray-800 dark:text-white">$4,250.00</div>
-          </div>
-          <div className="p-6 bg-surface-light dark:bg-surface-dark rounded-[3.5rem]">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign size={20} className="text-red-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">{t('expenses')}</span>
-            </div>
-            <div className="text-2xl font-bold text-gray-800 dark:text-white">$2,180.00</div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <button className="flex flex-col items-center p-6 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <PieChart size={32} className="text-blue-500 mb-2" />
-            <span className="font-medium text-gray-800 dark:text-white">{t('budget')}</span>
+        {/* ===== Тумблер переключения Основное / Инвестиции ===== */}
+        <div className="bg-white dark:bg-surface-dark rounded-[3rem] p-1.5 mb-6 shadow-sm border border-gray-100 dark:border-gray-700/30 flex">
+          <button
+            onClick={() => setActiveTab('main')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-[2.5rem] text-sm font-semibold transition-all ${
+              activeTab === 'main'
+                ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            <Wallet size={16} className={activeTab === 'main' ? 'text-white' : ''} />
+            1 • Основное
           </button>
-          <button className="flex flex-col items-center p-6 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <Wallet size={32} className="text-green-500 mb-2" />
-            <span className="font-medium text-gray-800 dark:text-white">{t('expenses')}</span>
-          </button>
-          <button className="flex flex-col items-center p-6 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <TrendingUp size={32} className="text-purple-500 mb-2" />
-            <span className="font-medium text-gray-800 dark:text-white">{t('reports')}</span>
+          <button
+            onClick={() => setActiveTab('investments')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-[2.5rem] text-sm font-semibold transition-all ${
+              activeTab === 'investments'
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            <TrendingUp size={16} className={activeTab === 'investments' ? 'text-white' : ''} />
+            2 • Инвестиции
           </button>
         </div>
 
-        {/* Recent Transactions */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <DollarSign size={20} className="text-gray-600 dark:text-gray-400" />
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-              {t('recentTransactions')}
-            </h3>
+        {/* ===== Контент вкладки "Основное" ===== */}
+        {activeTab === 'main' && (
+          <>
+            {/* Ближайшие финансовые обязательства */}
+            <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-5 mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                  <Bell size={18} className="text-blue-500" />
+                  Ближайшие обязательства
+                </h2>
+              </div>
+
+              <div className="space-y-2">
+                {upcomingObligations.length === 0 ? (
+                  <div className="text-center py-6 text-gray-400 dark:text-gray-500">
+                    <Bell size={28} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Нет предстоящих обязательств</p>
+                    <p className="text-xs mt-1">Добавьте их в расчётном календаре</p>
+                  </div>
+                ) : (
+                  upcomingObligations.map((obligation, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-3 p-3 bg-background-light dark:bg-background-dark rounded-[2rem] group"
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        obligation.type === 'income'
+                          ? 'bg-green-100 dark:bg-green-900/30'
+                          : 'bg-red-100 dark:bg-red-900/30'
+                      }`}>
+                        {obligation.type === 'income' ? (
+                          <TrendingUp size={16} className="text-green-500" />
+                        ) : (
+                          <CreditCard size={16} className="text-red-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">{obligation.title}</p>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                            obligation.daysLeft <= 7
+                              ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                              : obligation.daysLeft <= 14
+                                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                          }`}>
+                            {obligation.daysLeft === 0 ? 'Сегодня' : `Через ${obligation.daysLeft} дн.`}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-0.5">{obligation.date}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className={`text-sm font-bold ${
+                          obligation.type === 'income' ? 'text-green-500' : 'text-red-500'
+                        }`}>
+                          {obligation.type === 'income' ? '+' : '-'}{obligation.amount.toLocaleString()} ₽
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Загрузить банковскую выписку */}
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 rounded-[3rem] p-6 text-white text-center mb-6 shadow-lg">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white/20 flex items-center justify-center">
+                <Upload size={24} className="text-white" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">Загрузите банковскую выписку</h3>
+              <p className="text-xs text-white/80 leading-relaxed max-w-md mx-auto">
+                Загрузите выписку для анализа трат и поступлений. Ixteria разберёт всё по категориям и сделает анализ.
+              </p>
+              <button className="mt-4 px-6 py-2.5 bg-white text-blue-600 font-semibold rounded-[2rem] hover:bg-blue-50 transition-colors shadow-md inline-flex items-center gap-2 text-sm">
+                <Upload size={16} />
+                Загрузить выписку
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ===== Контент вкладки "Инвестиции" ===== */}
+        {activeTab === 'investments' && (
+          <div className="bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[3rem] p-8 text-white text-center shadow-lg">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/20 flex items-center justify-center">
+              <PieChart size={32} className="text-white" />
+            </div>
+            <h3 className="text-xl font-bold mb-4">Инвестиционный портфель</h3>
+            <p className="text-sm text-white/90 leading-relaxed max-w-sm mx-auto">
+              Загрузите свой инвестиционный портфель из приложения-брокера и Ixteria произведет анализ вашего портфеля и подскажет, как его улучшить.
+            </p>
+            <button className="mt-6 px-6 py-2.5 bg-white text-purple-600 font-semibold rounded-[2rem] hover:bg-purple-50 transition-colors shadow-md inline-flex items-center gap-2 text-sm">
+              <Upload size={16} />
+              Загрузить портфель
+            </button>
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-background-light dark:bg-background-dark rounded-[3rem]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                  <TrendingUp size={16} className="text-green-500" />
-                </div>
-                <div>
-                  <div className="font-medium text-gray-800 dark:text-white">{t('salaryDeposit')}</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">{t('today')}</div>
-                </div>
-              </div>
-              <div className="text-green-500 font-semibold">+$4,250.00</div>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-background-light dark:bg-background-dark rounded-[3rem]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                  <Wallet size={16} className="text-red-500" />
-                </div>
-                <div>
-                  <div className="font-medium text-gray-800 dark:text-white">{t('groceryShopping')}</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">{t('yesterday')}</div>
-                </div>
-              </div>
-              <div className="text-red-500 font-semibold">-$156.00</div>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-background-light dark:bg-background-dark rounded-[3rem]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                  <Wallet size={16} className="text-red-500" />
-                </div>
-                <div>
-                  <div className="font-medium text-gray-800 dark:text-white">{t('utilities')}</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">{t('twoDaysAgo')}</div>
-                </div>
-              </div>
-              <div className="text-red-500 font-semibold">-$89.00</div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
+
+      {/* Модалки */}
+      <ManualModal isOpen={showManual} onClose={() => setShowManual(false)} />
+      <StatementsModal isOpen={showStatements} onClose={() => setShowStatements(false)} />
+      <CalendarModal isOpen={showCalendar} onClose={() => setShowCalendar(false)} obligations={obligations} onAddObligation={addObligation} onDeleteObligation={deleteObligation} />
     </div>
   );
 };

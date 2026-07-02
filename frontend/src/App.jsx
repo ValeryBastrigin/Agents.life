@@ -226,7 +226,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
             {location.pathname === '/chat' ? 'Ixteria' :
               location.pathname === '/secretary' ? 'Тайм-Менеджер' :
               location.pathname === '/secretary/logs' ? 'Тайм-Менеджер' :
-              location.pathname === '/accountant' ? 'Бухгалтер' :
+              location.pathname === '/accountant' ? 'Финансовый-помощник' :
              location.pathname === '/dietitian' ? 'Диетолог' :
              location.pathname === '/psychologist' ? 'Психолог' :
              location.pathname === '/mentor' ? 'Ментор' : 'Ixteria'}

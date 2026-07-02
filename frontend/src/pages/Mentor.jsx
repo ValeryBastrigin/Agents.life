@@ -1,12 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Target, TrendingUp, BookOpen, Star, Clock, Calendar, Award, Zap, Coffee, Flag, Brain, Rocket } from 'lucide-react';
+import React from 'react';
+import { Target, BookOpen, Star, Calendar, Zap, Flag, Brain, Rocket } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const Mentor = () => {
-  const navigate = useNavigate();
   const { t } = useLanguage();
-
   const goals = [
     { 
       title: 'Выучить TypeScript', 
@@ -49,65 +46,65 @@ const Mentor = () => {
   ];
 
   return (
-<div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
+      <div className="max-w-2xl mx-auto">
 
         {/* Motivation Banner */}
-        <div className="bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3.5rem] p-6 mb-6 text-white">
-          <div className="flex items-center gap-4">
-            <div className="text-5xl">🏆</div>
+        <div className="bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3rem] p-5 mb-6 text-white">
+          <div className="flex items-center gap-3">
+            <div className="text-4xl">🏆</div>
             <div>
-              <h2 className="text-xl font-semibold mb-1">Путь к успеху</h2>
-              <p className="text-white/80 text-sm">
+              <h2 className="text-lg font-semibold mb-1">Путь к успеху</h2>
+              <p className="text-white/80 text-xs">
                 Большие результаты начинаются с маленьких шагов. Каждый день приближает вас к цели.
               </p>
             </div>
           </div>
-          <div className="mt-4 flex gap-4">
-            <div className="flex-1 text-center bg-white/10 rounded-[1rem] p-3">
-              <div className="text-2xl font-bold">7</div>
-              <div className="text-xs text-white/70">активных целей</div>
+          <div className="mt-3 flex gap-3">
+            <div className="flex-1 text-center bg-white/10 rounded-[1rem] p-2">
+              <div className="text-xl font-bold">7</div>
+              <div className="text-[10px] text-white/70">активных целей</div>
             </div>
-            <div className="flex-1 text-center bg-white/10 rounded-[1rem] p-3">
-              <div className="text-2xl font-bold">46%</div>
-              <div className="text-xs text-white/70">общий прогресс</div>
+            <div className="flex-1 text-center bg-white/10 rounded-[1rem] p-2">
+              <div className="text-xl font-bold">46%</div>
+              <div className="text-[10px] text-white/70">общий прогресс</div>
             </div>
-            <div className="flex-1 text-center bg-white/10 rounded-[1rem] p-3">
-              <div className="text-2xl font-bold">28</div>
-              <div className="text-xs text-white/70">дней подряд</div>
+            <div className="flex-1 text-center bg-white/10 rounded-[1rem] p-2">
+              <div className="text-xl font-bold">28</div>
+              <div className="text-[10px] text-white/70">дней подряд</div>
             </div>
           </div>
         </div>
 
         {/* Goals Grid */}
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            <Target size={22} className="text-red-500" />
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+            <Target size={18} className="text-red-500" />
             Активные цели
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {goals.map((goal, index) => (
-              <div key={index} className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-5 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group">
-                <div className={`w-12 h-12 rounded-[3rem] bg-gradient-to-br ${goal.gradient} flex items-center justify-center text-2xl mb-3 shadow-md group-hover:shadow-xl transition-all`}>
+              <div key={index} className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group">
+                <div className={`w-10 h-10 rounded-[3rem] bg-gradient-to-br ${goal.gradient} flex items-center justify-center text-xl mb-2 shadow-md group-hover:shadow-xl transition-all`}>
                   {goal.icon}
                 </div>
-                <h3 className="font-semibold text-gray-800 dark:text-white mb-1">{goal.title}</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{goal.category}</p>
+                <h3 className="font-semibold text-gray-800 dark:text-white text-sm mb-0.5">{goal.title}</h3>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-2">{goal.category}</p>
                 {/* Progress bar */}
                 <div className="mb-2">
-                  <div className="flex justify-between text-xs mb-1">
+                  <div className="flex justify-between text-[10px] mb-1">
                     <span className="text-gray-500 dark:text-gray-400">Прогресс</span>
                     <span className="font-medium text-gray-700 dark:text-gray-300">{goal.progress}%</span>
                   </div>
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
                       className={`h-full bg-gradient-to-r ${goal.gradient} rounded-full transition-all`}
                       style={{ width: `${goal.progress}%` }}
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-gray-400">
-                  <Calendar size={12} />
+                <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                  <Calendar size={10} />
                   <span>До {goal.deadline}</span>
                 </div>
               </div>
@@ -117,23 +114,23 @@ const Mentor = () => {
 
         {/* Habits Tracker */}
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            <Zap size={22} className="text-amber-500" />
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+            <Zap size={18} className="text-amber-500" />
             Трекер привычек
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {habits.map((habit, index) => (
-              <div key={index} className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-4 text-center hover:bg-gray-200 dark:hover:bg-gray-800 transition-all">
-                <div className={`w-10 h-10 mx-auto rounded-[3rem] bg-gradient-to-br ${habit.color} flex items-center justify-center text-xl mb-2`}>
+              <div key={index} className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-3 text-center hover:bg-gray-200 dark:hover:bg-gray-800 transition-all">
+                <div className={`w-9 h-9 mx-auto rounded-[3rem] bg-gradient-to-br ${habit.color} flex items-center justify-center text-lg mb-1.5`}>
                   {habit.icon}
                 </div>
-                <div className="text-sm font-medium text-gray-800 dark:text-white mb-1">
+                <div className="text-xs font-medium text-gray-800 dark:text-white mb-1">
                   {habit.name}
                 </div>
                 <div className="flex items-center justify-center gap-1">
-                  <span className="text-lg">🔥</span>
+                  <span className="text-base">🔥</span>
                   <span className="text-sm font-bold text-amber-500">{habit.streak}</span>
-                  <span className="text-xs text-gray-400">дней</span>
+                  <span className="text-[10px] text-gray-400">дней</span>
                 </div>
               </div>
             ))}
@@ -142,23 +139,23 @@ const Mentor = () => {
 
         {/* Learning Resources */}
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            <BookOpen size={22} className="text-indigo-500" />
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+            <BookOpen size={18} className="text-indigo-500" />
             Рекомендованные материалы
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {resources.map((resource, index) => (
-              <button key={index} className="flex items-center gap-4 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all text-left group">
-                <div className={`w-12 h-12 rounded-[3rem] bg-gradient-to-br ${resource.gradient} flex items-center justify-center text-xl shadow-md group-hover:shadow-xl transition-all flex-shrink-0`}>
+              <button key={index} className="flex items-center gap-3 p-3 bg-surface-light dark:bg-surface-dark rounded-[3rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all text-left group">
+                <div className={`w-10 h-10 rounded-[3rem] bg-gradient-to-br ${resource.gradient} flex items-center justify-center text-lg shadow-md group-hover:shadow-xl transition-all flex-shrink-0`}>
                   {resource.icon}
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-gray-800 dark:text-white">{resource.title}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-400">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-gray-800 dark:text-white text-sm truncate">{resource.title}</h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-400">
                       {resource.type}
                     </span>
-                    <span className="text-xs text-gray-400">{resource.duration}</span>
+                    <span className="text-[10px] text-gray-400">{resource.duration}</span>
                   </div>
                 </div>
               </button>
@@ -168,39 +165,39 @@ const Mentor = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
-              <Flag size={24} className="text-white" />
+          <button className="flex flex-col items-center gap-1.5 p-3 bg-surface-light dark:bg-surface-dark rounded-[3rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-10 h-10 rounded-[3rem] bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+              <Flag size={18} className="text-white" />
             </div>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Поставить цель</span>
+            <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300">Поставить цель</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-              <Brain size={24} className="text-white" />
+          <button className="flex flex-col items-center gap-1.5 p-3 bg-surface-light dark:bg-surface-dark rounded-[3rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-10 h-10 rounded-[3rem] bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+              <Brain size={18} className="text-white" />
             </div>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">План развития</span>
+            <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300">План развития</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
-              <Rocket size={24} className="text-white" />
+          <button className="flex flex-col items-center gap-1.5 p-3 bg-surface-light dark:bg-surface-dark rounded-[3rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-10 h-10 rounded-[3rem] bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+              <Rocket size={18} className="text-white" />
             </div>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Карьерный рост</span>
+            <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300">Карьерный рост</span>
           </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <Star size={24} className="text-white" />
+          <button className="flex flex-col items-center gap-1.5 p-3 bg-surface-light dark:bg-surface-dark rounded-[3rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <div className="w-10 h-10 rounded-[3rem] bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <Star size={18} className="text-white" />
             </div>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Достижения</span>
+            <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300">Достижения</span>
           </button>
         </div>
 
         {/* Quote */}
-        <div className="bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3.5rem] p-6 text-white text-center">
-          <p className="text-2xl mb-2">🌟</p>
-          <p className="text-lg font-medium mb-2">
+        <div className="bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3rem] p-5 text-white text-center">
+          <p className="text-2xl mb-1">🌟</p>
+          <p className="text-base font-medium mb-1">
             «Успех — это лестница, на которую не взобраться с руками в карманах.»
           </p>
-          <p className="text-sm text-white/70">— Зиг Зиглар</p>
+          <p className="text-xs text-white/70">— Зиг Зиглар</p>
         </div>
       </div>
     </div>
