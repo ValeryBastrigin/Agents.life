@@ -35,7 +35,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
     { 
       id: 'secretary', 
       name: t('secretary'), 
-      icon: '📅', 
+      iconSrc: '/assets/icons/agents/секретарь.png',
       path: '/secretary', 
       description: t('secretaryDesc'),
       gradient: 'from-purple-500 to-pink-500'
@@ -43,7 +43,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
     { 
       id: 'dietitian', 
       name: 'Диетолог', 
-      icon: '🍎', 
+      iconSrc: '/assets/icons/agents/диетолог.png',
       path: '/dietitian', 
       description: 'Питание, диета, калории и здоровый рацион',
       gradient: 'from-green-400 to-teal-500'
@@ -51,7 +51,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
     { 
       id: 'accountant', 
       name: t('accountant'), 
-      icon: '💰', 
+      iconSrc: '/assets/icons/agents/финансовый ассистент.png',
       path: '/accountant', 
       description: t('accountantDesc'),
       gradient: 'from-green-500 to-emerald-500'
@@ -59,7 +59,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
     { 
       id: 'psychologist', 
       name: 'Психолог', 
-      icon: '🧠', 
+      iconSrc: '/assets/icons/agents/психолог.png',
       path: '/psychologist', 
       description: 'Эмоциональная поддержка, практики и ментальное здоровье',
       gradient: 'from-purple-400 to-indigo-500'
@@ -67,7 +67,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
     { 
       id: 'mentor', 
       name: 'Ментор', 
-      icon: '🎯', 
+      iconSrc: '/assets/icons/agents/ментор.png',
       path: '/mentor', 
       description: 'Цели, развитие, карьера и мотивация',
       gradient: 'from-amber-400 to-orange-500'
@@ -180,11 +180,9 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                   onClick={() => {
                     onClose();
                   }}
-                  className="w-full flex items-center gap-4 p-4 rounded-[2rem] mb-2 transition-all hover:scale-[1.02] hover:shadow-lg text-gray-700 dark:text-gray-300 group"
+                  className="w-full flex items-center gap-2 p-2.5 rounded-[2rem] mb-2 transition-all hover:scale-[1.02] hover:shadow-lg text-gray-700 dark:text-gray-300 group"
                 >
-                  <div className={`w-12 h-12 rounded-[2rem] bg-gradient-to-br ${item.gradient} flex items-center justify-center text-2xl shadow-md group-hover:shadow-xl transition-all duration-300 animate-pulse-slow`}>
-                    {item.icon}
-                  </div>
+                  <img src={item.iconSrc} alt={item.name} className="w-24 h-24 object-contain shrink-0" />
                   <div className="text-left flex-1">
                     <div className="font-semibold">{item.name}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
