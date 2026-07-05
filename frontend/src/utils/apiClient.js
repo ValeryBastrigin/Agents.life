@@ -104,6 +104,7 @@ export async function sendMessageStream(payload, callbacks) {
                     chat_id: data.chat_id,
                     is_new_chat: data.is_new_chat,
                     full_content: data.full_content,
+                    agent_name: data.agent_name,
                   });
                   break;
               }

@@ -5,7 +5,7 @@ import ChatInput from './components/ChatInput';
 import AnimatedBackground from './components/AnimatedBackground';
 import ChatWidgetRenderer from './components/ui/widgets/ChatWidgetRenderer';
 import MarkdownRenderer from './components/MarkdownRenderer';
-import { User, Menu, ArrowLeft, Sparkles, Bot, User as UserIcon } from 'lucide-react';
+import { User, Menu, ArrowLeft, Bot, User as UserIcon } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Dietitian from './pages/Dietitian';
@@ -222,14 +222,23 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
               <Menu size={20} className="text-gray-700 dark:text-gray-300" />
             </button>
           )}
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {location.pathname === '/chat' ? 'Ixteria' :
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            {location.pathname === '/chat' ? (
+              <>
+                Ixteria
+                <img src="/assets/icons/agents/ixteria.svg" alt="Ixteria" className="w-6 h-6 rounded-full" />
+              </>
+            ) :
               location.pathname === '/secretary' ? 'Тайм-Менеджер' :
               location.pathname === '/secretary/logs' ? 'Тайм-Менеджер' :
               location.pathname === '/accountant' ? 'Финансовый-помощник' :
              location.pathname === '/dietitian' ? 'Диетолог' :
              location.pathname === '/psychologist' ? 'Психолог' :
-             location.pathname === '/mentor' ? 'Ментор' : 'Ixteria'}
+             location.pathname === '/mentor' ? 'Ментор' : 
+             <>
+                Ixteria
+                <img src="/assets/icons/agents/ixteria.svg" alt="Ixteria" className="w-6 h-6 rounded-full" />
+              </>}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -260,6 +269,22 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       </Routes>
     </div>
   );
+}
+
+// ── Agent avatar map ──
+const AGENT_AVATARS = {
+  ixteria: '/assets/icons/agents/ixteria.svg',
+  agents: '/assets/icons/agents/ixteria.svg',
+  dietitian: '/assets/icons/agents/диетолог.svg',
+  secretary: '/assets/icons/agents/секретарь.svg',
+  psychologist: '/assets/icons/agents/психолог.svg',
+  mentor: '/assets/icons/agents/ментор.svg',
+  accountant: '/assets/icons/agents/бухгалтер.svg',
+};
+
+function getAgentAvatar(agentName) {
+  const name = (agentName || 'ixteria').toLowerCase();
+  return AGENT_AVATARS[name] || AGENT_AVATARS.ixteria;
 }
 
 // ── Determine if content is a widget JSON ──
@@ -319,6 +344,8 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [streamAgentName, setStreamAgentName] = useState('');
+  const streamAgentRef = useRef('');
   const [chatId, setChatId] = useState(null);
   const chatIdRef = useRef(null);
   const [userId] = useState(1);
@@ -402,7 +429,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
         user_id: userId,
         message: message,
         chat_id: currentChatId,
-        history: messages.map(m => ({ role: m.role, content: m.content })),
+        history: messages.map(m => ({ role: m.role, content: m.content, agent_name: m.agent_name })),
       },
       {
         onToken: (token) => {
@@ -418,12 +445,15 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
           setIsStreaming(false);
 
           const finalContent = metadata.full_content || streamingContent;
+          // Use agent_name from metadata or fallback to current ref
+          const agentName = metadata.agent_name || streamAgentRef.current || 'ixteria';
 
           // If widget was received, use widget content
           const contentToSave = pendingWidgetRef.current || finalContent;
 
-          setMessages((prev) => [...prev, { role: 'assistant', content: contentToSave }]);
+          setMessages((prev) => [...prev, { role: 'assistant', content: contentToSave, agent_name: agentName }]);
           setStreamingContent('');
+          setStreamAgentName('');
 
           // Update chat ID if this is a new chat
           if (metadata.is_new_chat && metadata.chat_id) {
@@ -440,6 +470,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
           setIsLoading(false);
           setIsStreaming(false);
           setStreamingContent('');
+          setStreamAgentName('');
           setMessages((prev) => [...prev, { role: 'assistant', content: 'Извините, произошла ошибка. Попробуйте ещё раз.' }]);
         },
       }
@@ -462,15 +493,22 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
 
     // ── Assistant message (no bubble, clean markdown) ──
     if (!isUser) {
+      const agentName = message.agent_name || 'ixteria';
+      const avatarSrc = getAgentAvatar(agentName);
       return (
         <div key={index} className="flex justify-start my-2 group">
           <div className="max-w-[85%] sm:max-w-[75%]">
             <div className="flex items-start gap-3">
               {/* AI Avatar indicator */}
               <div className="flex-shrink-0 mt-1">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
-                  <Sparkles size={16} className="text-white" />
-                </div>
+                <img
+                  src={avatarSrc}
+                  alt={agentName}
+                  className="w-8 h-8 rounded-full object-cover shadow-sm"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
               </div>
               {/* Content */}
               <div className="min-w-0 flex-1 pt-1">
@@ -580,7 +618,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 relative z-10 pb-0 -mb-2">
         {messages.length === 0 && !isStreaming ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 select-none">
-            <div className="text-6xl mb-4 opacity-50">💬</div>
+            <img src="/assets/icons/agents/ixteria.svg" alt="Ixteria" className="w-16 h-16 mb-4 opacity-50" />
             <p className="text-lg">
               {t('chatWithAgents')}
             </p>
@@ -596,9 +634,14 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
                   <div className="flex items-start gap-3">
                     {/* AI Avatar */}
                     <div className="flex-shrink-0 mt-1">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
-                        <Sparkles size={16} className="text-white" />
-                      </div>
+                      <img
+                        src={getAgentAvatar(streamAgentName || 'ixteria')}
+                        alt={streamAgentName || 'ixteria'}
+                        className="w-8 h-8 rounded-full object-cover shadow-sm"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
                     </div>
                     {/* Streaming content */}
                     <div className="min-w-0 flex-1 pt-1">
@@ -643,7 +686,13 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
       {/* Chat Input Footer - Fixed at bottom */}
       <div className="absolute bottom-0 left-0 right-0 px-4 py-4 relative z-20 bg-transparent">
         <ChatInput
-          onSendMessage={handleSendMessage}
+          onSendMessage={(msg) => {
+            // Set agent name based on last assistant message in history
+            const lastAssistantMsg = messages.filter(m => m.role === 'assistant').pop();
+            streamAgentRef.current = lastAssistantMsg?.agent_name || 'ixteria';
+            setStreamAgentName(streamAgentRef.current);
+            handleSendMessage(msg);
+          }}
           disabled={isLoading || isStreaming}
           theme={theme}
         />

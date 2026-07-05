@@ -459,6 +459,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
     # Create or get chat
     is_new_chat = False
+    stream_agent_name = agent.name if agent else "ixteria"
     if request.chat_id:
         result = await db.execute(select(Chat).where(Chat.id == request.chat_id))
         chat = result.scalar_one_or_none()
@@ -495,7 +496,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         await db.commit()
 
         return StreamingResponse(
-            _stream_final_response(response_text, chat.id, is_new_chat),
+            _stream_final_response(response_text, chat.id, is_new_chat, stream_agent_name),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -547,6 +548,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             'chat_id': chat.id,
             'is_new_chat': is_new_chat,
             'full_content': full_response,
+            'agent_name': stream_agent_name,
         }
         yield f"data: {json.dumps(metadata)}\n\n"
 
@@ -561,7 +563,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
     )
 
 
-async def _stream_final_response(response_text, chat_id, is_new_chat):
+async def _stream_final_response(response_text, chat_id, is_new_chat, agent_name="ixteria"):
     """Stream a pre-computed response as tokens for specialized agents."""
     try:
         parsed = json.loads(response_text)
@@ -589,6 +591,7 @@ async def _stream_final_response(response_text, chat_id, is_new_chat):
         'chat_id': chat_id,
         'is_new_chat': is_new_chat,
         'full_content': response_text,
+        'agent_name': agent_name,
     }
     yield f"data: {json.dumps(metadata)}\n\n"
 
@@ -672,6 +675,13 @@ async def update_theme(user_id: int, request: UpdateThemeRequest, db: AsyncSessi
 
 @router.get("/chats/{chat_id}/messages")
 async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
+    # Get chat with its agent name
+    chat_result = await db.execute(
+        select(Chat).where(Chat.id == chat_id).options(selectinload(Chat.agent))
+    )
+    chat = chat_result.scalar_one_or_none()
+    agent_name = chat.agent.name if chat and chat.agent else "ixteria"
+
     result = await db.execute(
         select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at.asc())
     )
@@ -683,7 +693,8 @@ async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
             "role": m.role,
             "content": m.content,
             "tokens_used": m.tokens_used,
-            "created_at": m.created_at.isoformat()
+            "created_at": m.created_at.isoformat(),
+            "agent_name": agent_name
         }
         for m in messages
     ]
