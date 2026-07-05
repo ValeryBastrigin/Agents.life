@@ -7,6 +7,14 @@ import AgentManagerModal from './AgentManagerModal';
 
 const API_URL = 'http://localhost:8001';
 
+const floatAnimations = [
+  { animationDelay: '0s' },
+  { animationDelay: '0.4s' },
+  { animationDelay: '0.8s' },
+  { animationDelay: '1.2s' },
+  { animationDelay: '1.6s' },
+];
+
 const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDeleteChat, onRenameChat, onPinChat }) => {
   const { t, language } = useLanguage();
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -144,6 +152,20 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
 
   return (
     <>
+      <style>{`
+        @keyframes agent-float {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          25% { transform: translateY(-4px) rotate(-2deg); }
+          50% { transform: translateY(0) rotate(0deg); }
+          75% { transform: translateY(-2px) rotate(1deg); }
+        }
+        .agent-icon {
+          animation: agent-float 3s ease-in-out infinite;
+        }
+        .agent-icon:hover {
+          animation-duration: 0.6s;
+        }
+      `}</style>
       {/* Overlay backdrop */}
       <div
         onClick={onClose}
@@ -173,16 +195,16 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                   <Settings size={22} className="text-gray-500 dark:text-gray-400" />
                 </button>
               </div>
-              {menuItems.map((item) => (
+              {menuItems.map((item, index) => (
                 <Link
                   key={item.id}
                   to={item.path}
                   onClick={() => {
                     onClose();
                   }}
-                  className="w-full flex items-center gap-2 p-2.5 rounded-[2rem] mb-2 transition-all hover:scale-[1.02] hover:shadow-lg text-gray-700 dark:text-gray-300 group"
+                  className="w-full flex items-center gap-2 p-2.5 rounded-[2rem] mb-2 transition-all hover:scale-[1.02] hover:shadow-lg text-gray-700 dark:text-gray-300 group bg-surface-light dark:bg-surface-dark/60 border border-gray-200/50 dark:border-gray-700/40"
                 >
-                  <img src={item.iconSrc} alt={item.name} className="w-24 h-24 object-contain shrink-0" />
+                  <img src={item.iconSrc} alt={item.name} className="w-24 h-24 object-contain shrink-0 agent-icon" style={{ animationDelay: floatAnimations[index % floatAnimations.length].animationDelay }} />
                   <div className="text-left flex-1">
                     <div className="font-semibold">{item.name}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
