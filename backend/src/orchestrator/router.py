@@ -1177,37 +1177,25 @@ async def get_active_therapy_session(user_id: int, db: AsyncSession = Depends(ge
     }
 
 
-async def _generate_and_save_summary_async(session_id: int, chat_id: int):
-    """Generate and save summary for a completed therapy session (background task)."""
+async def _complete_session_with_summary(db: AsyncSession, session: TherapySession):
+    """Complete a session by setting status+ended_at, generating summary, and saving everything in ONE commit."""
+    from src.agents.psychologist_agent import generate_summary
+    
+    session.status = "completed"
+    session.ended_at = datetime.now(timezone.utc)
+    
+    # Generate summary BEFORE commit
     try:
-        from src.database import async_session
-        from src.agents.psychologist_agent import generate_summary
-        async with async_session() as bg_db:
-            result = await bg_db.execute(
-                select(TherapySession).where(TherapySession.id == session_id)
-            )
-            session = result.scalar_one_or_none()
-            if not session:
-                print(f"Session {session_id} not found for summary generation")
-                return
-            
-            summary = await generate_summary(chat_id, bg_db)
-            session.summary = summary
-            await bg_db.commit()
-            print(f"Summary generated for session {session.id}")
+        summary = await generate_summary(session.chat_id, db)
+        session.summary = summary
+        print(f"Summary generated for session {session.id}")
     except Exception as e:
         print(f"Error generating summary for session {session.id}: {e}")
-        try:
-            async with async_session() as bg_db:
-                result = await bg_db.execute(
-                    select(TherapySession).where(TherapySession.id == session_id)
-                )
-                session = result.scalar_one_or_none()
-                if session:
-                    session.summary = "Сеанс завершён. Резюме временно недоступно."
-                    await bg_db.commit()
-        except:
-            pass
+        session.summary = "Сеанс завершён. Резюме временно недоступно."
+    
+    # ONE commit with status + ended_at + summary
+    await db.commit()
+    await db.refresh(session)
 
 
 @router.post("/user/{user_id}/therapy/force-end")
@@ -1224,13 +1212,7 @@ async def force_end_therapy_session(user_id: int, db: AsyncSession = Depends(get
     if not session:
         raise HTTPException(status_code=404, detail="No active session found")
     
-    session.status = "completed"
-    session.ended_at = datetime.now(timezone.utc)
-    await db.commit()
-    await db.refresh(session)
-    
-    # Generate summary in background with its own DB session
-    asyncio.create_task(_generate_and_save_summary_async(session.id, session.chat_id))
+    await _complete_session_with_summary(db, session)
     
     return {
         "id": session.id,
@@ -1253,13 +1235,7 @@ async def force_end_therapy_session_by_id(user_id: int, session_id: int, db: Asy
     if not session:
         raise HTTPException(status_code=404, detail="Therapy session not found")
     
-    session.status = "completed"
-    session.ended_at = datetime.now(timezone.utc)
-    await db.commit()
-    await db.refresh(session)
-    
-    # Generate summary in background with its own DB session
-    asyncio.create_task(_generate_and_save_summary_async(session.id, session.chat_id))
+    await _complete_session_with_summary(db, session)
     
     return {
         "id": session.id,

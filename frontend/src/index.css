@@ -178,3 +178,38 @@ code {
 .prose-ai h1, .prose-ai h2, .prose-ai h3, .prose-ai h4 {
   @apply mt-4 mb-2;
 }
+
+/* User message bubble — force white text on all prose elements inside blue bg */
+.user-bubble .prose,
+.user-bubble .prose * {
+  color: white !important;
+}
+.user-bubble .prose code {
+  color: #e2e8f0 !important;
+  background: rgba(255,255,255,0.15) !important;
+}
+.user-bubble .prose a {
+  color: #bfdbfe !important;
+}
+.user-bubble .prose strong {
+  color: white !important;
+}
+.user-bubble .prose blockquote {
+  color: #e2e8f0 !important;
+  border-left-color: rgba(255,255,255,0.4) !important;
+}
+.user-bubble .prose h1,
+.user-bubble .prose h2,
+.user-bubble .prose h3,
+.user-bubble .prose h4 {
+  color: white !important;
+}
+.user-bubble .prose li {
+  color: white !important;
+}
+.user-bubble .prose hr {
+  border-color: rgba(255,255,255,0.2) !important;
+}
+.user-bubble .prose pre {
+  color: #e2e8f0 !important;
+}

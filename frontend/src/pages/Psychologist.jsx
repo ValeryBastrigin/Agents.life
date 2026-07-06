@@ -126,36 +126,29 @@ const { language, changeLanguage, t } = useLanguage();
     }
   };
 
-  // ─── Start session → redirect to unified chat ─────────
+  // ─── Start session → ALWAYS create NEW chat → redirect to unified chat ─────────
 
   const startSession = async () => {
     setShowStartSession(false);
     setSessionLoading(true);
 
     try {
-      // Find or create psychologist chat
-      const chatsRes = await apiClient.get('/api/user-chats', { params: { user_id: USER_ID } });
-      const chats = chatsRes.data || [];
-      let psyChat = chats.find(c => c.agent_name === 'psychologist');
-
-      if (!psyChat) {
-        // Create new psychologist chat with welcome message
-        const WELCOME_MSG = `💜 **Здравствуйте, расскажите, что вас беспокоит?**
+      // Always create a NEW chat for each session (never reuse old one)
+      const WELCOME_MSG = `💜 **Здравствуйте, расскажите, что вас беспокоит?**
 
 Я внимательно выслушаю вас и помогу разобраться в ваших переживаниях. Наш разговор строго конфиденциален — вы можете говорить совершенно открыто.
 
 После завершения сеанса я запишу краткое резюме в раздел **«Ваши сеансы терапий и итоги»**, чтобы вы всегда могли вернуться к нашим обсуждениям.
 
 Расскажите, с чего бы вы хотели начать сегодня? 🌿`;
-        const createRes = await apiClient.post('/api/chats', {
-          user_id: USER_ID,
-          title: 'Психолог',
-          agent_type: 'psychologist',
-          welcome_message: WELCOME_MSG,
-        });
-        psyChat = createRes.data;
-      }
 
+      const createRes = await apiClient.post('/api/chats', {
+        user_id: USER_ID,
+        title: 'Сеанс психотерапии',
+        agent_type: 'psychologist',
+        welcome_message: WELCOME_MSG,
+      });
+      const psyChat = createRes.data;
       const chatId = psyChat.id || psyChat.chat_id;
 
       // Start therapy session

@@ -114,7 +114,16 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   // ── Session state (shared with header capsule) ──
   const [activeSession, setActiveSession] = useState(null);
   const [sessionElapsed, setSessionElapsed] = useState(0);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [isEndingSession, setIsEndingSession] = useState(false);
+  const [sessionEndSuccess, setSessionEndSuccess] = useState(false);
   const sessionTimerRef = useRef(null);
+
+  // Parse current chat ID from URL
+  const currentChatId = (() => {
+    const match = location.pathname.match(/^\/chat\/(\d+)$/);
+    return match ? parseInt(match[1]) : null;
+  })();
 
   // Periodically check session status
   useEffect(() => {
@@ -163,12 +172,21 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
   const endSession = async () => {
     if (!activeSession) return;
+    setIsEndingSession(true);
     try {
       await apiClient.post(`/api/user/${userId}/therapy-sessions/${activeSession.id}/force-end`);
-      setActiveSession(null);
-      setSessionElapsed(0);
+      setSessionEndSuccess(true);
+      // Через 3 секунды закрываем модалку и убираем виджет
+      setTimeout(() => {
+        setActiveSession(null);
+        setSessionElapsed(0);
+        setShowEndConfirm(false);
+        setSessionEndSuccess(false);
+        setIsEndingSession(false);
+      }, 3000);
     } catch (err) {
       console.error('Failed to end session:', err);
+      setIsEndingSession(false);
     }
   };
 
@@ -318,8 +336,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {/* ═══ Active Session Capsule inside header ═══ */}
-          {activeSession && (
+          {/* ═══ Active Session Capsule inside header — only for the chat where session is active ═══ */}
+          {activeSession && currentChatId && activeSession.chat_id === currentChatId && (
             <div className="bg-gradient-to-r from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-full px-1.5 py-1.5 shadow-sm flex items-center gap-0.5 animate-fade-in">
               <Clock size={14} className="text-white animate-pulse" />
               <span className="text-white text-xs font-semibold whitespace-nowrap">
@@ -327,12 +345,96 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
               </span>
               <span className="text-white/90 text-xs ml-1">Завершить</span>
               <button
-                onClick={endSession}
+                onClick={() => setShowEndConfirm(true)}
                 className="p-0.5 hover:bg-white/20 rounded-full transition-colors"
                 title="Завершить сеанс"
               >
                 <XCircle size={14} className="text-white" />
               </button>
+            </div>
+          )}
+
+          {/* ═══ Confirm End Session Modal (фирменный стиль) ═══ */}
+          {showEndConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => {
+              if (!isEndingSession) setShowEndConfirm(false);
+            }}>
+              <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-background-light dark:bg-background-dark rounded-[3.5rem] shadow-2xl flex flex-col animate-fade-in">
+                {sessionEndSuccess ? (
+                  /* ═══ SUCCESS STATE ═══ */
+                  <div className="px-6 py-10 text-center">
+                    <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 mb-5 animate-scale-in">
+                      <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-3">
+                      Сеанс завершён!
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                      Итоги сеанса записаны и доступны в разделе <br />
+                      <strong>«Ваши сеансы терапий и итоги»</strong>.
+                    </p>
+                  </div>
+                ) : isEndingSession ? (
+                  /* ═══ LOADING STATE ═══ */
+                  <div className="px-6 py-10 text-center">
+                    <div className="mx-auto w-16 h-16 flex items-center justify-center mb-5">
+                      <svg className="animate-spin w-10 h-10 text-purple-500" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-3">
+                      Подводим итоги сеанса...
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                      ИИ-психолог формирует резюме вашего сеанса. <br />
+                      Это займёт несколько секунд.
+                    </p>
+                  </div>
+                ) : (
+                  /* ═══ CONFIRM STATE ═══ */
+                  <>
+                    <div className="px-6 pt-8 pb-2 text-center">
+                      <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 mb-5">
+                        <XCircle size={32} className="text-red-500" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-3">
+                        Завершить сеанс?
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        Сеанс будет завершён, а его итоги появятся в разделе «Ваши сеансы терапий и итоги».
+                      </p>
+                    </div>
+
+                    {/* Decorative divider */}
+                    <div className="px-6 pt-4">
+                      <div className="h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-600 to-transparent" />
+                    </div>
+
+                    {/* Footer with buttons */}
+                    <div className="px-6 pb-6 pt-4">
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setShowEndConfirm(false)}
+                          className="flex-1 px-4 py-3 rounded-[3rem] bg-surface-light dark:bg-surface-dark text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-sm"
+                        >
+                          Отмена
+                        </button>
+                        <button
+                          onClick={() => {
+                            endSession();
+                          }}
+                          className="flex-1 px-4 py-3 rounded-[3rem] bg-red-500 hover:bg-red-600 text-white font-medium transition-colors shadow-lg shadow-red-500/25 text-sm"
+                        >
+                          Да, завершить
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
           <span className={`px-1 py-1 rounded-full transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
@@ -650,7 +752,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
       <div key={index} className="flex justify-end my-2 group">
         <div className="max-w-[85%] sm:max-w-[75%] flex items-end gap-3">
           <div className="min-w-0 flex-1">
-            <div className="bg-blue-500 dark:bg-blue-600 text-white px-4 py-3 rounded-2xl rounded-br-md shadow-sm">
+            <div className="user-bubble bg-blue-500 dark:bg-blue-600 text-white px-4 py-3 rounded-2xl rounded-br-md shadow-sm">
               <div className="leading-relaxed space-y-2">
                 {/* Text content — скрываем Markdown картинку, если показываем attachments отдельно */}
                 {userDisplayContent && !isOnlyImageMarkdown && (
