@@ -1383,6 +1383,18 @@ async def update_therapy_summary(session_id: int, data: dict = Body(...), db: As
     }
 
 
+@router.delete("/therapy-sessions/{session_id}")
+async def delete_therapy_session(session_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a therapy session."""
+    result = await db.execute(select(TherapySession).where(TherapySession.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Therapy session not found")
+    await db.delete(session)
+    await db.commit()
+    return {"message": "Therapy session deleted"}
+
+
 @router.post("/chats/{chat_id}/food-query")
 async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Chat).where(Chat.id == chat_id))

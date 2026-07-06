@@ -103,6 +103,7 @@ async def generate_session_summary(messages_text: str) -> str:
         )
         
         summary = response.choices[0].message.content
+        print(f"DEBUG: Summary generated: {summary}")
         if not summary:
             summary = "Не удалось сгенерировать резюме сеанса."
         

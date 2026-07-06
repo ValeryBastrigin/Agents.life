@@ -133,6 +133,13 @@ const { language, changeLanguage, t } = useLanguage();
     setSessionLoading(true);
 
     try {
+      // Проверяем, нет ли уже активной сессии — если есть, идём в её чат
+      const activeRes = await apiClient.get(`/api/user/${USER_ID}/therapy/active`);
+      if (activeRes.data?.active && activeRes.data?.session?.chat_id) {
+        navigate(`/chat/${activeRes.data.session.chat_id}`, { state: { activeSession: true } });
+        return;
+      }
+
       // Always create a NEW chat for each session (never reuse old one)
       const WELCOME_MSG = `💜 **Здравствуйте, расскажите, что вас беспокоит?**
 
