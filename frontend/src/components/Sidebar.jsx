@@ -202,9 +202,9 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                   onClick={() => {
                     onClose();
                   }}
-                  className="w-full flex items-center gap-2 p-2.5 rounded-[2rem] mb-2 transition-all hover:scale-[1.02] hover:shadow-lg text-gray-700 dark:text-gray-300 group bg-surface-light dark:bg-surface-dark/60 border border-gray-200/50 dark:border-gray-700/40"
+                  className="w-full flex items-center gap-2 p-2 rounded-[2rem] mb-2 transition-all hover:scale-[1.02] hover:shadow-lg text-gray-700 dark:text-gray-300 group bg-surface-light dark:bg-surface-dark/60 border border-gray-200/50 dark:border-gray-700/40"
                 >
-                  <img src={item.iconSrc} alt={item.name} className="w-24 h-24 object-contain shrink-0 agent-icon" style={{ animationDelay: floatAnimations[index % floatAnimations.length].animationDelay }} />
+                  <img src={item.iconSrc} alt={item.name} className="w-20 h-20 object-contain shrink-0 agent-icon" style={{ animationDelay: floatAnimations[index % floatAnimations.length].animationDelay }} />
                   <div className="text-left flex-1">
                     <div className="font-semibold">{item.name}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">

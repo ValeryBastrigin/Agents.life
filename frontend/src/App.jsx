@@ -814,7 +814,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
   return (
     <div className="flex flex-col h-full relative animate-slide-in-left">
       {/* Messages Container */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 relative z-10 pt-12 pb-24">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 relative z-10 pt-4 pb-6">
         {messages.length === 0 && !isStreaming ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 select-none">
             <img src="/assets/icons/agents/ixteria.svg" alt="Ixteria" className="w-16 h-16 mb-4 opacity-50" />
