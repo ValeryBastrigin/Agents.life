@@ -102,6 +102,19 @@ CREATE TABLE IF NOT EXISTS mood_entries (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Diary entries table (психолог)
+CREATE TABLE IF NOT EXISTS diary_entries (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) DEFAULT '',
+    content TEXT NOT NULL,
+    mood INTEGER,
+    mood_emoji VARCHAR(10),
+    tags VARCHAR(500) DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Notes table
 CREATE TABLE IF NOT EXISTS notes (
     id SERIAL PRIMARY KEY,

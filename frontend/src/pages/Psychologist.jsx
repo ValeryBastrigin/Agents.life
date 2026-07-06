@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, BookOpen, Brain, Heart, MessageCircle, BarChart3, Send, Sparkles, Smile, Frown, Meh, Laugh, Angry, Calendar } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { X, BookOpen, Brain, Heart, MessageCircle, BarChart3, Sparkles, Smile } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient, sendMessageStream } from '../utils/apiClient';
 
@@ -18,30 +18,37 @@ const MOOD_OPTIONS = [
 const DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 // ---------- Manual / Info Modal (same style as Accountant ManualModal) ----------
-const InfoModal = ({ isOpen, onClose, title, children, hideButton }) => {
+const InfoModal = ({ isOpen, onClose, title, children, hideButton, footerButton }) => {
   if (!isOpen) return null;
+
+  const showFooter = !hideButton || footerButton;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
-        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden max-h-[85vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50">
+        <div className="flex items-center justify-between px-6 pt-6 pb-2 flex-shrink-0">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
             <BookOpen size={22} className="text-purple-500" />
             {title}
           </h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors flex-shrink-0 ml-2">
             <X size={20} className="text-gray-500" />
           </button>
         </div>
 
-        <div className="px-6 py-4 space-y-4 text-sm">
+        <div className="px-6 py-4 overflow-y-auto space-y-5 text-sm flex-1">
           {children}
         </div>
 
-        {!hideButton && (
-          <div className="px-6 pb-6 pt-2">
-            <button onClick={onClose} className="w-full py-3 bg-purple-500 hover:bg-purple-600 text-white font-medium rounded-[2rem] transition-colors">
-              Понятно!
-            </button>
+        {showFooter && (
+          <div className="px-6 pb-6 pt-2 flex-shrink-0">
+            {footerButton ? (
+              footerButton
+            ) : (
+              <button onClick={onClose} className="w-full py-3 bg-purple-500 hover:bg-purple-600 text-white font-medium rounded-[2rem] transition-colors">
+                Понятно!
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -52,6 +59,7 @@ const InfoModal = ({ isOpen, onClose, title, children, hideButton }) => {
 // ---------- Main Page ----------
 const Psychologist = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
 
   // Info modals
@@ -59,6 +67,15 @@ const Psychologist = () => {
   const [showSessions, setShowSessions] = useState(false);
   const [showDiary, setShowDiary] = useState(false);
   const [showStartSession, setShowStartSession] = useState(false);
+
+  // Handle navigation with state (e.g. from TherapySessions "Начните сеанс")
+  useEffect(() => {
+    if (location.state?.openSession) {
+      setShowStartSession(true);
+      // Clear the state so it doesn't re-open on re-render
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Mood state
   const [selectedMood, setSelectedMood] = useState(null);
@@ -107,7 +124,6 @@ const Psychologist = () => {
         label: option.label,
       });
       setMoodSaved(true);
-      loadMoodWeek();
     } catch (err) {
       console.error('Failed to save mood:', err);
     } finally {
@@ -248,7 +264,7 @@ const Psychologist = () => {
 
           {/* Блок 2: Ваши сеансы терапий и итоги */}
           <button
-            onClick={() => setShowSessions(true)}
+            onClick={() => navigate('/psychologist/sessions')}
             className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
           >
             <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
@@ -263,7 +279,7 @@ const Psychologist = () => {
 
           {/* Блок 3: Дневник */}
           <button
-            onClick={() => setShowDiary(true)}
+            onClick={() => navigate('/psychologist/diary')}
             className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
           >
             <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
@@ -299,25 +315,25 @@ const Psychologist = () => {
             <Smile size={20} className="text-amber-500" />
             Как вы сегодня себя чувствуете?
           </h2>
-          <div className="flex gap-2 overflow-x-auto pb-1 justify-center">
+          <div className="flex gap-2 overflow-x-auto py-4 scrollbar-hide sm:justify-center -mx-1 px-1">
             {MOOD_OPTIONS.map((option, index) => (
               <button
                 key={index}
                 onClick={() => handleMoodSelect(option, index)}
                 disabled={savingMood}
-                className={`flex-shrink-0 min-w-[68px] flex flex-col items-center gap-1.5 p-3 rounded-[1.5rem] transition-all ${
+                className={`flex-shrink-0 min-w-[72px] sm:min-w-[68px] flex flex-col items-center gap-1.5 p-3 sm:p-3 rounded-[2rem] transition-all ${
                   selectedMood === index
-                    ? `bg-gradient-to-br ${option.color} text-white shadow-lg scale-105`
-                    : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    ? `bg-gradient-to-br ${option.color} text-white shadow-lg ring-2 ring-white/50`
+                    : 'bg-white/60 dark:bg-white/10 hover:bg-gray-100 dark:hover:bg-white/20 border border-gray-200/60 dark:border-white/10'
                 }`}
               >
-                <span className="text-2xl">{option.emoji}</span>
-                <span className="text-[10px] font-medium whitespace-nowrap">{option.label}</span>
+                <span className="text-2xl sm:text-2xl leading-none">{option.emoji}</span>
+                <span className="text-[11px] sm:text-[10px] font-medium whitespace-nowrap text-gray-700 dark:text-gray-200">{option.label}</span>
               </button>
             ))}
           </div>
           {moodSaved && (
-            <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-[1.5rem] text-center">
+            <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-[2rem] text-center">
               <p className="text-sm text-green-700 dark:text-green-300">
                 Настроение записано! Спасибо ✨
               </p>
@@ -503,7 +519,22 @@ const Psychologist = () => {
       </InfoModal>
 
       {/* Начните сеанс психотерапии */}
-      <InfoModal isOpen={showStartSession} onClose={() => setShowStartSession(false)} title="Начните сеанс психотерапии" hideButton>
+      <InfoModal
+        isOpen={showStartSession}
+        onClose={() => setShowStartSession(false)}
+        title="Начните сеанс психотерапии"
+        footerButton={
+          <button
+            onClick={() => {
+              setShowStartSession(false);
+              console.log('Начать сеанс');
+            }}
+            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium rounded-[2rem] transition-all shadow-md"
+          >
+            Начать сеанс
+          </button>
+        }
+      >
         <div className="bg-purple-50 dark:bg-purple-900/20 rounded-[2rem] p-4">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
@@ -542,17 +573,6 @@ const Psychologist = () => {
               </p>
             </div>
           </div>
-        </div>
-        <div className="pt-4">
-          <button
-            onClick={() => {
-              setShowStartSession(false);
-              console.log('Начать сеанс');
-            }}
-            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium rounded-[2rem] transition-all shadow-md"
-          >
-            Начать сеанс
-          </button>
         </div>
       </InfoModal>
     </div>

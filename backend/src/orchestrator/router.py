@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func
 from sqlalchemy.orm import selectinload
 from src.database import get_db
-from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, MoodEntry
+from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, MoodEntry, DiaryEntry
 from datetime import datetime, timedelta, timezone
 from src.config import client
 from pydantic import BaseModel, ValidationError
@@ -1072,6 +1072,80 @@ async def get_mood_week(user_id: int, db: AsyncSession = Depends(get_db)):
         }
         for e in entries
     ]
+
+
+# ─── Diary endpoints ──────────────────────────────────────────────────────
+
+@router.get("/user/{user_id}/diary")
+async def get_diary_entries(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Get all diary entries for a user."""
+    result = await db.execute(
+        select(DiaryEntry)
+        .where(DiaryEntry.user_id == user_id)
+        .order_by(DiaryEntry.created_at.desc())
+    )
+    entries = result.scalars().all()
+    return [
+        {
+            "id": e.id,
+            "title": e.title or "",
+            "content": e.content,
+            "mood": e.mood,
+            "mood_emoji": e.mood_emoji,
+            "tags": e.tags.split(",") if e.tags else [],
+            "created_at": e.created_at.isoformat(),
+        }
+        for e in entries
+    ]
+
+
+@router.post("/user/{user_id}/diary")
+async def create_diary_entry(user_id: int, data: dict = Body(...), db: AsyncSession = Depends(get_db)):
+    """Create a diary entry."""
+    title = data.get("title", "")
+    content = data.get("content", "")
+    mood = data.get("mood")
+    mood_emoji = data.get("mood_emoji")
+    tags = data.get("tags", [])
+
+    if isinstance(tags, list):
+        tags_str = ",".join(tags)
+    else:
+        tags_str = str(tags)
+
+    entry = DiaryEntry(
+        user_id=user_id,
+        title=title,
+        content=content,
+        mood=mood,
+        mood_emoji=mood_emoji,
+        tags=tags_str,
+    )
+    db.add(entry)
+    await db.commit()
+    await db.refresh(entry)
+    return {
+        "id": entry.id,
+        "title": entry.title,
+        "content": entry.content,
+        "mood": entry.mood,
+        "mood_emoji": entry.mood_emoji,
+        "tags": entry.tags.split(",") if entry.tags else [],
+        "created_at": entry.created_at.isoformat(),
+        "message": "Diary entry created",
+    }
+
+
+@router.delete("/diary/{entry_id}")
+async def delete_diary_entry(entry_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a diary entry."""
+    result = await db.execute(select(DiaryEntry).where(DiaryEntry.id == entry_id))
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Diary entry not found")
+    await db.delete(entry)
+    await db.commit()
+    return {"message": "Diary entry deleted"}
 
 
 @router.post("/chats/{chat_id}/food-query")

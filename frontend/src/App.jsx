@@ -10,6 +10,8 @@ import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Dietitian from './pages/Dietitian';
 import Psychologist from './pages/Psychologist';
+import TherapySessions from './pages/TherapySessions';
+import PsychologistDiary from './pages/PsychologistDiary';
 import Mentor from './pages/Mentor';
 import Profile from './pages/Profile';
 import ActivityLog from './pages/ActivityLog';
@@ -270,6 +272,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/accountant" element={<Accountant />} />
         <Route path="/dietitian" element={<Dietitian />} />
         <Route path="/psychologist" element={<Psychologist />} />
+        <Route path="/psychologist/sessions" element={<TherapySessions />} />
+        <Route path="/psychologist/diary" element={<PsychologistDiary />} />
         <Route path="/mentor" element={<Mentor />} />
         <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/chat')} />} />
       </Routes>

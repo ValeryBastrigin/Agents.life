@@ -7,7 +7,7 @@ const ManualModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
+      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden max-h-[85vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50">
         <div className="flex items-center justify-between px-6 pt-6 pb-2">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
             <BookOpen size={22} className="text-blue-500" />
@@ -18,7 +18,7 @@ const ManualModal = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        <div className="px-6 py-4 space-y-4 text-sm">
+        <div className="px-6 py-4 space-y-5 text-sm overflow-y-auto flex-1">
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] p-4">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>

@@ -153,6 +153,21 @@ class UserDietProfile(Base):
 
     user = relationship("User")
 
+class DiaryEntry(Base):
+    __tablename__ = "diary_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), default="")
+    content = Column(Text, nullable=False)
+    mood = Column(Integer)  # optional mood 0-4
+    mood_emoji = Column(String(10))
+    tags = Column(Text, default="")  # comma-separated
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
 class MoodEntry(Base):
     __tablename__ = "mood_entries"
 
