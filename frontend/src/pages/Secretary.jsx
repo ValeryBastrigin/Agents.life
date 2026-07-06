@@ -300,7 +300,7 @@ const Secretary = ({ theme }) => {
     
     return (
       <>
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
           <div className="max-w-7xl xl:max-w-8xl 2xl:max-w-9xl mx-auto">
             {/* Header */}
             <div className="flex items-center gap-4 mb-8">
@@ -621,67 +621,40 @@ const Secretary = ({ theme }) => {
   return (
     <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
       <div className="max-w-7xl xl:max-w-8xl 2xl:max-w-9xl mx-auto">
-        {/* Hero Section — ultra-compact flat bar */}
-        <div className="bg-blue-600 dark:bg-blue-700 rounded-[2.5rem] px-3.5 py-2 mb-4 shadow-sm">
+        {/* Hero Section — large widget like Mentor */}
+        <div className="bg-gradient-to-br from-blue-500 to-blue-700 dark:from-blue-600 dark:to-blue-800 rounded-[3rem] p-5 mb-6 text-white">
           <button
             onClick={() => setHeroExpanded(!heroExpanded)}
-            className="flex items-center justify-between gap-3 w-full"
+            className="flex items-center justify-between gap-3 w-full text-left"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <Sparkles size={16} className="text-white/80 shrink-0" />
-              <div className="min-w-0 text-left">
-                <p className="text-white/90 text-xs sm:text-sm truncate font-medium">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="text-4xl shrink-0">📅</div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold mb-0.5">
                   {moment().locale(language === 'ru' ? 'ru' : 'en').format('dddd, DD MMMM YYYY')}
-                </p>
+                </h2>
+                <p className="text-white/80 text-xs">{language === 'ru' ? 'Планируйте свой день, ставьте задачи и достигайте целей' : 'Plan your day, set tasks and achieve your goals'}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="flex items-center gap-1 px-2 py-1 bg-white/15 rounded-full text-xs font-semibold text-white">
-                <Calendar size={12} />{eventsCount}
-              </span>
-              <span className="flex items-center gap-1 px-2 py-1 bg-white/15 rounded-full text-xs font-semibold text-white">
-                <Bell size={12} />{remindersCount}
-              </span>
-              <span className="flex items-center gap-1 px-2 py-1 bg-white/15 rounded-full text-xs font-semibold text-white">
-                <Zap size={12} />{todayEvents}
-              </span>
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-                {heroExpanded ? <ChevronUp size={14} className="text-white" /> : <ChevronDown size={14} className="text-white" />}
-              </div>
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors shrink-0">
+              {heroExpanded ? <ChevronUp size={18} className="text-white" /> : <ChevronDown size={18} className="text-white" />}
             </div>
           </button>
 
-          {/* Expanded content */}
-          <div className={`overflow-hidden transition-all duration-300 ${heroExpanded ? 'max-h-40 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/15">
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/10 rounded-[2rem]">
-                <Calendar size={14} className="text-white" />
-                <div>
-                  <div className="text-sm font-bold text-white leading-none">{eventsCount}</div>
-                  <div className="text-white/60 text-[10px]">{language === 'ru' ? 'Предстоящих событий' : 'Upcoming events'}</div>
-                </div>
+          <div className={`overflow-hidden transition-all duration-300 ${heroExpanded ? 'max-h-40 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+            <div className="flex gap-3">
+              <div className="flex-1 text-center bg-white/10 rounded-[3rem] p-3">
+                <div className="text-xl font-bold">{eventsCount}</div>
+                <div className="text-[10px] text-white/70">{language === 'ru' ? 'предстоящих событий' : 'upcoming events'}</div>
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/10 rounded-[2rem]">
-                <Bell size={14} className="text-white" />
-                <div>
-                  <div className="text-sm font-bold text-white leading-none">{remindersCount}</div>
-                  <div className="text-white/60 text-[10px]">{language === 'ru' ? 'Активных напоминаний' : 'Active reminders'}</div>
-                </div>
+              <div className="flex-1 text-center bg-white/10 rounded-[3rem] p-3">
+                <div className="text-xl font-bold">{remindersCount}</div>
+                <div className="text-[10px] text-white/70">{language === 'ru' ? 'активных напоминаний' : 'active reminders'}</div>
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/10 rounded-[2rem]">
-                <Zap size={14} className="text-white" />
-                <div>
-                  <div className="text-sm font-bold text-white leading-none">{todayEvents}</div>
-                  <div className="text-white/60 text-[10px]">{language === 'ru' ? 'Событий сегодня' : "Today's events"}</div>
-                </div>
+              <div className="flex-1 text-center bg-white/10 rounded-[3rem] p-3">
+                <div className="text-xl font-bold">{todayEvents}</div>
+                <div className="text-[10px] text-white/70">{language === 'ru' ? 'событий сегодня' : "today's events"}</div>
               </div>
-              <button
-                onClick={() => setSelectedDate(new Date())}
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-[2rem] text-xs font-medium transition-colors"
-              >
-                <Zap size={14} />
-                {language === 'ru' ? 'План на сегодня' : "Today's plan"}
-              </button>
             </div>
           </div>
         </div>

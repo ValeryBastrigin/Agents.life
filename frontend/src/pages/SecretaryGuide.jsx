@@ -81,10 +81,10 @@ export default function SecretaryGuide() {
               <h1 className='text-2xl sm:text-3xl font-bold text-white mb-3'>
                 {ru ? 'Как пользоваться Тайм-Менеджером' : 'How to Use Time-Manager'}
               </h1>
-              <p className='text-white/70 text-sm max-w-lg leading-relaxed'>
-                {ru ? 'Секретарь-Планировщик — AI-агент для встреч и напоминаний. Работает через оркестратор Ixteria: пишите в общий чат, Ixteria направит запрос Тайм-Менеджеру.'
-                   : 'Secretary-Planner is an AI agent for meetings and reminders. Works through the Ixteria orchestrator: write in the main chat, Ixteria routes to Time-Manager.'}
-              </p>
+               <p className='text-white/70 text-sm max-w-lg leading-relaxed'>
+                 {ru ? 'Секретарь-Планировщик — AI-агент для встреч и напоминаний. Работает через оркестратор Ixteria: пишите в общий чат — Ixteria направит запрос Тайм-Менеджеру. А ещё вы можете создавать события и напоминания вручную: просто нажмите на любую дату в календаре ниже.'
+                    : 'Secretary-Planner is an AI agent for meetings and reminders. It works through the Ixteria orchestrator: write in the main chat and Ixteria routes to Time-Manager. You can also create events and reminders manually: just click any date on the calendar below.'}
+               </p>
             </motion.div>
           </div>
         </div>
@@ -130,9 +130,9 @@ export default function SecretaryGuide() {
           <div className='w-12 h-12 mx-auto mb-3 rounded-[3.5rem] bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-md shadow-blue-500/20'>
             <Zap size={22} className='text-white' />
           </div>
-          <p className='text-sm text-blue-700 dark:text-blue-300 font-medium'>
-            {ru ? 'Тайм-Менеджер работает через чат с Ixteria — просто пишите!' : 'Time-Manager works through the Ixteria chat — just type!'}
-          </p>
+           <p className='text-sm text-blue-700 dark:text-blue-300 font-medium'>
+             {ru ? 'Добавляйте события через чат с Ixteria или вручную — нажмите на дату в календаре!' : 'Add events via chat with Ixteria or manually — click a date on the calendar!'}
+           </p>
         </div>
       </div>
     </div>
