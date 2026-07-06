@@ -92,6 +92,16 @@ BEGIN
     END IF;
 END $$;
 
+-- Mood entries table
+CREATE TABLE IF NOT EXISTS mood_entries (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    mood INTEGER NOT NULL,  -- 0-4 (от плохо до отлично)
+    emoji VARCHAR(10) NOT NULL,
+    label VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Notes table
 CREATE TABLE IF NOT EXISTS notes (
     id SERIAL PRIMARY KEY,
@@ -142,6 +152,8 @@ CREATE INDEX IF NOT EXISTS idx_calendar_events_user_id ON calendar_events(user_i
 CREATE INDEX IF NOT EXISTS idx_calendar_events_start_time ON calendar_events(start_time);
 CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id);
 CREATE INDEX IF NOT EXISTS idx_reminders_date ON reminders(date);
+CREATE INDEX IF NOT EXISTS idx_mood_entries_user_id ON mood_entries(user_id);
+CREATE INDEX IF NOT EXISTS idx_mood_entries_created_at ON mood_entries(created_at);
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

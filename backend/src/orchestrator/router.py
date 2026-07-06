@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func
 from sqlalchemy.orm import selectinload
 from src.database import get_db
-from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption
+from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, MoodEntry
 from datetime import datetime, timedelta, timezone
 from src.config import client
 from pydantic import BaseModel, ValidationError
@@ -1033,6 +1033,46 @@ async def create_chat(data: dict = Body(...), db: AsyncSession = Depends(get_db)
     await db.commit()
     await db.refresh(chat)
     return {"id": chat.id, "chat_id": chat.id, "title": chat.title}
+
+# ─── Mood / Emotion endpoints ────────────────────────────────────────────────────
+
+@router.post("/user/{user_id}/mood")
+async def save_mood(user_id: int, data: dict = Body(...), db: AsyncSession = Depends(get_db)):
+    """Save a mood entry."""
+    mood = data.get("mood")
+    emoji = data.get("emoji")
+    label = data.get("label")
+    if mood is None or not emoji or not label:
+        raise HTTPException(status_code=400, detail="Missing required fields: mood, emoji, label")
+    
+    entry = MoodEntry(user_id=user_id, mood=mood, emoji=emoji, label=label)
+    db.add(entry)
+    await db.commit()
+    await db.refresh(entry)
+    return {"id": entry.id, "message": "Mood saved"}
+
+@router.get("/user/{user_id}/mood-week")
+async def get_mood_week(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Get mood entries for the last 7 days."""
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    result = await db.execute(
+        select(MoodEntry)
+        .where(MoodEntry.user_id == user_id)
+        .where(MoodEntry.created_at >= week_ago)
+        .order_by(MoodEntry.created_at.asc())
+    )
+    entries = result.scalars().all()
+    return [
+        {
+            "id": e.id,
+            "mood": e.mood,
+            "emoji": e.emoji,
+            "label": e.label,
+            "created_at": e.created_at.isoformat(),
+        }
+        for e in entries
+    ]
+
 
 @router.post("/chats/{chat_id}/food-query")
 async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):

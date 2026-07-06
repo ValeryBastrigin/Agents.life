@@ -1,177 +1,370 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, BookOpen, Brain, Heart, MessageCircle, BarChart3, Send, Sparkles, Smile, Frown, Meh, Laugh, Angry, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Heart, Smile, Brain, Moon, Sunrise, BarChart3, MessageCircle, Calendar, Sparkles, Coffee } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { apiClient, sendMessageStream } from '../utils/apiClient';
 
+const USER_ID = 1;
+
+// ---------- Mood emoji options ----------
+const MOOD_OPTIONS = [
+  { emoji: '😊', label: 'Отлично', mood: 5, color: 'from-green-400 to-emerald-500' },
+  { emoji: '🙂', label: 'Хорошо',  mood: 4, color: 'from-blue-400 to-cyan-500' },
+  { emoji: '😐', label: 'Нормально', mood: 3, color: 'from-amber-400 to-yellow-500' },
+  { emoji: '😔', label: 'Так себе', mood: 2, color: 'from-orange-400 to-red-500' },
+  { emoji: '😢', label: 'Плохо',   mood: 1, color: 'from-red-500 to-pink-500' },
+];
+
+const DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+// ---------- Manual / Info Modal (same style as Accountant ManualModal) ----------
+const InfoModal = ({ isOpen, onClose, title, children, hideButton }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
+        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            <BookOpen size={22} className="text-purple-500" />
+            {title}
+          </h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        <div className="px-6 py-4 space-y-4 text-sm">
+          {children}
+        </div>
+
+        {!hideButton && (
+          <div className="px-6 pb-6 pt-2">
+            <button onClick={onClose} className="w-full py-3 bg-purple-500 hover:bg-purple-600 text-white font-medium rounded-[2rem] transition-colors">
+              Понятно!
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ---------- Main Page ----------
 const Psychologist = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const [mood, setMood] = useState(null);
 
-  const moodOptions = [
-    { emoji: '😊', label: 'Отлично', color: 'from-green-500 to-emerald-500' },
-    { emoji: '🙂', label: 'Хорошо', color: 'from-blue-500 to-cyan-500' },
-    { emoji: '😐', label: 'Нормально', color: 'from-amber-500 to-yellow-500' },
-    { emoji: '😔', label: 'Так себе', color: 'from-orange-500 to-red-500' },
-    { emoji: '😢', label: 'Плохо', color: 'from-red-500 to-pink-500' },
-  ];
+  // Info modals
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [showSessions, setShowSessions] = useState(false);
+  const [showDiary, setShowDiary] = useState(false);
+  const [showStartSession, setShowStartSession] = useState(false);
 
-  const practices = [
-    { 
-      title: 'Медитация осознанности', 
-      duration: '10 мин', 
-      icon: '🧘', 
-      description: 'Успокойте ум и сосредоточьтесь на настоящем моменте.',
-      gradient: 'from-purple-500 to-violet-500'
-    },
-    { 
-      title: 'Дыхательное упражнение', 
-      duration: '5 мин', 
-      icon: '🌬️', 
-      description: 'Техника 4-7-8 для быстрого снятия стресса.',
-      gradient: 'from-blue-500 to-cyan-500'
-    },
-    { 
-      title: 'Дневник благодарности', 
-      duration: '15 мин', 
-      icon: '📔', 
-      description: 'Запишите 3 вещи, за которые вы благодарны сегодня.',
-      gradient: 'from-amber-500 to-orange-500'
-    },
-    { 
-      title: 'Прогрессивная релаксация', 
-      duration: '20 мин', 
-      icon: '💆', 
-      description: 'Поочерёдное напряжение и расслабление групп мышц.',
-      gradient: 'from-green-500 to-emerald-500'
-    },
-  ];
+  // Mood state
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [moodSaved, setMoodSaved] = useState(false);
+  const [moodWeek, setMoodWeek] = useState([]);
+  const [savingMood, setSavingMood] = useState(false);
 
-  const moodHistory = [
-    { day: 'Пн', mood: '🙂', color: 'bg-blue-400' },
-    { day: 'Вт', mood: '😊', color: 'bg-green-400' },
-    { day: 'Ср', mood: '😐', color: 'bg-amber-400' },
-    { day: 'Чт', mood: '😊', color: 'bg-green-400' },
-    { day: 'Пт', mood: '😔', color: 'bg-orange-400' },
-    { day: 'Сб', mood: '🙂', color: 'bg-blue-400' },
-    { day: 'Вс', mood: '😊', color: 'bg-green-400' },
-  ];
+  // Chat / session state
+  const [chatId, setChatId] = useState(null);
+  const [sessionMessage, setSessionMessage] = useState('');
+  const [sessionMessages, setSessionMessages] = useState([]);
+  const [sessionActive, setSessionActive] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const chatEndRef = useRef(null);
+
+  // Load mood history on mount
+  useEffect(() => {
+    loadMoodWeek();
+    loadSession();
+  }, []);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [sessionMessages]);
+
+  // ─── Mood endpoints ──────────────────────────────────────────────────────
+
+  const loadMoodWeek = async () => {
+    try {
+      const res = await apiClient.get(`/api/user/${USER_ID}/mood-week`);
+      setMoodWeek(res.data || []);
+    } catch (err) {
+      console.error('Failed to load mood week:', err);
+    }
+  };
+
+  const handleMoodSelect = async (option, index) => {
+    setSelectedMood(index);
+    setMoodSaved(false);
+    setSavingMood(true);
+
+    try {
+      await apiClient.post(`/api/user/${USER_ID}/mood`, {
+        mood: option.mood,
+        emoji: option.emoji,
+        label: option.label,
+      });
+      setMoodSaved(true);
+      loadMoodWeek();
+    } catch (err) {
+      console.error('Failed to save mood:', err);
+    } finally {
+      setSavingMood(false);
+    }
+  };
+
+  // ─── Session / Chat ───────────────────────────────────────────────────────
+
+  const loadSession = async () => {
+    try {
+      const res = await apiClient.get('/api/user-chats', { params: { user_id: USER_ID } });
+      const chats = res.data || [];
+      const psyChat = chats.find(c => c.agent_name === 'psychologist');
+      if (psyChat) {
+        setChatId(psyChat.id);
+        setSessionActive(true);
+        const msgRes = await apiClient.get(`/api/chats/${psyChat.id}/messages`);
+        const msgs = msgRes.data || [];
+        setSessionMessages(msgs.map(m => ({
+          id: m.id,
+          role: m.role,
+          content: typeof m.content === 'string' ? m.content : m.content?.text || JSON.stringify(m.content),
+        })));
+      }
+    } catch (err) {
+      console.error('Failed to load session:', err);
+    }
+  };
+
+  const sendSessionMessage = async () => {
+    if (!sessionMessage.trim() || sessionLoading) return;
+    const text = sessionMessage.trim();
+    setSessionMessage('');
+
+    const userMsg = { role: 'user', content: text, id: Date.now() };
+    setSessionMessages(prev => [...prev, userMsg]);
+    setSessionActive(true);
+    setSessionLoading(true);
+
+    let fullResponse = '';
+
+    sendMessageStream(
+      {
+        user_id: USER_ID,
+        message: text,
+        chat_id: chatId || undefined,
+        agent: 'psychologist',
+      },
+      {
+        onToken: (token) => {
+          fullResponse += token;
+          setSessionMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant' && !last._final) {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...last, content: fullResponse };
+              return updated;
+            }
+            return [...prev, { role: 'assistant', content: fullResponse, id: Date.now() + 1 }];
+          });
+        },
+        onWidget: (widgetData) => {},
+        onDone: (meta) => {
+          setSessionMessages(prev => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last && last.role === 'assistant') {
+              updated[updated.length - 1] = { ...last, content: meta.full_content, _final: true };
+            }
+            return updated;
+          });
+          if (meta.chat_id) setChatId(meta.chat_id);
+          setSessionLoading(false);
+        },
+        onError: (err) => {
+          console.error('Session error:', err);
+          setSessionMessages(prev => [...prev, {
+            role: 'assistant',
+            content: 'Извините, произошла ошибка. Попробуйте ещё раз.',
+            id: Date.now() + 2,
+          }]);
+          setSessionLoading(false);
+        },
+      }
+    );
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendSessionMessage();
+    }
+  };
+
+  // ─── Mood week render helper ──────────────────────────────────────────────
+
+  const getMoodWeekData = () => {
+    const days = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const entry = moodWeek.find(e => e.created_at?.startsWith(dateStr));
+      days.push({
+        label: DAY_LABELS[(d.getDay() + 6) % 7],
+        date: dateStr,
+        emoji: entry?.emoji || '—',
+        mood: entry?.mood || 0,
+      });
+    }
+    return days;
+  };
+
+  const weekData = getMoodWeekData();
 
   return (
-<div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Title */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">🧠 Психолог</h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Ваше ментальное здоровье имеет значение. Мы здесь, чтобы поддержать.</p>
+    <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
+      <div className="max-w-2xl mx-auto">
+
+        {/* ===== 3 блока-виджета (как в финансовом помощнике) ===== */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {/* Блок 1: Как работает психолог? */}
+          <button
+            onClick={() => setShowHowItWorks(true)}
+            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
+          >
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+              <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                <Brain size={20} className="text-purple-600 dark:text-purple-400" />
+              </div>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+                Как работает психолог?
+              </span>
+            </div>
+          </button>
+
+          {/* Блок 2: Ваши сеансы терапий и итоги */}
+          <button
+            onClick={() => setShowSessions(true)}
+            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
+          >
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <Heart size={20} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+                Ваши сеансы терапий и итоги
+              </span>
+            </div>
+          </button>
+
+          {/* Блок 3: Дневник */}
+          <button
+            onClick={() => setShowDiary(true)}
+            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
+          >
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <BookOpen size={20} className="text-amber-600 dark:text-amber-400" />
+              </div>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+                Дневник
+              </span>
+            </div>
+          </button>
         </div>
 
-        {/* Mood Tracker */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            Как вы себя чувствуете сейчас?
+        {/* ===== Start Session Card ===== */}
+        <button
+          onClick={() => setShowStartSession(true)}
+          className="w-full bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[3rem] p-6 mb-6 text-white text-center hover:shadow-xl transition-all group"
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <MessageCircle size={32} className="text-white" />
+            </div>
+            <h2 className="text-xl font-semibold">Начните сеанс психотерапии</h2>
+            <p className="text-sm text-white/80">
+              Психолог выслушает вас и постарается вам помочь.
+            </p>
+          </div>
+        </button>
+
+        {/* ===== Mood Scale ===== */}
+        <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-5 mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+            <Smile size={20} className="text-amber-500" />
+            Как вы сегодня себя чувствуете?
           </h2>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {moodOptions.map((option, index) => (
+          <div className="flex gap-2 overflow-x-auto pb-1 justify-center">
+            {MOOD_OPTIONS.map((option, index) => (
               <button
                 key={index}
-                onClick={() => setMood(index)}
-                className={`flex-shrink-0 min-w-[72px] flex flex-col items-center gap-2 p-3 rounded-[1rem] transition-all ${
-                  mood === index
+                onClick={() => handleMoodSelect(option, index)}
+                disabled={savingMood}
+                className={`flex-shrink-0 min-w-[68px] flex flex-col items-center gap-1.5 p-3 rounded-[1.5rem] transition-all ${
+                  selectedMood === index
                     ? `bg-gradient-to-br ${option.color} text-white shadow-lg scale-105`
                     : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
                 <span className="text-2xl">{option.emoji}</span>
-                <span className="text-xs font-medium">{option.label}</span>
+                <span className="text-[10px] font-medium whitespace-nowrap">{option.label}</span>
               </button>
             ))}
           </div>
-          {mood !== null && (
-            <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-[1rem] text-center">
-              <p className="text-green-700 dark:text-green-300">
-                Спасибо! Ваше настроение записано. Продолжайте заботиться о себе! ✨
+          {moodSaved && (
+            <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-[1.5rem] text-center">
+              <p className="text-sm text-green-700 dark:text-green-300">
+                Настроение записано! Спасибо ✨
               </p>
+            </div>
+          )}
+          {savingMood && (
+            <div className="mt-3 p-3 text-center">
+              <p className="text-sm text-gray-400">Сохранение...</p>
             </div>
           )}
         </div>
 
-        {/* Mood History */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            <BarChart3 size={22} className="text-purple-500" />
+        {/* ===== Mood Week Chart ===== */}
+        <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-5 mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+            <BarChart3 size={20} className="text-purple-500" />
             Настроение за неделю
           </h2>
           <div className="flex justify-between items-end gap-2">
-            {moodHistory.map((day, index) => (
+            {weekData.map((day, index) => (
               <div key={index} className="flex flex-col items-center gap-2 flex-1">
-                <span className="text-2xl">{day.mood}</span>
-                <div className={`w-full ${day.color} rounded-full transition-all`} 
-                  style={{ height: `${40 + Math.random() * 40}px` }} 
+                <span className="text-xl">{day.emoji}</span>
+                <div
+                  className={`w-full rounded-full transition-all ${
+                    day.mood > 0
+                      ? day.mood >= 4
+                        ? 'bg-green-400'
+                        : day.mood >= 3
+                        ? 'bg-amber-400'
+                        : 'bg-red-400'
+                      : 'bg-gray-200 dark:bg-gray-700'
+                  }`}
+                  style={{ height: `${day.mood > 0 ? 20 + day.mood * 12 : 8}px` }}
                 />
-                <span className="text-xs text-gray-500 dark:text-gray-400">{day.day}</span>
+                <span className="text-[10px] text-gray-500 dark:text-gray-400">{day.label}</span>
               </div>
             ))}
           </div>
+          {weekData.every(d => d.mood === 0) && (
+            <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-3">
+              Пока нет данных. Отмечайте своё настроение каждый день!
+            </p>
+          )}
         </div>
 
-        {/* Practices */}
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            <Sparkles size={22} className="text-amber-500" />
-            Практики и упражнения
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {practices.map((practice, index) => (
-              <button
-                key={index}
-                className="flex items-start gap-4 p-5 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all text-left group"
-              >
-                <div className={`w-14 h-14 rounded-[3rem] bg-gradient-to-br ${practice.gradient} flex items-center justify-center text-2xl shadow-md group-hover:shadow-xl transition-all flex-shrink-0`}>
-                  {practice.icon}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-semibold text-gray-800 dark:text-white">{practice.title}</h3>
-                    <span className="text-xs text-purple-500 font-medium">{practice.duration}</span>
-                  </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{practice.description}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <MessageCircle size={24} className="text-white" />
-            </div>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Чат с психологом</span>
-          </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-              <Moon size={24} className="text-white" />
-            </div>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Звуки для сна</span>
-          </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
-              <Brain size={24} className="text-white" />
-            </div>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Когнитивные упражнения</span>
-          </button>
-          <button className="flex flex-col items-center gap-2 p-4 bg-surface-light dark:bg-surface-dark rounded-[3.5rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-12 h-12 rounded-[3rem] bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
-              <Heart size={24} className="text-white" />
-            </div>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Дневник эмоций</span>
-          </button>
-        </div>
-
-        {/* Quote / Affirmation */}
-        <div className="bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[3.5rem] p-6 text-white text-center">
+        {/* ===== Quote / Affirmation ===== */}
+        <div className="bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[3rem] p-6 text-white text-center">
           <p className="text-2xl mb-2">💜</p>
           <p className="text-lg font-medium mb-2">
             «Ты не один. Каждая эмоция — это часть пути, и ты справляешься лучше, чем думаешь.»
@@ -179,6 +372,189 @@ const Psychologist = () => {
           <p className="text-sm text-white/70">— Твой психолог</p>
         </div>
       </div>
+
+      {/* ===== Info Modals (like Accountant ManualModal) ===== */}
+
+      {/* Как работает психолог */}
+      <InfoModal isOpen={showHowItWorks} onClose={() => setShowHowItWorks(false)} title="Как работает психолог?">
+        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Сеанс терапии</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Когда вы начинаете сеанс, вы общаетесь с психологом в чате — рассказываете
+                о своих переживаниях, а психолог задаёт вопросы, помогает разобраться
+                в проблемах и найти новые пути решения.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Саммери сеанса</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                После каждого сеанса психолог записывает саммери в блок «Ваши сеансы
+                терапий и итоги»: описывает ход беседы и предлагает конкретные решения,
+                чтобы вы всегда могли вернуться к ним и отслеживать своё состояние.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">3</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Шкала настроения</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Нажимайте на шкалу настроения каждый раз, когда используете психолога —
+                это помогает агенту отслеживать динамику вашего эмоционального состояния
+                и давать более точные рекомендации.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">4</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Формирование выписки</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Вы можете получить PDF-выписку, в которой будет описание всех ваших
+                сеансов, психологического состояния и динамики — чтобы поделиться
+                данными с вашим лечащим врачом.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-rose-50 dark:bg-rose-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">5</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Конфиденциальность</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Всё, что вы обсуждаете с психологом, остаётся строго конфиденциальным.
+                Никакая информация не может быть разглашена третьим лицам. Вы можете
+                говорить абсолютно открыто.
+              </p>
+            </div>
+          </div>
+        </div>
+      </InfoModal>
+
+      {/* Ваши сеансы терапий и итоги */}
+      <InfoModal isOpen={showSessions} onClose={() => setShowSessions(false)} title="Ваши сеансы терапий и итоги">
+        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">История сеансов</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Все ваши диалоги с психологом сохраняются. Вы можете вернуться к любому сеансу и перечитать его.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Итоги и динамика</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Психолог анализирует ваше эмоциональное состояние на основе сеансов и отметок настроения, помогая увидеть прогресс.
+              </p>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+          Функция анализа итогов сеансов будет доступна в ближайшее время.
+        </p>
+      </InfoModal>
+
+      {/* Дневник */}
+      <InfoModal isOpen={showDiary} onClose={() => setShowDiary(false)} title="Дневник">
+        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Личный дневник</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Ведите записи о своих мыслях, чувствах и переживаниях. Дневник — это безопасное пространство для рефлексии.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Связь с настроением</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Записи помогут вам и психологу лучше понять эмоциональные триггеры и паттерны. Отмечайте настроение — это даёт ценные инсайты.
+              </p>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+          Полноценный дневник с заметками появится в ближайшее время.
+        </p>
+      </InfoModal>
+
+      {/* Начните сеанс психотерапии */}
+      <InfoModal isOpen={showStartSession} onClose={() => setShowStartSession(false)} title="Начните сеанс психотерапии" hideButton>
+        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Как проходит терапия?</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Всё устроено так же, как в жизни — вы общаетесь с психологом в чате,
+                рассказываете о своих переживаниях, а психолог слушает, задаёт вопросы
+                и помогает разобраться в ситуации.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Запись сеанса</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Психолог записывает всё, что обсуждалось, а после окончания сеанса
+                подводит итоги: рассказывает, что делать дальше, и сохраняет результаты
+                в блок «Ваши сеансы терапий и итоги».
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-[2rem] p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">3</div>
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white mb-1">Конфиденциальность</p>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                Всё, что вы обсуждаете с психологом, остаётся строго конфиденциальным.
+                Никакая информация не может быть разглашена третьим лицам. Вы можете
+                говорить абсолютно открыто — вам не о чем переживать.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="pt-4">
+          <button
+            onClick={() => {
+              setShowStartSession(false);
+              console.log('Начать сеанс');
+            }}
+            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium rounded-[2rem] transition-all shadow-md"
+          >
+            Начать сеанс
+          </button>
+        </div>
+      </InfoModal>
     </div>
   );
 };
