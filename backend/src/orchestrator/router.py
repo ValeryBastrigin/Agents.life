@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func
 from sqlalchemy.orm import selectinload
 from src.database import get_db
-from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, MoodEntry, DiaryEntry
+from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, MoodEntry, DiaryEntry, TherapySession
 from datetime import datetime, timedelta, timezone
 from src.config import client
 from pydantic import BaseModel, ValidationError
@@ -1146,6 +1146,265 @@ async def delete_diary_entry(entry_id: int, db: AsyncSession = Depends(get_db)):
     await db.delete(entry)
     await db.commit()
     return {"message": "Diary entry deleted"}
+
+
+# ─── Therapy session endpoints ────────────────────────────────────────────────
+
+@router.get("/user/{user_id}/therapy/active")
+async def get_active_therapy_session(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Get the currently active therapy session for a user, if any."""
+    result = await db.execute(
+        select(TherapySession)
+        .where(TherapySession.user_id == user_id)
+        .where(TherapySession.status == "active")
+        .order_by(TherapySession.started_at.desc())
+        .limit(1)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        return {"session": None, "active": False}
+    
+    return {
+        "session": {
+            "id": session.id,
+            "chat_id": session.chat_id,
+            "summary": session.summary or "",
+            "status": session.status,
+            "started_at": session.started_at.isoformat() if session.started_at else None,
+            "ended_at": session.ended_at.isoformat() if session.ended_at else None,
+        },
+        "active": True
+    }
+
+
+async def _generate_and_save_summary_async(session_id: int, chat_id: int):
+    """Generate and save summary for a completed therapy session (background task)."""
+    try:
+        from src.database import async_session
+        from src.agents.psychologist_agent import generate_summary
+        async with async_session() as bg_db:
+            result = await bg_db.execute(
+                select(TherapySession).where(TherapySession.id == session_id)
+            )
+            session = result.scalar_one_or_none()
+            if not session:
+                print(f"Session {session_id} not found for summary generation")
+                return
+            
+            summary = await generate_summary(chat_id, bg_db)
+            session.summary = summary
+            await bg_db.commit()
+            print(f"Summary generated for session {session.id}")
+    except Exception as e:
+        print(f"Error generating summary for session {session.id}: {e}")
+        try:
+            async with async_session() as bg_db:
+                result = await bg_db.execute(
+                    select(TherapySession).where(TherapySession.id == session_id)
+                )
+                session = result.scalar_one_or_none()
+                if session:
+                    session.summary = "Сеанс завершён. Резюме временно недоступно."
+                    await bg_db.commit()
+        except:
+            pass
+
+
+@router.post("/user/{user_id}/therapy/force-end")
+async def force_end_therapy_session(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Force-end the active therapy session. Generates summary automatically."""
+    result = await db.execute(
+        select(TherapySession)
+        .where(TherapySession.user_id == user_id)
+        .where(TherapySession.status == "active")
+        .order_by(TherapySession.started_at.desc())
+        .limit(1)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="No active session found")
+    
+    session.status = "completed"
+    session.ended_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(session)
+    
+    # Generate summary in background with its own DB session
+    asyncio.create_task(_generate_and_save_summary_async(session.id, session.chat_id))
+    
+    return {
+        "id": session.id,
+        "status": session.status,
+        "ended_at": session.ended_at.isoformat(),
+        "summary": session.summary or "",
+        "message": "Therapy session force-ended"
+    }
+
+
+@router.post("/user/{user_id}/therapy-sessions/{session_id}/force-end")
+async def force_end_therapy_session_by_id(user_id: int, session_id: int, db: AsyncSession = Depends(get_db)):
+    """Force-end a specific therapy session by ID. Generates summary automatically."""
+    result = await db.execute(
+        select(TherapySession)
+        .where(TherapySession.id == session_id)
+        .where(TherapySession.user_id == user_id)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Therapy session not found")
+    
+    session.status = "completed"
+    session.ended_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(session)
+    
+    # Generate summary in background with its own DB session
+    asyncio.create_task(_generate_and_save_summary_async(session.id, session.chat_id))
+    
+    return {
+        "id": session.id,
+        "status": session.status,
+        "ended_at": session.ended_at.isoformat(),
+        "summary": session.summary or "",
+        "message": "Therapy session force-ended"
+    }
+
+
+@router.post("/user/{user_id}/therapy/generate-summary")
+async def generate_therapy_summary(user_id: int, data: dict = Body(...), db: AsyncSession = Depends(get_db)):
+    """Generate and save summary for a completed therapy session using AI."""
+    session_id = data.get("session_id")
+    messages_text = data.get("messages_text", "")
+    
+    if not session_id or not messages_text:
+        raise HTTPException(status_code=400, detail="session_id and messages_text are required")
+    
+    result = await db.execute(select(TherapySession).where(TherapySession.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Therapy session not found")
+    
+    # Generate summary via AI
+    from src.agents.psychologist_agent import generate_session_summary
+    
+    try:
+        summary = await generate_session_summary(messages_text)
+        session.summary = summary
+        await db.commit()
+        await db.refresh(session)
+        return {"id": session.id, "summary": session.summary, "message": "Summary generated"}
+    except Exception as e:
+        print(f"Error generating summary: {e}")
+        # Save a basic summary even if AI fails
+        fallback = "Сеанс завершён. Саммери временно недоступно."
+        session.summary = fallback
+        await db.commit()
+        return {"id": session.id, "summary": fallback, "message": "Fallback summary saved"}
+
+
+@router.get("/user/{user_id}/therapy-sessions")
+async def get_therapy_sessions(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Get all therapy sessions for a user."""
+    result = await db.execute(
+        select(TherapySession)
+        .where(TherapySession.user_id == user_id)
+        .order_by(TherapySession.started_at.desc())
+    )
+    sessions = result.scalars().all()
+    return [
+        {
+            "id": s.id,
+            "chat_id": s.chat_id,
+            "summary": s.summary or "",
+            "status": s.status,
+            "started_at": s.started_at.isoformat() if s.started_at else None,
+            "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+            "created_at": s.created_at.isoformat(),
+        }
+        for s in sessions
+    ]
+
+
+@router.post("/user/{user_id}/therapy-sessions")
+async def start_therapy_session(user_id: int, data: dict = Body(...), db: AsyncSession = Depends(get_db)):
+    """Start a new therapy session."""
+    chat_id = data.get("chat_id")
+    if not chat_id:
+        raise HTTPException(status_code=400, detail="chat_id is required")
+
+    # Check if there's already an active session for this chat
+    result = await db.execute(
+        select(TherapySession)
+        .where(TherapySession.chat_id == chat_id)
+        .where(TherapySession.status == "active")
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        return {
+            "id": existing.id,
+            "chat_id": existing.chat_id,
+            "status": existing.status,
+            "started_at": existing.started_at.isoformat(),
+            "message": "Active session already exists",
+        }
+    
+    session = TherapySession(user_id=user_id, chat_id=chat_id, status="active")
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+    return {
+        "id": session.id,
+        "chat_id": session.chat_id,
+        "status": session.status,
+        "started_at": session.started_at.isoformat(),
+        "message": "Therapy session started",
+    }
+
+
+@router.put("/therapy-sessions/{session_id}/complete")
+async def complete_therapy_session(session_id: int, data: dict = Body(...), db: AsyncSession = Depends(get_db)):
+    """Complete a therapy session with summary."""
+    result = await db.execute(select(TherapySession).where(TherapySession.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Therapy session not found")
+    
+    session.status = "completed"
+    session.ended_at = datetime.now(timezone.utc)
+    summary = data.get("summary", "")
+    if summary:
+        session.summary = summary
+    
+    await db.commit()
+    await db.refresh(session)
+    return {
+        "id": session.id,
+        "status": session.status,
+        "summary": session.summary,
+        "ended_at": session.ended_at.isoformat(),
+        "message": "Therapy session completed",
+    }
+
+
+@router.put("/therapy-sessions/{session_id}/summary")
+async def update_therapy_summary(session_id: int, data: dict = Body(...), db: AsyncSession = Depends(get_db)):
+    """Update therapy session summary (without completing)."""
+    result = await db.execute(select(TherapySession).where(TherapySession.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Therapy session not found")
+    
+    summary = data.get("summary", "")
+    if summary:
+        session.summary = summary
+    
+    await db.commit()
+    await db.refresh(session)
+    return {
+        "id": session.id,
+        "summary": session.summary,
+        "message": "Summary updated",
+    }
 
 
 @router.post("/chats/{chat_id}/food-query")

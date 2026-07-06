@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Heart, MessageCircle, Play } from 'lucide-react';
+import { ArrowLeft, Heart, MessageCircle, Play, Clock, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const apiBase = process.env.REACT_APP_API_URL || '';
@@ -13,21 +13,54 @@ function getUserId() {
   }
 }
 
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const months = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+  ];
+  const day = d.getDate();
+  const month = months[d.getMonth()];
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (d.toDateString() === today.toDateString()) return `Сегодня, ${hours}:${minutes}`;
+  if (d.toDateString() === yesterday.toDateString()) return `Вчера, ${hours}:${minutes}`;
+  return `${day} ${month}, ${hours}:${minutes}`;
+}
+
+function formatDuration(startIso, endIso) {
+  if (!startIso || !endIso) return null;
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const diff = Math.floor((end - start) / 1000);
+  const mins = Math.floor(diff / 60);
+  const secs = diff % 60;
+  if (mins > 0) return `${mins} мин ${secs} сек`;
+  return `${secs} сек`;
+}
+
 export default function TherapySessions() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
 
   const userId = getUserId();
 
   useEffect(() => {
-    // Загружаем список сеансов (заглушка — пока сеансов нет)
     async function load() {
       try {
         setLoading(true);
-        // В будущем здесь будет запрос к /api/user/:userId/sessions
-        // пока оставляем пустой массив
-        setSessions([]);
+        const res = await fetch(`${apiBase}/api/user/${userId}/therapy-sessions`);
+        if (res.ok) {
+          const data = await res.json();
+          setSessions(data || []);
+        }
       } catch (e) {
         console.error('Load sessions error:', e);
       } finally {
@@ -84,20 +117,115 @@ export default function TherapySessions() {
             </button>
           </div>
         ) : (
-          /* Session list — появится, когда будут реальные сеансы */
+          /* Session list */
           <div className="space-y-4">
             {sessions.map((session, index) => (
               <motion.div
-                key={session.id || index}
+                key={session.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white dark:bg-surface-dark rounded-[3rem] p-5 shadow-sm border border-gray-100 dark:border-transparent hover:shadow-md transition-shadow"
+                transition={{ delay: index * 0.08 }}
+                className="bg-white dark:bg-surface-dark rounded-[3rem] overflow-hidden shadow-sm border border-gray-100 dark:border-transparent"
               >
-                {/* Здесь будет рендер реальных сеансов */}
-                <p className="text-gray-600 dark:text-gray-400">{session.title}</p>
+                {/* Session header */}
+                <button
+                  onClick={() => setExpandedId(expandedId === session.id ? null : session.id)}
+                  className="w-full px-5 py-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left"
+                >
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+                    session.status === 'active'
+                      ? 'bg-green-100 dark:bg-green-900/30'
+                      : 'bg-purple-100 dark:bg-purple-900/30'
+                  }`}>
+                    {session.status === 'active' ? (
+                      <Clock size={18} className="text-green-600 dark:text-green-400" />
+                    ) : (
+                      <CheckCircle size={18} className="text-purple-600 dark:text-purple-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                        Сеанс {index + 1}
+                      </span>
+                      {session.status === 'active' && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium">
+                          Активен
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {formatDate(session.started_at || session.created_at)}
+                    </p>
+                    {session.ended_at && (
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                        Длительность: {formatDuration(session.started_at, session.ended_at)}
+                      </p>
+                    )}
+                  </div>
+                  <div className={`w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center transition-transform ${
+                    expandedId === session.id ? 'rotate-180' : ''
+                  }`}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-500">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </div>
+                </button>
+
+                {/* Expanded summary */}
+                {expandedId === session.id && (
+                  <div className="px-5 pb-5 pt-1 border-t border-gray-100 dark:border-gray-800">
+                    {session.summary ? (
+                      <div className="bg-purple-50 dark:bg-purple-900/20 rounded-[2rem] p-4">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                          {session.summary}
+                        </p>
+                      </div>
+                    ) : session.status === 'active' ? (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                          Сеанс ещё не завершён. Итоги появятся после его окончания.
+                        </p>
+                        <button
+                          onClick={() => navigate('/psychologist', { state: { openSession: true } })}
+                          className="inline-flex items-center gap-2 px-5 py-2 rounded-[2rem] bg-gradient-to-r from-purple-500 to-pink-600 text-white text-xs font-medium hover:shadow-lg transition-all"
+                        >
+                          <Play size={14} />
+                          Вернуться к сеансу
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-gray-400 dark:text-gray-500">
+                          Итоги не записаны.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Timing info */}
+                    <div className="flex items-center justify-center gap-4 mt-3 text-[11px] text-gray-400 dark:text-gray-500">
+                      <span>🕐 Начало: {formatDate(session.started_at || session.created_at)}</span>
+                      {session.ended_at && (
+                        <span>✅ Окончание: {formatDate(session.ended_at)}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             ))}
+          </div>
+        )}
+
+        {/* Start new session button — always visible if there are sessions */}
+        {sessions.length > 0 && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={handleStartSession}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-[2rem] bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium text-sm transition-all shadow-md"
+            >
+              <Play size={16} />
+              Начать новый сеанс
+            </button>
           </div>
         )}
 

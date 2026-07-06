@@ -155,6 +155,18 @@ INSERT INTO agents (name, description, system_prompt) VALUES
 ('Secretary', 'Personal assistant for scheduling, reminders, and organization', 'You are a helpful secretary assistant. Help users with scheduling, reminders, note-taking, and general organization tasks.'),
 ('Accountant', 'Financial assistant for budgeting and expense tracking', 'You are a helpful accountant assistant. Help users with budgeting, expense tracking, financial planning, and basic accounting questions.');
 
+-- Therapy sessions table (психолог)
+CREATE TABLE IF NOT EXISTS therapy_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE,
+    summary TEXT DEFAULT '',
+    status VARCHAR(20) DEFAULT 'active',  -- active, completed, timeout
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    ended_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);
 CREATE INDEX IF NOT EXISTS idx_chats_agent_id ON chats(agent_id);

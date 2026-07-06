@@ -47,6 +47,7 @@ class Chat(Base):
     user = relationship("User", back_populates="chats")
     agent = relationship("Agent", back_populates="chats")
     messages = relationship("Message", back_populates="chat", cascade="all, delete-orphan")
+    therapy_sessions = relationship("TherapySession", back_populates="chat", cascade="all, delete-orphan")
 
 class Message(Base):
     __tablename__ = "messages"
@@ -199,3 +200,18 @@ class FoodConsumption(Base):
 
     user = relationship("User")
 
+
+class TherapySession(Base):
+    __tablename__ = "therapy_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    chat_id = Column(Integer, ForeignKey("chats.id", ondelete="CASCADE"), nullable=False)
+    summary = Column(Text, default="")
+    status = Column(String(20), default="active")  # active, completed, timeout
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    chat = relationship("Chat", back_populates="therapy_sessions")

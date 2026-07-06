@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, BookOpen, Brain, Heart, MessageCircle, BarChart3, Sparkles, Smile } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, BookOpen, Brain, Heart, MessageCircle, BarChart3, Smile } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
-import { apiClient, sendMessageStream } from '../utils/apiClient';
+import { apiClient } from '../utils/apiClient';
 
 const USER_ID = 1;
 
@@ -17,12 +17,10 @@ const MOOD_OPTIONS = [
 
 const DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
-// ---------- Manual / Info Modal (same style as Accountant ManualModal) ----------
+// ---------- Modal component ----------
 const InfoModal = ({ isOpen, onClose, title, children, hideButton, footerButton }) => {
   if (!isOpen) return null;
-
   const showFooter = !hideButton || footerButton;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden max-h-[85vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50">
@@ -35,16 +33,12 @@ const InfoModal = ({ isOpen, onClose, title, children, hideButton, footerButton 
             <X size={20} className="text-gray-500" />
           </button>
         </div>
-
         <div className="px-6 py-4 overflow-y-auto space-y-5 text-sm flex-1">
           {children}
         </div>
-
         {showFooter && (
           <div className="px-6 pb-6 pt-2 flex-shrink-0">
-            {footerButton ? (
-              footerButton
-            ) : (
+            {footerButton ? footerButton : (
               <button onClick={onClose} className="w-full py-3 bg-purple-500 hover:bg-purple-600 text-white font-medium rounded-[2rem] transition-colors">
                 Понятно!
               </button>
@@ -56,52 +50,54 @@ const InfoModal = ({ isOpen, onClose, title, children, hideButton, footerButton 
   );
 };
 
-// ---------- Main Page ----------
+// ---------- Main Page (Dashboard only, no chat) ----------
 const Psychologist = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useLanguage();
+const { language, changeLanguage, t } = useLanguage();
 
   // Info modals
   const [showHowItWorks, setShowHowItWorks] = useState(false);
-  const [showSessions, setShowSessions] = useState(false);
-  const [showDiary, setShowDiary] = useState(false);
   const [showStartSession, setShowStartSession] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(false);
 
-  // Handle navigation with state (e.g. from TherapySessions "Начните сеанс")
-  useEffect(() => {
-    if (location.state?.openSession) {
-      setShowStartSession(true);
-      // Clear the state so it doesn't re-open on re-render
-      window.history.replaceState({}, document.title);
-    }
-  }, [location.state]);
-
-  // Mood state
+  // Mood
   const [selectedMood, setSelectedMood] = useState(null);
   const [moodSaved, setMoodSaved] = useState(false);
   const [moodWeek, setMoodWeek] = useState([]);
   const [savingMood, setSavingMood] = useState(false);
 
-  // Chat / session state
-  const [chatId, setChatId] = useState(null);
-  const [sessionMessage, setSessionMessage] = useState('');
-  const [sessionMessages, setSessionMessages] = useState([]);
-  const [sessionActive, setSessionActive] = useState(false);
-  const [sessionLoading, setSessionLoading] = useState(false);
-  const chatEndRef = useRef(null);
+  // Session state (only for knowing if active, to hide/show "Start" card)
+  const [activeSessionData, setActiveSessionData] = useState(null);
 
-  // Load mood history on mount
+  // Load on mount
   useEffect(() => {
     loadMoodWeek();
-    loadSession();
+    checkActiveSession();
   }, []);
 
+  // Handle navigation from TherapySessions "Начать сеанс"
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [sessionMessages]);
+    if (location.state?.openSession) {
+      window.history.replaceState({}, document.title);
+      startSession();
+    }
+  }, [location.state]);
 
-  // ─── Mood endpoints ──────────────────────────────────────────────────────
+  // ─── Check active session ─────────────
+
+  const checkActiveSession = async () => {
+    try {
+      const res = await apiClient.get(`/api/user/${USER_ID}/therapy/active`);
+      if (res.data?.active && res.data?.session) {
+        setActiveSessionData(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to check active session:', err);
+    }
+  };
+
+  // ─── Mood ────────────────────────────
 
   const loadMoodWeek = async () => {
     try {
@@ -116,7 +112,6 @@ const Psychologist = () => {
     setSelectedMood(index);
     setMoodSaved(false);
     setSavingMood(true);
-
     try {
       await apiClient.post(`/api/user/${USER_ID}/mood`, {
         mood: option.mood,
@@ -131,95 +126,53 @@ const Psychologist = () => {
     }
   };
 
-  // ─── Session / Chat ───────────────────────────────────────────────────────
+  // ─── Start session → redirect to unified chat ─────────
 
-  const loadSession = async () => {
-    try {
-      const res = await apiClient.get('/api/user-chats', { params: { user_id: USER_ID } });
-      const chats = res.data || [];
-      const psyChat = chats.find(c => c.agent_name === 'psychologist');
-      if (psyChat) {
-        setChatId(psyChat.id);
-        setSessionActive(true);
-        const msgRes = await apiClient.get(`/api/chats/${psyChat.id}/messages`);
-        const msgs = msgRes.data || [];
-        setSessionMessages(msgs.map(m => ({
-          id: m.id,
-          role: m.role,
-          content: typeof m.content === 'string' ? m.content : m.content?.text || JSON.stringify(m.content),
-        })));
-      }
-    } catch (err) {
-      console.error('Failed to load session:', err);
-    }
-  };
-
-  const sendSessionMessage = async () => {
-    if (!sessionMessage.trim() || sessionLoading) return;
-    const text = sessionMessage.trim();
-    setSessionMessage('');
-
-    const userMsg = { role: 'user', content: text, id: Date.now() };
-    setSessionMessages(prev => [...prev, userMsg]);
-    setSessionActive(true);
+  const startSession = async () => {
+    setShowStartSession(false);
     setSessionLoading(true);
 
-    let fullResponse = '';
+    try {
+      // Find or create psychologist chat
+      const chatsRes = await apiClient.get('/api/user-chats', { params: { user_id: USER_ID } });
+      const chats = chatsRes.data || [];
+      let psyChat = chats.find(c => c.agent_name === 'psychologist');
 
-    sendMessageStream(
-      {
-        user_id: USER_ID,
-        message: text,
-        chat_id: chatId || undefined,
-        agent: 'psychologist',
-      },
-      {
-        onToken: (token) => {
-          fullResponse += token;
-          setSessionMessages(prev => {
-            const last = prev[prev.length - 1];
-            if (last && last.role === 'assistant' && !last._final) {
-              const updated = [...prev];
-              updated[updated.length - 1] = { ...last, content: fullResponse };
-              return updated;
-            }
-            return [...prev, { role: 'assistant', content: fullResponse, id: Date.now() + 1 }];
-          });
-        },
-        onWidget: (widgetData) => {},
-        onDone: (meta) => {
-          setSessionMessages(prev => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last && last.role === 'assistant') {
-              updated[updated.length - 1] = { ...last, content: meta.full_content, _final: true };
-            }
-            return updated;
-          });
-          if (meta.chat_id) setChatId(meta.chat_id);
-          setSessionLoading(false);
-        },
-        onError: (err) => {
-          console.error('Session error:', err);
-          setSessionMessages(prev => [...prev, {
-            role: 'assistant',
-            content: 'Извините, произошла ошибка. Попробуйте ещё раз.',
-            id: Date.now() + 2,
-          }]);
-          setSessionLoading(false);
-        },
+      if (!psyChat) {
+        // Create new psychologist chat with welcome message
+        const WELCOME_MSG = `💜 **Здравствуйте, расскажите, что вас беспокоит?**
+
+Я внимательно выслушаю вас и помогу разобраться в ваших переживаниях. Наш разговор строго конфиденциален — вы можете говорить совершенно открыто.
+
+После завершения сеанса я запишу краткое резюме в раздел **«Ваши сеансы терапий и итоги»**, чтобы вы всегда могли вернуться к нашим обсуждениям.
+
+Расскажите, с чего бы вы хотели начать сегодня? 🌿`;
+        const createRes = await apiClient.post('/api/chats', {
+          user_id: USER_ID,
+          title: 'Психолог',
+          agent_type: 'psychologist',
+          welcome_message: WELCOME_MSG,
+        });
+        psyChat = createRes.data;
       }
-    );
-  };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendSessionMessage();
+      const chatId = psyChat.id || psyChat.chat_id;
+
+      // Start therapy session
+      await apiClient.post(`/api/user/${USER_ID}/therapy-sessions`, {
+        chat_id: chatId,
+      });
+
+      // Redirect to unified chat with psychologist agent
+      navigate(`/chat/${chatId}`, { state: { activeSession: true } });
+    } catch (err) {
+      console.error('Failed to start session:', err);
+    } finally {
+      setSessionLoading(false);
     }
   };
 
-  // ─── Mood week render helper ──────────────────────────────────────────────
+  // ─── Mood week helper ────────────────
 
   const getMoodWeekData = () => {
     const days = [];
@@ -241,13 +194,14 @@ const Psychologist = () => {
 
   const weekData = getMoodWeekData();
 
+  // ─── Render: Dashboard only ──────────
+
   return (
     <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
       <div className="max-w-2xl mx-auto">
-
-        {/* ===== 3 блока-виджета (как в финансовом помощнике) ===== */}
+        {/* ===== 3 blocks ===== */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {/* Блок 1: Как работает психолог? */}
+          {/* Block 1: How it works */}
           <button
             onClick={() => setShowHowItWorks(true)}
             className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
@@ -262,7 +216,7 @@ const Psychologist = () => {
             </div>
           </button>
 
-          {/* Блок 2: Ваши сеансы терапий и итоги */}
+          {/* Block 2: Therapy sessions */}
           <button
             onClick={() => navigate('/psychologist/sessions')}
             className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
@@ -277,7 +231,7 @@ const Psychologist = () => {
             </div>
           </button>
 
-          {/* Блок 3: Дневник */}
+          {/* Block 3: Diary */}
           <button
             onClick={() => navigate('/psychologist/diary')}
             className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
@@ -293,21 +247,44 @@ const Psychologist = () => {
           </button>
         </div>
 
-        {/* ===== Start Session Card ===== */}
-        <button
-          onClick={() => setShowStartSession(true)}
-          className="w-full bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[3rem] p-6 mb-6 text-white text-center hover:shadow-xl transition-all group"
-        >
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <MessageCircle size={32} className="text-white" />
+        {/* ===== Start Session Card (only if no active session) ===== */}
+        {!activeSessionData && (
+          <button
+            onClick={() => setShowStartSession(true)}
+            className="w-full bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[3rem] p-6 mb-6 text-white text-center hover:shadow-xl transition-all group"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <MessageCircle size={32} className="text-white" />
+              </div>
+              <h2 className="text-xl font-semibold">Начните сеанс психотерапии</h2>
+              <p className="text-sm text-white/80">
+                Психолог выслушает вас и постарается вам помочь.
+              </p>
             </div>
-            <h2 className="text-xl font-semibold">Начните сеанс психотерапии</h2>
-            <p className="text-sm text-white/80">
-              Психолог выслушает вас и постарается вам помочь.
-            </p>
-          </div>
-        </button>
+          </button>
+        )}
+
+        {/* ===== If active session, show hint to go to chat ===== */}
+        {activeSessionData && (
+          <button
+            onClick={() => {
+              const chatId = activeSessionData.session?.chat_id;
+              if (chatId) navigate(`/chat/${chatId}`);
+            }}
+            className="w-full bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[3rem] p-6 mb-6 text-white text-center hover:shadow-xl transition-all group"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <MessageCircle size={32} className="text-white" />
+              </div>
+              <h2 className="text-xl font-semibold">Продолжить текущий сеанс</h2>
+              <p className="text-sm text-white/80">
+                Вернуться в чат с психологом
+              </p>
+            </div>
+          </button>
+        )}
 
         {/* ===== Mood Scale ===== */}
         <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-5 mb-6">
@@ -379,7 +356,7 @@ const Psychologist = () => {
           )}
         </div>
 
-        {/* ===== Quote / Affirmation ===== */}
+        {/* ===== Quote ===== */}
         <div className="bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[3rem] p-6 text-white text-center">
           <p className="text-2xl mb-2">💜</p>
           <p className="text-lg font-medium mb-2">
@@ -389,7 +366,7 @@ const Psychologist = () => {
         </div>
       </div>
 
-      {/* ===== Info Modals (like Accountant ManualModal) ===== */}
+      {/* ===== Info Modals ===== */}
 
       {/* Как работает психолог */}
       <InfoModal isOpen={showHowItWorks} onClose={() => setShowHowItWorks(false)} title="Как работает психолог?">
@@ -399,7 +376,7 @@ const Psychologist = () => {
             <div>
               <p className="font-semibold text-gray-800 dark:text-white mb-1">Сеанс терапии</p>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                Когда вы начинаете сеанс, вы общаетесь с психологом в чате — рассказываете
+                Когда вы начинаете сеанс, вы общаетесь с психологом в общем чате — рассказываете
                 о своих переживаниях, а психолог задаёт вопросы, помогает разобраться
                 в проблемах и найти новые пути решения.
               </p>
@@ -413,8 +390,7 @@ const Psychologist = () => {
               <p className="font-semibold text-gray-800 dark:text-white mb-1">Саммери сеанса</p>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                 После каждого сеанса психолог записывает саммери в блок «Ваши сеансы
-                терапий и итоги»: описывает ход беседы и предлагает конкретные решения,
-                чтобы вы всегда могли вернуться к ним и отслеживать своё состояние.
+                терапий и итоги»: описывает ход беседы и предлагает конкретные решения.
               </p>
             </div>
           </div>
@@ -426,8 +402,7 @@ const Psychologist = () => {
               <p className="font-semibold text-gray-800 dark:text-white mb-1">Шкала настроения</p>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                 Нажимайте на шкалу настроения каждый раз, когда используете психолога —
-                это помогает агенту отслеживать динамику вашего эмоционального состояния
-                и давать более точные рекомендации.
+                это помогает агенту отслеживать динамику вашего эмоционального состояния.
               </p>
             </div>
           </div>
@@ -438,9 +413,7 @@ const Psychologist = () => {
             <div>
               <p className="font-semibold text-gray-800 dark:text-white mb-1">Формирование выписки</p>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                Вы можете получить PDF-выписку, в которой будет описание всех ваших
-                сеансов, психологического состояния и динамики — чтобы поделиться
-                данными с вашим лечащим врачом.
+                Вы можете получить PDF-выписку с описанием всех ваших сеансов.
               </p>
             </div>
           </div>
@@ -452,86 +425,24 @@ const Psychologist = () => {
               <p className="font-semibold text-gray-800 dark:text-white mb-1">Конфиденциальность</p>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                 Всё, что вы обсуждаете с психологом, остаётся строго конфиденциальным.
-                Никакая информация не может быть разглашена третьим лицам. Вы можете
-                говорить абсолютно открыто.
               </p>
             </div>
           </div>
         </div>
       </InfoModal>
 
-      {/* Ваши сеансы терапий и итоги */}
-      <InfoModal isOpen={showSessions} onClose={() => setShowSessions(false)} title="Ваши сеансы терапий и итоги">
-        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-[2rem] p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
-            <div>
-              <p className="font-semibold text-gray-800 dark:text-white mb-1">История сеансов</p>
-              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                Все ваши диалоги с психологом сохраняются. Вы можете вернуться к любому сеансу и перечитать его.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
-            <div>
-              <p className="font-semibold text-gray-800 dark:text-white mb-1">Итоги и динамика</p>
-              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                Психолог анализирует ваше эмоциональное состояние на основе сеансов и отметок настроения, помогая увидеть прогресс.
-              </p>
-            </div>
-          </div>
-        </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-          Функция анализа итогов сеансов будет доступна в ближайшее время.
-        </p>
-      </InfoModal>
-
-      {/* Дневник */}
-      <InfoModal isOpen={showDiary} onClose={() => setShowDiary(false)} title="Дневник">
-        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-[2rem] p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
-            <div>
-              <p className="font-semibold text-gray-800 dark:text-white mb-1">Личный дневник</p>
-              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                Ведите записи о своих мыслях, чувствах и переживаниях. Дневник — это безопасное пространство для рефлексии.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-green-50 dark:bg-green-900/20 rounded-[2rem] p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
-            <div>
-              <p className="font-semibold text-gray-800 dark:text-white mb-1">Связь с настроением</p>
-              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                Записи помогут вам и психологу лучше понять эмоциональные триггеры и паттерны. Отмечайте настроение — это даёт ценные инсайты.
-              </p>
-            </div>
-          </div>
-        </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-          Полноценный дневник с заметками появится в ближайшее время.
-        </p>
-      </InfoModal>
-
-      {/* Начните сеанс психотерапии */}
+      {/* Начните сеанс */}
       <InfoModal
         isOpen={showStartSession}
         onClose={() => setShowStartSession(false)}
         title="Начните сеанс психотерапии"
         footerButton={
           <button
-            onClick={() => {
-              setShowStartSession(false);
-              console.log('Начать сеанс');
-            }}
-            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium rounded-[2rem] transition-all shadow-md"
+            onClick={startSession}
+            disabled={sessionLoading}
+            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium rounded-[2rem] transition-all shadow-md disabled:opacity-50"
           >
-            Начать сеанс
+            {sessionLoading ? 'Начинаем...' : 'Начать сеанс'}
           </button>
         }
       >
@@ -541,9 +452,7 @@ const Psychologist = () => {
             <div>
               <p className="font-semibold text-gray-800 dark:text-white mb-1">Как проходит терапия?</p>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                Всё устроено так же, как в жизни — вы общаетесь с психологом в чате,
-                рассказываете о своих переживаниях, а психолог слушает, задаёт вопросы
-                и помогает разобраться в ситуации.
+                Всё устроено так же, как в жизни — вы общаетесь с психологом в общем чате.
               </p>
             </div>
           </div>
@@ -554,9 +463,7 @@ const Psychologist = () => {
             <div>
               <p className="font-semibold text-gray-800 dark:text-white mb-1">Запись сеанса</p>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                Психолог записывает всё, что обсуждалось, а после окончания сеанса
-                подводит итоги: рассказывает, что делать дальше, и сохраняет результаты
-                в блок «Ваши сеансы терапий и итоги».
+                Психолог подводит итоги после окончания сеанса и сохраняет их в раздел «Ваши сеансы терапий и итоги».
               </p>
             </div>
           </div>
@@ -568,8 +475,6 @@ const Psychologist = () => {
               <p className="font-semibold text-gray-800 dark:text-white mb-1">Конфиденциальность</p>
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                 Всё, что вы обсуждаете с психологом, остаётся строго конфиденциальным.
-                Никакая информация не может быть разглашена третьим лицам. Вы можете
-                говорить абсолютно открыто — вам не о чем переживать.
               </p>
             </div>
           </div>

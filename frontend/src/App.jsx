@@ -5,7 +5,7 @@ import ChatInput from './components/ChatInput';
 import AnimatedBackground from './components/AnimatedBackground';
 import ChatWidgetRenderer from './components/ui/widgets/ChatWidgetRenderer';
 import MarkdownRenderer from './components/MarkdownRenderer';
-import { User, Menu, ArrowLeft, Bot, User as UserIcon } from 'lucide-react';
+import { User, Menu, ArrowLeft, Bot, User as UserIcon, Clock, XCircle } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Dietitian from './pages/Dietitian';
@@ -20,7 +20,7 @@ import NotesList from './pages/NotesList';
 import NoteEditor from './pages/NoteEditor';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import axios from 'axios';
-import { sendMessageStream } from './utils/apiClient';
+import { sendMessageStream, apiClient } from './utils/apiClient';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
@@ -110,6 +110,76 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   const [chats, setChats] = useState([]);
   const [userId] = useState(1);
   const [headerSolid, setHeaderSolid] = useState(false);
+
+  // ── Session state (shared with header capsule) ──
+  const [activeSession, setActiveSession] = useState(null);
+  const [sessionElapsed, setSessionElapsed] = useState(0);
+  const sessionTimerRef = useRef(null);
+
+  // Periodically check session status
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkSessionStatus();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Timer for elapsed time display
+  useEffect(() => {
+    if (activeSession) {
+      const startTime = new Date(activeSession.started_at || activeSession.created_at).getTime();
+      const updateTimer = () => {
+        setSessionElapsed(Math.floor((Date.now() - startTime) / 1000));
+      };
+      updateTimer();
+      sessionTimerRef.current = setInterval(updateTimer, 1000);
+      return () => clearInterval(sessionTimerRef.current);
+    } else {
+      setSessionElapsed(0);
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current);
+        sessionTimerRef.current = null;
+      }
+    }
+  }, [activeSession?.id]);
+
+  // Check session on mount & when location changes to /chat
+  useEffect(() => {
+    checkSessionStatus();
+  }, [location.pathname]);
+
+  const checkSessionStatus = async () => {
+    try {
+      const res = await apiClient.get(`/api/user/${userId}/therapy/active`);
+      if (res.data?.active && res.data?.session) {
+        setActiveSession(res.data.session);
+      } else {
+        setActiveSession(null);
+      }
+    } catch (err) {
+      console.error('Failed to check session:', err);
+    }
+  };
+
+  const endSession = async () => {
+    if (!activeSession) return;
+    try {
+      await apiClient.post(`/api/user/${userId}/therapy-sessions/${activeSession.id}/force-end`);
+      setActiveSession(null);
+      setSessionElapsed(0);
+    } catch (err) {
+      console.error('Failed to end session:', err);
+    }
+  };
+
+  const formatElapsed = (seconds) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}ч ${m.toString().padStart(2, '0')}м`;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+  // ── end session state ──
 
   // Load user chats on mount
   useEffect(() => {
@@ -248,6 +318,23 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {/* ═══ Active Session Capsule inside header ═══ */}
+          {activeSession && (
+            <div className="bg-gradient-to-r from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-full px-1.5 py-1.5 shadow-sm flex items-center gap-0.5 animate-fade-in">
+              <Clock size={14} className="text-white animate-pulse" />
+              <span className="text-white text-xs font-semibold whitespace-nowrap">
+                {formatElapsed(sessionElapsed)}
+              </span>
+              <span className="text-white/90 text-xs ml-1">Завершить</span>
+              <button
+                onClick={endSession}
+                className="p-0.5 hover:bg-white/20 rounded-full transition-colors"
+                title="Завершить сеанс"
+              >
+                <XCircle size={14} className="text-white" />
+              </button>
+            </div>
+          )}
           <span className={`px-1 py-1 rounded-full transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <button
             onClick={() => navigate('/profile')}
@@ -625,7 +712,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
   return (
     <div className="flex flex-col h-full relative animate-slide-in-left">
       {/* Messages Container */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 relative z-10 pb-0 -mb-2">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 relative z-10 pt-12 pb-24">
         {messages.length === 0 && !isStreaming ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 select-none">
             <img src="/assets/icons/agents/ixteria.svg" alt="Ixteria" className="w-16 h-16 mb-4 opacity-50" />
@@ -634,7 +721,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
             </p>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto flex flex-col pt-20 pb-4 space-y-4">
+          <div className="max-w-3xl mx-auto flex flex-col pt-4 pb-4 space-y-4">
             {messages.map((message, index) => renderMessage(message, index))}
 
             {/* ═══ Streaming AI Response ═══ */}
