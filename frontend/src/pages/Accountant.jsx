@@ -657,7 +657,7 @@ const Accountant = () => {
             </div>
 
             {/* Загрузить банковскую выписку */}
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 rounded-[3rem] p-6 text-white text-center mb-6 shadow-lg">
+            <div className="bg-gradient-to-br from-yellow-500 to-amber-600 dark:from-yellow-600 dark:to-amber-700 rounded-[3rem] p-6 text-white text-center mb-6 shadow-lg">
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white/20 flex items-center justify-center">
                 <Upload size={24} className="text-white" />
               </div>
@@ -665,7 +665,7 @@ const Accountant = () => {
               <p className="text-xs text-white/80 leading-relaxed max-w-md mx-auto">
                 Загрузите выписку для анализа трат и поступлений. Ixteria разберёт всё по категориям и сделает анализ.
               </p>
-              <button className="mt-4 px-6 py-2.5 bg-white text-blue-600 font-semibold rounded-[2rem] hover:bg-blue-50 transition-colors shadow-md inline-flex items-center gap-2 text-sm">
+              <button className="mt-4 px-6 py-2.5 bg-white text-amber-600 font-semibold rounded-[2rem] hover:bg-amber-50 transition-colors shadow-md inline-flex items-center gap-2 text-sm">
                 <Upload size={16} />
                 Загрузить выписку
               </button>

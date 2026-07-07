@@ -58,23 +58,32 @@ function calculateNutrition(profile, goal, speed, activity) {
 // ---------- Onboarding Modal ----------
 const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
   const [step, setStep] = useState(1);
-  const totalSteps = 3;
+  const totalSteps = 4;
 
   const [profile, setProfile] = useState({ height: '', weight: '', age: '', gender: 'male' });
   const [goal, setGoal] = useState('lose');
   const [activity, setActivity] = useState('moderate');
   const [speed, setSpeed] = useState('medium');
+  const [result, setResult] = useState(null);
 
   const canAdvance = () => {
-    if (step === 1) return profile.height && profile.weight && profile.age && Number(profile.height) > 0 && Number(profile.weight) > 0 && Number(profile.age) > 0;
+    if (step === 2) return profile.height && profile.weight && profile.age && Number(profile.height) > 0 && Number(profile.weight) > 0 && Number(profile.age) > 0;
     return true;
   };
 
   const handleNext = () => {
-    if (step < totalSteps) setStep(s => s + 1);
-    else {
+    if (step === 1) { setStep(2); }
+    else if (step === 2) { setStep(3); }
+    else if (step === 3) {
       const nutrition = calculateNutrition(profile, goal, speed, activity);
-      onComplete({ profile, goal, speed, activity, nutrition });
+      setResult(nutrition);
+      setStep(4);
+    }
+  };
+
+  const handleAccept = () => {
+    if (result) {
+      onComplete({ profile, goal, speed, activity, nutrition: result });
     }
   };
 
@@ -87,7 +96,7 @@ const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
       <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
         <div className="flex items-center justify-between px-6 pt-6 pb-2">
           <div className="flex gap-1.5">
-            {[1, 2, 3].map(i => (
+            {[1, 2, 3, 4].map(i => (
               <div key={i} className={`h-1.5 rounded-full transition-all ${i <= step ? 'w-8 bg-green-500' : 'w-4 bg-gray-300 dark:bg-gray-700'}`} />
             ))}
           </div>
@@ -97,7 +106,28 @@ const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
         </div>
 
         <div className="px-6 py-4 min-h-[280px]">
+          {/* Шаг 1: Выбор цели */}
           {step === 1 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Ваша цель</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Выберите, чего вы хотите достичь.</p>
+              <div className="space-y-2">
+                {[
+                  { key: 'lose', label: '🔥 Похудеть', desc: 'Снижение веса за счёт дефицита калорий' },
+                  { key: 'gain', label: '💪 Набрать массу', desc: 'Увеличение веса с профицитом калорий' },
+                  { key: 'maintain', label: '⚖️ Поддерживать вес', desc: 'Сохранение текущей формы' },
+                ].map(({ key, label, desc }) => (
+                  <button key={key} onClick={() => setGoal(key)} className={`w-full text-left p-4 rounded-[2rem] border-2 transition-all ${goal === key ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-green-300'}`}>
+                    <p className="font-semibold text-gray-800 dark:text-white">{label}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Шаг 2: Параметры */}
+          {step === 2 && (
             <div className="space-y-4">
               <h2 className="text-xl font-bold text-gray-800 dark:text-white">Расскажите о себе</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">Эти данные нужны для точного расчёта вашей нормы калорий.</p>
@@ -123,70 +153,94 @@ const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
                   </div>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Уровень подвижности</label>
-                <div className="space-y-1.5">
-                  {Object.entries(ACTIVITY_LEVELS).map(([key, { label, desc }]) => (
-                    <button key={key} onClick={() => setActivity(key)} className={`w-full text-left px-4 py-3 rounded-[1.5rem] border-2 transition-all ${activity === key ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-green-300'}`}>
-                      <p className="text-sm font-semibold text-gray-800 dark:text-white">{label}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
-          {step === 2 && (
+          {/* Шаг 3: Уровень подвижности */}
+          {step === 3 && (
             <div className="space-y-4">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Ваша цель</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Выберите, чего вы хотите достичь.</p>
-              <div className="space-y-2">
-                {[
-                  { key: 'lose', label: '🔥 Похудеть', desc: 'Снижение веса за счёт дефицита калорий' },
-                  { key: 'gain', label: '💪 Набрать массу', desc: 'Увеличение веса с профицитом калорий' },
-                  { key: 'maintain', label: '⚖️ Поддерживать вес', desc: 'Сохранение текущей формы' },
-                ].map(({ key, label, desc }) => (
-                  <button key={key} onClick={() => setGoal(key)} className={`w-full text-left p-4 rounded-[2rem] border-2 transition-all ${goal === key ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-green-300'}`}>
-                    <p className="font-semibold text-gray-800 dark:text-white">{label}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{desc}</p>
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Уровень подвижности</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Выберите ваш уровень физической активности.</p>
+              <div className="space-y-1.5">
+                {Object.entries(ACTIVITY_LEVELS).map(([key, { label, desc }]) => (
+                  <button key={key} onClick={() => setActivity(key)} className={`w-full text-left px-4 py-3 rounded-[1.5rem] border-2 transition-all ${activity === key ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-green-300'}`}>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-white">{label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
                   </button>
                 ))}
               </div>
+              <div className="space-y-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{goal === 'maintain' ? 'Подтверждение' : 'Скорость изменений'}</h3>
+                {goal === 'maintain' ? (
+                  <div className="bg-gray-100 dark:bg-gray-800 rounded-[2rem] p-5 text-center">
+                    <p className="text-lg font-semibold text-gray-800 dark:text-white">⚖️ Поддержание веса</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Калории будут рассчитаны на поддержание текущего веса.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {[
+                      { key: 'slow', label: '🐢 Медленно', desc: goal === 'lose' ? '−0.25 кг в неделю' : '+0.25 кг в неделю' },
+                      { key: 'medium', label: '🐇 Умеренно', desc: goal === 'lose' ? '−0.5 кг в неделю' : '+0.5 кг в неделю' },
+                      { key: 'fast', label: '🚀 Быстро', desc: goal === 'lose' ? '−0.75 кг в неделю' : '+0.75 кг в неделю' },
+                    ].map(({ key, label, desc }) => (
+                      <button key={key} onClick={() => setSpeed(key)} className={`w-full text-left p-4 rounded-[2rem] border-2 transition-all ${speed === key ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-green-300'}`}>
+                        <p className="font-semibold text-gray-800 dark:text-white">{label}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {step === 3 && (
+          {/* Шаг 4: Результат КБЖУ */}
+          {step === 4 && result && (
             <div className="space-y-4">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white">{goal === 'maintain' ? 'Подтверждение' : 'Скорость изменений'}</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{goal === 'maintain' ? 'Ваш вес останется стабильным. Нажмите «Готово».' : 'Выберите комфортный темп достижения цели.'}</p>
-              {goal === 'maintain' ? (
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-[2rem] p-5 text-center">
-                  <p className="text-lg font-semibold text-gray-800 dark:text-white">⚖️ Поддержание веса</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Калории будут рассчитаны на поддержание текущего веса.</p>
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white">🎉 Ваш идеальный КБЖУ</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Ixteria рассчитала вашу дневную норму на основе ваших данных.</p>
+
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-[2rem] p-5 text-center">
+                <p className="text-3xl font-bold text-gray-800 dark:text-white">{result.calories.goal}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">ккал в день</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[1.5rem] p-3 text-center">
+                  <p className="text-lg font-bold text-gray-800 dark:text-white">{result.protein.goal} г</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Белки</p>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {[
-                    { key: 'slow', label: '🐢 Медленно', desc: goal === 'lose' ? '−0.25 кг в неделю' : '+0.25 кг в неделю' },
-                    { key: 'medium', label: '🐇 Умеренно', desc: goal === 'lose' ? '−0.5 кг в неделю' : '+0.5 кг в неделю' },
-                    { key: 'fast', label: '🚀 Быстро', desc: goal === 'lose' ? '−0.75 кг в неделю' : '+0.75 кг в неделю' },
-                  ].map(({ key, label, desc }) => (
-                    <button key={key} onClick={() => setSpeed(key)} className={`w-full text-left p-4 rounded-[2rem] border-2 transition-all ${speed === key ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-green-300'}`}>
-                      <p className="font-semibold text-gray-800 dark:text-white">{label}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{desc}</p>
-                    </button>
-                  ))}
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-[1.5rem] p-3 text-center">
+                  <p className="text-lg font-bold text-gray-800 dark:text-white">{result.fats.goal} г</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Жиры</p>
                 </div>
-              )}
+                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-[1.5rem] p-3 text-center">
+                  <p className="text-lg font-bold text-gray-800 dark:text-white">{result.carbs.goal} г</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Углеводы</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-[2rem] p-4 text-center">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  💧 Вода: <span className="font-semibold text-gray-800 dark:text-white">{result.water.goal} стаканов</span> в день
+                </p>
+              </div>
+
+              <div className="text-center pt-2">
+                <button onClick={handleAccept} className="px-8 py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-[2rem] transition-colors">
+                  Принять
+                </button>
+              </div>
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between px-6 pb-6 pt-2">
-          <button onClick={handleBack} disabled={step === 1} className="flex items-center gap-1 px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronLeft size={18} />Назад</button>
-          <button onClick={handleNext} disabled={!canAdvance()} className="flex items-center gap-1 px-6 py-2.5 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white text-sm font-medium rounded-[2rem] transition-colors disabled:cursor-not-allowed">{step === totalSteps ? 'Готово' : 'Далее'}<ChevronRight size={18} /></button>
-        </div>
+        {step < 4 && (
+          <div className="flex items-center justify-between px-6 pb-6 pt-2">
+            <button onClick={handleBack} disabled={step === 1} className="flex items-center gap-1 px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronLeft size={18} />Назад</button>
+            <button onClick={handleNext} disabled={!canAdvance()} className="flex items-center gap-1 px-6 py-2.5 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white text-sm font-medium rounded-[2rem] transition-colors disabled:cursor-not-allowed">Далее<ChevronRight size={18} /></button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -943,8 +997,53 @@ const Dietitian = () => {
   const remaining = nutrition.calories.goal - nutrition.calories.current;
 
   return (
+    <>
+      <style>{`
+        @keyframes agent-float {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          25% { transform: translateY(-4px) rotate(-2deg); }
+          50% { transform: translateY(0) rotate(0deg); }
+          75% { transform: translateY(-2px) rotate(1deg); }
+        }
+        .agent-float-icon {
+          animation: agent-float 3s ease-in-out infinite;
+        }
+        .agent-float-icon:hover {
+          animation-duration: 0.6s;
+        }
+      `}</style>
 <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
       <div className="max-w-2xl mx-auto">
+        {/* ===== Виджет "Выберите свою цель" (над 3 блоками) ===== */}
+        <button
+          onClick={() => setShowOnboarding(true)}
+          className="w-full bg-gradient-to-br from-green-600 to-emerald-800 hover:from-green-700 hover:to-emerald-900 text-white rounded-[3rem] p-6 mb-4 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-green-500/20 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-4 relative overflow-hidden group"
+        >
+          {/* Декоративный фон */}
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-xl group-hover:w-32 group-hover:h-32 transition-all duration-500" />
+          <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-white/5 rounded-full blur-lg group-hover:w-28 group-hover:h-28 transition-all duration-500" />
+
+          {/* Иконка — яблочко Ixteria с анимацией как в сайдбаре */}
+          <div className="flex-shrink-0">
+            <img
+              src="/assets/icons/agents/диетолог.png"
+              alt="Диетолог"
+              className="w-[4.5rem] h-[4.5rem] object-contain agent-float-icon"
+            />
+          </div>
+
+          {/* Текст */}
+          <div className="text-left flex-1 relative z-10">
+            <span className="text-lg font-bold block">Выберите свою цель</span>
+            <span className="text-xs text-green-100/80 block mt-0.5">Похудение, набор массы или поддержание веса</span>
+          </div>
+
+          {/* Стрелка */}
+          <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 group-hover:bg-white/25 transition-colors relative z-10">
+            <ChevronRight size={18} className="text-white group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </button>
+
         {/* ===== Dashboard Widgets (3 columns) ===== */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {/* Widget 1: Manual */}
@@ -977,25 +1076,15 @@ const Dietitian = () => {
             </div>
           </button>
 
-          {/* Widget 3: Profile */}
-          <button
-            onClick={() => setShowOnboarding(true)}
-            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
-          >
-            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <Settings size={20} className="text-green-600 dark:text-green-400" />
-              </div>
-              <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
-                {userProfile ? 'Ваш профиль' : 'Настроить профиль'}
-              </span>
-              {userProfile && (
-                <span className="text-[10px] text-gray-400 text-center leading-tight">
-                  {GOAL_LABELS[userProfile.goal]}
-                </span>
-              )}
+          {/* Widget 3: Weekly Reports (бывший Profile) */}
+          <div className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 aspect-square shadow-sm border border-gray-100 dark:border-transparent flex flex-col items-center justify-center gap-2">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <BarChart3 size={20} className="text-purple-600 dark:text-purple-400" />
             </div>
-          </button>
+            <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+              Недельные отчеты
+            </span>
+          </div>
         </div>
 
         {/* ===== Calorie Counter (Center) ===== */}
@@ -1127,6 +1216,7 @@ const Dietitian = () => {
       <ManualModal isOpen={showManual} onClose={() => setShowManual(false)} />
       <FoodDiaryModal isOpen={showDiary} onClose={() => setShowDiary(false)} nutritionGoal={nutrition.calories.goal} />
     </div>
+    </>
   );
 };
 

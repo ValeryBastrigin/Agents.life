@@ -27,8 +27,6 @@ DREAM_ANALYSIS_SYSTEM_PROMPT = """Ты — опытный ментор и стр
 
 4. Критически оценивай каждую задачу: она должна быть конкретной, измеримой и достижимой в течение 1-3 месяцев.
 
-5. Если пользователь вводит бессмысленный текст, спам или нереалистичные требования — верни пустой массив branches.
-
 Ответ верни ТОЛЬКО в формате JSON:
 {
   "feasibility_rating": число от 1 до 10,
@@ -75,15 +73,6 @@ async def analyze_dream(dream: str, user_id: int, db: AsyncSession) -> dict:
         result_text = response.choices[0].message.content
         result = json.loads(result_text)
         
-        # Validation: check if dream is feasible
-        if result.get("feasibility_rating", 5) < 3:
-            return {
-                "success": False,
-                "error": result.get("feasibility_comment", "Мечта слишком нереалистична. Пожалуйста, уточните её."),
-                "suggested_refinement": result.get("suggested_refinement", ""),
-                "branches": []
-            }
-
         # Clean up response - filter out any branches/tasks with empty content
         clean_branches = []
         for branch in result.get("branches", []):

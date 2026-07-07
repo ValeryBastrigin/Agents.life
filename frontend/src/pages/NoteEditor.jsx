@@ -26,35 +26,18 @@ export default function NoteEditor() {
   return (
     <div className='flex-1 overflow-y-auto px-4 sm:px-6 py-6'>
       <div className='max-w-2xl mx-auto'>
-        {/* Hero Header */}
-        <div className='relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-500 to-indigo-600 dark:from-violet-700 dark:via-purple-600 dark:to-indigo-700 rounded-[3.5rem] p-5 sm:p-7 mb-8 shadow-lg shadow-purple-500/20'>
-          <div className='absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4' />
-          <div className='absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/3 -translate-x-1/4' />
-          
-          <div className='relative z-10'>
-            <button onClick={function(){nav('/secretary/notes')}}
-              className='mb-3 inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white rounded-[3.5rem] font-medium transition-all duration-200 border border-white/15 hover:border-white/30 text-sm'>
-              <ArrowLeft size={16} />
-              <span>{ru ? 'Назад к заметкам' : 'Back to Notes'}</span>
-            </button>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <div className='flex items-center gap-2 mb-1'>
-                <Sparkles size={18} className='text-white/80' />
-                <span className='text-white/60 text-sm font-medium uppercase tracking-wider'>
-                  {isNew ? (ru ? 'Новая запись' : 'New Record') : (ru ? 'Редактирование' : 'Editing')}
-                </span>
-              </div>
-              <div className='flex items-center justify-between'>
-                <h1 className='text-2xl font-bold text-white'>
-                  {isNew ? (ru ? 'Новая заметка' : 'New Note') : (ru ? 'Редактировать' : 'Edit Note')}
-                </h1>
-                <button onClick={save} disabled={!title.trim()}
-                  className='w-11 h-11 rounded-[3.5rem] bg-white/20 hover:bg-white/30 backdrop-blur-sm flex items-center justify-center transition-all duration-200 border border-white/20 hover:border-white/40 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed'>
-                  <Check size={22} className='text-white' />
-                </button>
-              </div>
-            </motion.div>
-          </div>
+        {/* Hero Header — синий фирменный */}
+        <div className='bg-gradient-to-br from-blue-500 to-blue-700 dark:from-blue-600 dark:to-blue-800 rounded-[3rem] p-5 mb-6 text-white'>
+          <button onClick={function(){nav('/secretary/notes')}}
+            className='inline-flex items-center gap-2 text-white/80 hover:text-white text-base font-medium transition-colors mb-3'>
+            <ArrowLeft size={22} />
+            <span>{ru ? 'Заметки' : 'Notes'}</span>
+          </button>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <h1 className='text-xl font-bold text-white'>
+              {isNew ? (ru ? 'Новая заметка' : 'New Note') : (ru ? 'Редактировать' : 'Edit Note')}
+            </h1>
+          </motion.div>
         </div>
 
         {/* Editor Card */}

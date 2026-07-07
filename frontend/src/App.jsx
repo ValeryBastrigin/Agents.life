@@ -296,11 +296,18 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       />
 
       {/* Header */}
-      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/secretary/notes') && (
+      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
           <span className={`px-1 py-1 rounded-full transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
-          {(location.pathname === '/secretary' || location.pathname === '/accountant' || location.pathname === '/dietitian' || location.pathname === '/psychologist' || location.pathname === '/mentor') ? (
+          {location.pathname.startsWith('/secretary/notes') ? (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
+            >
+              <Menu size={20} className="text-gray-700 dark:text-gray-300" />
+            </button>
+          ) : (location.pathname === '/secretary' || location.pathname === '/accountant' || location.pathname === '/dietitian' || location.pathname === '/psychologist' || location.pathname === '/mentor') ? (
             <button
               onClick={() => navigate('/chat')}
               className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
@@ -318,7 +325,12 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
           </span>
           <span className={`px-3 py-1.5 rounded-full transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            {location.pathname === '/chat' ? (
+            {location.pathname.startsWith('/secretary/notes') ? (
+              <>
+                Ixteria
+                <img src="/assets/icons/agents/ixteria.svg" alt="Ixteria" className="w-6 h-6 rounded-full" />
+              </>
+            ) : location.pathname === '/chat' ? (
               <>
                 Ixteria
                 <img src="/assets/icons/agents/ixteria.svg" alt="Ixteria" className="w-6 h-6 rounded-full" />

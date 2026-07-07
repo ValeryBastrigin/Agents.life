@@ -26,38 +26,6 @@ const DreamInputModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
       return 'Слишком длинно. Пожалуйста, сократите описание до 2000 символов.';
     }
 
-    // Check for gibberish / spam patterns
-    const gibberishPatterns = [
-      /^[a-zA-Z\s]{1,20}$/i,              // Only English letters with no meaning
-      /(.)\1{5,}/,                          // Repeated characters (aaaaaa)
-      /^(.)\1{3,}\s*$/,                     // Single char repeated
-      /^[\d\W_]{10,}$/,                     // Mostly numbers/symbols
-      /(?:а{3,}|б{3,}|в{3,}|ы{3,}|й{3,})/i, // Russian letter spam
-      /^[\s]{10,}$/,                        // Only spaces
-    ];
-
-    for (const pattern of gibberishPatterns) {
-      if (pattern.test(trimmed)) {
-        return 'Пожалуйста, введите настоящую мечту. Это не похоже на осмысленный текст.';
-      }
-    }
-
-    // Check for excessive emoji usage (>50% of content)
-    const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
-    const emojiMatches = trimmed.match(emojiRegex);
-    if (emojiMatches && emojiMatches.length > trimmed.replace(emojiRegex, '').length * 0.5) {
-      return 'Слишком много эмодзи. Пожалуйста, опишите мечту текстом.';
-    }
-
-    // Check for repetition (same sentence repeated 3+ times)
-    const sentences = trimmed.split(/[.!?]+/).filter(s => s.trim().length > 5);
-    if (sentences.length >= 3) {
-      const uniqueSentences = new Set(sentences.map(s => s.trim().toLowerCase()));
-      if (uniqueSentences.size <= 1) {
-        return 'Обнаружен повтор одного и того же. Пожалуйста, напишите развёрнутое описание.';
-      }
-    }
-
     // All checks passed
     return '';
   };
