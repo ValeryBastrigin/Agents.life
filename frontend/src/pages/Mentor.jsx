@@ -1,16 +1,113 @@
-import React, { useState } from 'react';
-import { Target, BookOpen, Star, Calendar, Zap, Flag, Brain, Rocket, ChevronDown, ChevronUp, Sparkles, Plus, Lightbulb, GitBranch } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Target, BookOpen, Star, Calendar, Zap, Flag, Brain, Rocket, ChevronDown, ChevronUp, Sparkles, Plus, Lightbulb, GitBranch, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
+const STORAGE_KEY = 'habit_tracker_data';
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function loadHabitData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) { /* ignore */ }
+  return { habits: [], xp: 0, level: 1, unlockedAchievements: [], lastResetDate: getTodayKey() };
+}
+
+const COLOR_MAP = {
+  'from-green-500 to-emerald-500': { bg: 'from-green-500 to-emerald-500' },
+  'from-blue-500 to-cyan-500': { bg: 'from-blue-500 to-cyan-500' },
+  'from-purple-500 to-pink-500': { bg: 'from-purple-500 to-pink-500' },
+  'from-yellow-500 to-orange-500': { bg: 'from-yellow-500 to-orange-500' },
+  'from-red-500 to-rose-500': { bg: 'from-red-500 to-rose-500' },
+  'from-teal-500 to-green-500': { bg: 'from-teal-500 to-green-500' },
+  'from-indigo-500 to-purple-500': { bg: 'from-indigo-500 to-purple-500' },
+  'from-pink-500 to-red-500': { bg: 'from-pink-500 to-red-500' },
+};
+
+const getColor = (name) => {
+  const colors = Object.keys(COLOR_MAP);
+  const idx = name.length % colors.length;
+  return colors[idx];
+};
+
 const Mentor = () => {
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const [heroExpanded, setHeroExpanded] = useState(true);
-  
+  const [habitData, setHabitData] = useState({ habits: [], xp: 0, level: 1, unlockedAchievements: [] });
+
+  const toggleHabitComplete = (habitId) => {
+    const data = loadHabitData();
+    const todayKey = getTodayKey();
+    const idx = data.habits.findIndex(h => h.id === habitId);
+    if (idx === -1) return;
+    const habit = data.habits[idx];
+    if (!habit.log) habit.log = {};
+    if (habit.log[todayKey]) {
+      delete habit.log[todayKey];
+      // Remove XP when unchecking
+      data.xp = Math.max(0, (data.xp || 0) - 10);
+      // Recalculate level based on XP
+      data.level = Math.floor(data.xp / 100) + 1;
+    } else {
+      habit.log[todayKey] = true;
+      // Add XP
+      data.xp = (data.xp || 0) + 10;
+      // Level up every 100 XP
+      const newLevel = Math.floor(data.xp / 100) + 1;
+      if (newLevel > (data.level || 1)) {
+        data.level = newLevel;
+      }
+    }
+    data.habits[idx] = habit;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    setHabitData(data);
+  };
+
+  useEffect(() => {
+    setHabitData(loadHabitData());
+    const handleStorage = () => setHabitData(loadHabitData());
+    window.addEventListener('storage', handleStorage);
+    // Also poll periodically for same-tab changes
+    const interval = setInterval(() => setHabitData(loadHabitData()), 2000);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Compute today's habits with streak info for the widget
+  const todayKey = getTodayKey();
+  const habits = useMemo(() => {
+    return habitData.habits.map(h => {
+      const log = h.log || {};
+      const history = h.history || [todayKey];
+      // Compute streak
+      let streak = 0;
+      const d = new Date();
+      while (true) {
+        const key = d.toISOString().slice(0, 10);
+        if (history.includes(key) || log[key]) {
+          streak++;
+          d.setDate(d.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      return {
+        ...h,
+        streak,
+        doneToday: !!(log[todayKey] || (h.history && h.history.includes(todayKey))),
+      };
+    });
+  }, [habitData, todayKey]);
+
   const goals = [];
   // goals will be loaded from API later
-
-  const habits = [];
-  // habits will be loaded from API later
 
   return (
     <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
@@ -74,7 +171,7 @@ const Mentor = () => {
             </span>
           </button>
 
-          <button className="flex flex-col items-center justify-center gap-2 bg-surface-light dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-100 dark:border-transparent group">
+          <button onClick={() => navigate('/mentor/tree')} className="flex flex-col items-center justify-center gap-2 bg-surface-light dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-100 dark:border-transparent group">
             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
               <GitBranch size={20} className="text-white" />
             </div>
@@ -136,38 +233,86 @@ const Mentor = () => {
 
         {/* Habits Tracker — add habit widget */}
         <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-            <Zap size={18} className="text-amber-500" />
-            Трекер привычек
-          </h2>
-          {habits.length === 0 ? (
-            <button className="w-full flex items-center justify-center gap-3 p-5 bg-surface-light dark:bg-surface-dark rounded-[3rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group border-2 border-dashed border-gray-300 dark:border-gray-600">
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
-                <Plus size={22} className="text-white" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-medium text-gray-800 dark:text-white">Добавьте полезные привычки, уберите вредные</p>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">Начните формировать новые привычки уже сегодня</p>
-              </div>
-            </button>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {habits.map((habit, index) => (
-                <div key={index} className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-3 text-center hover:bg-gray-200 dark:hover:bg-gray-800 transition-all">
-                  <div className={`w-9 h-9 mx-auto rounded-[3rem] bg-gradient-to-br ${habit.color} flex items-center justify-center text-lg mb-1.5`}>
-                    {habit.icon}
-                  </div>
-                  <div className="text-xs font-medium text-gray-800 dark:text-white mb-1">
-                    {habit.name}
-                  </div>
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="text-base">🔥</span>
-                    <span className="text-sm font-bold text-amber-500">{habit.streak}</span>
-                    <span className="text-[10px] text-gray-400">дней</span>
-                  </div>
-                </div>
-              ))}
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+              <Zap size={18} className="text-amber-500" />
+              Трекер привычек
+            </h2>
+          </div>
+          {/* BIG PLUS BUTTON — always visible, opens habit tracker */}
+          <button onClick={() => navigate('/mentor/habits')} className="w-full flex items-center justify-center gap-3 p-5 bg-surface-light dark:bg-surface-dark rounded-[3rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group border-2 border-dashed border-gray-300 dark:border-gray-600 mb-3">
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
+              <Plus size={22} className="text-white" />
             </div>
+            <div className="text-left">
+              <p className="text-sm font-medium text-gray-800 dark:text-white">Добавьте полезные привычки, уберите вредные</p>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">Начните формировать новые привычки уже сегодня</p>
+            </div>
+          </button>
+          {habits.length > 0 && (
+            <>
+              {/* Stats summary */}
+              <div className="flex gap-2 mb-3">
+                <div className="flex-1 bg-surface-light dark:bg-surface-dark rounded-[2rem] px-4 py-2.5 text-center">
+                  <div className="text-lg font-bold text-green-600 dark:text-green-400">{habits.filter(h => h.doneToday).length}/{habits.length}</div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400">выполнено сегодня</div>
+                </div>
+                <div className="flex-1 bg-surface-light dark:bg-surface-dark rounded-[2rem] px-4 py-2.5 text-center">
+                  <div className="text-lg font-bold text-amber-600 dark:text-amber-400">{habitData.level}</div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400">уровень</div>
+                </div>
+                <div className="flex-1 bg-surface-light dark:bg-surface-dark rounded-[2rem] px-4 py-2.5 text-center">
+                  <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{habitData.xp} XP</div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400">опыт</div>
+                </div>
+              </div>
+              {/* Habits list — vertical with checkboxes */}
+              <div className="flex flex-col gap-2">
+                {habits.map((habit, index) => (
+                  <label
+                    key={index}
+                    className={`flex items-center gap-3 px-4 py-3 bg-surface-light dark:bg-surface-dark rounded-[2rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all cursor-pointer select-none ${habit.doneToday ? 'ring-2 ring-green-400 dark:ring-green-500' : ''}`}
+                  >
+                    {/* Checkbox */}
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all shrink-0 ${
+                        habit.doneToday
+                          ? habit.type === 'bad'
+                            ? 'bg-red-500 border-red-500 text-white'
+                            : 'bg-green-500 border-green-500 text-white'
+                          : habit.type === 'bad'
+                            ? 'border-red-400 dark:border-red-500'
+                            : 'border-green-400 dark:border-green-500'
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleHabitComplete(habit.id);
+                      }}
+                    >
+                      {habit.doneToday ? (
+                        <CheckCircle2 size={14} />
+                      ) : (
+                        <div className="w-2.5 h-2.5 rounded-full opacity-0 group-hover:opacity-30 bg-gray-400" />
+                      )}
+                    </div>
+                    {/* Icon + name */}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-lg">{habit.icon}</span>
+                      <span className={`text-sm font-medium truncate ${habit.type === 'bad' ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-white'}`}>
+                        {habit.name}
+                      </span>
+                    </div>
+                    {/* Streak */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-xs">🔥</span>
+                      <span className="text-sm font-bold text-amber-500">{habit.streak}</span>
+                      <span className="text-[10px] text-gray-400">дн</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </>
           )}
         </div>
 

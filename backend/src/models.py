@@ -215,3 +215,30 @@ class TherapySession(Base):
 
     user = relationship("User")
     chat = relationship("Chat", back_populates="therapy_sessions")
+
+
+class DreamAnalysis(Base):
+    __tablename__ = "dream_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    dream_text = Column(Text, nullable=False)
+    branches_data = Column(Text, default="[]")  # JSON string of branches
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+
+
+class ActiveGoal(Base):
+    __tablename__ = "active_goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False)
+    branch_type = Column(String(50), default="")
+    resources = Column(Text, default="[]")  # JSON string of resources
+    status = Column(String(20), default="active")  # active, completed, cancelled
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")

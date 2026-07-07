@@ -13,6 +13,8 @@ import Psychologist from './pages/Psychologist';
 import TherapySessions from './pages/TherapySessions';
 import PsychologistDiary from './pages/PsychologistDiary';
 import Mentor from './pages/Mentor';
+import DevelopmentTree from './pages/DevelopmentTree';
+import HabitTracker from './pages/HabitTracker';
 import Profile from './pages/Profile';
 import ActivityLog from './pages/ActivityLog';
 import SecretaryGuide from './pages/SecretaryGuide';
@@ -437,14 +439,12 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
               </div>
             </div>
           )}
-          <span className={`px-1 py-1 rounded-full transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <button
             onClick={() => navigate('/profile')}
             className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
           >
             <User size={24} className="text-gray-700 dark:text-gray-300" />
           </button>
-          </span>
         </div>
       </header>
       )}
@@ -464,6 +464,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/psychologist/sessions" element={<TherapySessions />} />
         <Route path="/psychologist/diary" element={<PsychologistDiary />} />
         <Route path="/mentor" element={<Mentor />} />
+        <Route path="/mentor/tree" element={<DevelopmentTree />} />
+        <Route path="/mentor/habits" element={<HabitTracker />} />
         <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/chat')} />} />
       </Routes>
     </div>
