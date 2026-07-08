@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, Clock, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Check, X, Bell, Sparkles, BookOpen, ListTodo, Zap, ArrowLeft, Layers } from 'lucide-react';
+import SecretaryBackground from '../components/SecretaryBackground';
 import { useLanguage } from '../contexts/LanguageContext';
 import moment from 'moment';
 import { Calendar as BigCalendar, momentLocalizer, Views } from 'react-big-calendar';
@@ -299,7 +300,10 @@ const Secretary = ({ theme }) => {
     
     return (
       <>
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <SecretaryBackground theme={theme} />
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 relative z-10">
           <div className="max-w-7xl xl:max-w-8xl 2xl:max-w-9xl mx-auto">
             {/* Header */}
             <div className="flex items-center gap-4 mb-8">
@@ -618,7 +622,11 @@ const Secretary = ({ theme }) => {
 
   // Month Overview View
   return (
-    <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
+    <>
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <SecretaryBackground theme={theme} />
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 relative z-10">
       <div className="max-w-7xl xl:max-w-8xl 2xl:max-w-9xl mx-auto">
         {/* Hero Section — large widget like Mentor */}
         <div className="bg-gradient-to-br from-blue-500 to-blue-700 dark:from-blue-600 dark:to-blue-800 rounded-[3rem] p-5 mb-6 text-white">
@@ -936,7 +944,8 @@ const Secretary = ({ theme }) => {
         </div>
 
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2, Plus } from 'lucide-react';
+import DietitianBackground from '../components/DietitianBackground';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient } from '../utils/apiClient';
@@ -998,44 +999,47 @@ const Dietitian = () => {
 
   return (
     <>
-      <style>{`
-        @keyframes agent-float {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          25% { transform: translateY(-4px) rotate(-2deg); }
-          50% { transform: translateY(0) rotate(0deg); }
-          75% { transform: translateY(-2px) rotate(1deg); }
-        }
-        .agent-float-icon {
-          animation: agent-float 3s ease-in-out infinite;
-        }
-        .agent-float-icon:hover {
-          animation-duration: 0.6s;
-        }
-      `}</style>
-<div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <DietitianBackground />
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
+        <style>{`
+          @keyframes agent-float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-4px) rotate(-2deg); }
+            50% { transform: translateY(0) rotate(0deg); }
+            75% { transform: translateY(-2px) rotate(1deg); }
+          }
+          .agent-float-icon {
+            animation: agent-float 3s ease-in-out infinite;
+          }
+          .agent-float-icon:hover {
+            animation-duration: 0.6s;
+          }
+        `}</style>
       <div className="max-w-2xl mx-auto">
-        {/* ===== Виджет "Выберите свою цель" (над 3 блоками) ===== */}
+        {/* ===== Виджет "Создайте идеальный план питания" (над 3 блоками) ===== */}
         <button
-          onClick={() => setShowOnboarding(true)}
-          className="w-full bg-gradient-to-br from-green-600 to-emerald-800 hover:from-green-700 hover:to-emerald-900 text-white rounded-[3rem] p-6 mb-4 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-green-500/20 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-4 relative overflow-hidden group"
+          onClick={() => navigate('/dietitian/plan')}
+          className="w-full bg-gradient-to-br from-green-500 via-emerald-600 to-green-700 hover:from-green-600 hover:via-emerald-700 hover:to-green-800 text-white rounded-[3rem] p-6 mb-4 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-green-500/25 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-4 relative overflow-hidden group"
         >
           {/* Декоративный фон */}
           <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-xl group-hover:w-32 group-hover:h-32 transition-all duration-500" />
           <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-white/5 rounded-full blur-lg group-hover:w-28 group-hover:h-28 transition-all duration-500" />
+          <div className="absolute right-12 bottom-0 w-16 h-16 bg-white/5 rounded-full blur-md group-hover:w-20 group-hover:h-20 transition-all duration-500" />
 
-          {/* Иконка — яблочко Ixteria с анимацией как в сайдбаре */}
-          <div className="flex-shrink-0">
-            <img
-              src="/assets/icons/agents/диетолог.png"
-              alt="Диетолог"
-              className="w-[4.5rem] h-[4.5rem] object-contain agent-float-icon"
-            />
+          {/* Иконка */}
+          <div className="flex-shrink-0 w-[4.5rem] h-[4.5rem] rounded-full bg-white/20 backdrop-blur flex items-center justify-center agent-float-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+              <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z" />
+              <line x1="6" y1="17" x2="18" y2="17" />
+            </svg>
           </div>
 
           {/* Текст */}
           <div className="text-left flex-1 relative z-10">
-            <span className="text-lg font-bold block">Выберите свою цель</span>
-            <span className="text-xs text-green-100/80 block mt-0.5">Похудение, набор массы или поддержание веса</span>
+            <span className="text-base font-bold block leading-snug">Создайте идеальный план питания</span>
+            <span className="text-xs text-green-100/80 block mt-0.5">под ваши параметры</span>
           </div>
 
           {/* Стрелка */}
@@ -1049,35 +1053,35 @@ const Dietitian = () => {
           {/* Widget 1: Manual */}
           <button
             onClick={() => setShowManual(true)}
-            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
-          >
-            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <BookOpen size={20} className="text-blue-600 dark:text-blue-400" />
-              </div>
-              <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
-                Как пользоваться
-              </span>
+          className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg"
+        >
+          <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <BookOpen size={20} className="text-blue-600 dark:text-blue-400" />
             </div>
-          </button>
+            <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+              Как пользоваться
+            </span>
+          </div>
+        </button>
 
           {/* Widget 2: Food Diary */}
           <button
             onClick={() => setShowDiary(true)}
-            className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
-          >
-            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                <Calendar size={20} className="text-amber-600 dark:text-amber-400" />
-              </div>
-              <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
-                Дневник питания
-              </span>
+          className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg"
+        >
+          <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <Calendar size={20} className="text-amber-600 dark:text-amber-400" />
             </div>
-          </button>
+            <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+              Дневник питания
+            </span>
+          </div>
+        </button>
 
           {/* Widget 3: Weekly Reports (бывший Profile) */}
-          <div className="bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 aspect-square shadow-sm border border-gray-100 dark:border-transparent flex flex-col items-center justify-center gap-2">
+          <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 aspect-square shadow-sm border border-gray-100 dark:border-transparent flex flex-col items-center justify-center gap-2 backdrop-blur-lg">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
               <BarChart3 size={20} className="text-purple-600 dark:text-purple-400" />
             </div>
@@ -1111,7 +1115,7 @@ const Dietitian = () => {
             { label: 'Жиры', current: nutrition.fats.current, goal: nutrition.fats.goal, unit: 'г', color: 'bg-amber-500', icon: '🥑' },
             { label: 'Углеводы', current: nutrition.carbs.current, goal: nutrition.carbs.goal, unit: 'г', color: 'bg-orange-500', icon: '🍞' },
           ].map((item) => (
-            <div key={item.label} className="p-2.5 bg-surface-light dark:bg-surface-dark rounded-[1.5rem] text-center">
+            <div key={item.label} className="p-2.5 bg-surface-light/90 dark:bg-surface-dark/90 rounded-[1.5rem] text-center backdrop-blur-md">
               <div className="text-sm font-bold text-gray-800 dark:text-white mb-0.5">
                 {item.current}<span className="text-[10px] font-normal text-gray-400">/{item.goal} {item.unit}</span>
               </div>
@@ -1124,7 +1128,7 @@ const Dietitian = () => {
         </div>
 
         {/* ===== Съедено сегодня ===== */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-6 mb-6">
+        <div className="bg-surface-light/90 dark:bg-surface-dark/90 rounded-[3rem] p-6 mb-6 backdrop-blur-lg">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
               🍽️ Съедено сегодня
@@ -1170,15 +1174,15 @@ const Dietitian = () => {
         </div>
 
         {/* ===== Анализ рациона за день ===== */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-6 mb-6">
+        <div className="bg-surface-light/90 dark:bg-surface-dark/90 rounded-[3rem] p-6 mb-6 backdrop-blur-lg">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">📊 Анализ рациона за день</h2>
           {todayMeals.length === 0 && nutrition.calories.current === 0 ? (
-            <div className="bg-background-light dark:bg-background-dark rounded-[1.5rem] p-4">
+            <div className="bg-background-light/90 dark:bg-background-dark/90 rounded-[1.5rem] p-4 backdrop-blur-md">
               <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">Информации пока нет — добавьте приёмы пищи через чат, чтобы увидеть анализ рациона за сегодня.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="bg-background-light dark:bg-background-dark rounded-[1.5rem] p-4">
+              <div className="bg-background-light/90 dark:bg-background-dark/90 rounded-[1.5rem] p-4 backdrop-blur-md">
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   Сегодня вы употребили <span className="font-bold text-gray-800 dark:text-white">{nutrition.calories.current}</span> из <span className="font-bold text-gray-800 dark:text-white">{nutrition.calories.goal}</span> ккал.
                   {nutrition.calories.current < nutrition.calories.goal
@@ -1188,7 +1192,7 @@ const Dietitian = () => {
                       : ` Норма выполнена точно!`}
                 </p>
               </div>
-              <div className="bg-background-light dark:bg-background-dark rounded-[1.5rem] p-4">
+              <div className="bg-background-light/90 dark:bg-background-dark/90 rounded-[1.5rem] p-4 backdrop-blur-md">
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   Белки: <span className="font-bold text-gray-800 dark:text-white">{nutrition.protein.current}/{nutrition.protein.goal} г</span>
                   {nutrition.protein.current < nutrition.protein.goal ? ` (недобор ${nutrition.protein.goal - nutrition.protein.current} г)` : ` (норма)`}

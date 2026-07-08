@@ -9,6 +9,7 @@ import { User, Menu, ArrowLeft, Bot, User as UserIcon, Clock, XCircle } from 'lu
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Dietitian from './pages/Dietitian';
+import DietPlanPage from './pages/DietPlanPage';
 import Psychologist from './pages/Psychologist';
 import TherapySessions from './pages/TherapySessions';
 import PsychologistDiary from './pages/PsychologistDiary';
@@ -472,6 +473,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/secretary/notes/:id" element={<NoteEditor />} />
         <Route path="/accountant" element={<Accountant />} />
         <Route path="/dietitian" element={<Dietitian />} />
+        <Route path="/dietitian/plan" element={<DietPlanPage />} />
         <Route path="/psychologist" element={<Psychologist />} />
         <Route path="/psychologist/sessions" element={<TherapySessions />} />
         <Route path="/psychologist/diary" element={<PsychologistDiary />} />
