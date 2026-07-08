@@ -19,19 +19,19 @@ const PsychologistBackground = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Pink/purple theme colors for Psychologist
+  // Pink/rose theme colors for Psychologist
   const darkColors = [
-    'rgba(168, 85, 247, 0.3)',   // purple-500
-    'rgba(192, 132, 252, 0.25)', // purple-400
-    'rgba(236, 72, 153, 0.2)',   // pink-500
-    'rgba(244, 114, 182, 0.25)', // pink-400
+    'rgba(219, 39, 119, 0.3)',   // pink-600
+    'rgba(236, 72, 153, 0.25)',  // pink-500
+    'rgba(244, 114, 182, 0.2)',  // pink-400
+    'rgba(251, 182, 206, 0.25)', // pink-300
   ];
 
   const lightColors = [
-    'rgba(233, 213, 255, 0.4)',  // light purple-200
-    'rgba(216, 180, 254, 0.35)', // light purple-300
-    'rgba(249, 168, 212, 0.3)',  // light pink-200
-    'rgba(244, 114, 182, 0.35)', // light pink-300
+    'rgba(252, 231, 243, 0.4)',   // light pink-100
+    'rgba(249, 168, 212, 0.35)',  // light pink-300
+    'rgba(244, 114, 182, 0.3)',   // light pink-400
+    'rgba(236, 72, 153, 0.35)',   // light pink-500
   ];
 
   const colors = theme === 'dark' ? darkColors : lightColors;
@@ -112,7 +112,7 @@ const PsychologistBackground = () => {
   ];
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
       {blobs.map((blob) => (
         <motion.div
           key={blob.id}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PsychologistBackground from '../components/PsychologistBackground';
-import { X, BookOpen, Brain, Heart, MessageCircle, BarChart3, Smile } from 'lucide-react';
+import { X, BookOpen, Brain, Heart, MessageCircle, BarChart3, Smile, User, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient } from '../utils/apiClient';
@@ -198,7 +198,7 @@ const { language, changeLanguage, t } = useLanguage();
   // ─── Render: Dashboard only ──────────
 
   return (
-    <div className="flex-1 relative overflow-y-auto px-6 pt-4 pb-8">
+    <div className="flex-1 relative overflow-y-auto px-6 pt-0 pb-8">
       <PsychologistBackground />
       <div className="relative z-10 max-w-2xl mx-auto">
         {/* ===== 3 blocks ===== */}

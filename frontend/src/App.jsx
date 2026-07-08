@@ -207,6 +207,28 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
     loadChats();
   }, []);
 
+  // Reset headerSolid when navigating to agent pages (not chat)
+  useEffect(() => {
+    if (
+      location.pathname === '/psychologist' ||
+      location.pathname === '/secretary' ||
+      location.pathname === '/accountant' ||
+      location.pathname === '/dietitian' ||
+      location.pathname === '/mentor'
+    ) {
+      setHeaderSolid(false);
+    }
+  }, [location.pathname]);
+
+  // Listen for psychologist page scroll to make header solid
+  useEffect(() => {
+    const handlePsychologistScroll = (e) => {
+      setHeaderSolid(e.detail);
+    };
+    window.addEventListener('psychologist-scroll', handlePsychologistScroll);
+    return () => window.removeEventListener('psychologist-scroll', handlePsychologistScroll);
+  }, []);
+
   // Track scroll to make header solid when messages are under it
   const handleScroll = (scrollTop) => {
     setHeaderSolid(scrollTop > 0);
@@ -300,7 +322,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
-          <span className={`px-1 py-1 rounded-full transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+          <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           {location.pathname.startsWith('/secretary/notes') ? (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -313,7 +335,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
               onClick={() => navigate('/chat')}
               className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
             >
-              <ArrowLeft size={20} className="text-gray-700 dark:text-gray-300" />
+              <ArrowLeft size={20} className={`${location.pathname === '/psychologist' ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`} />
             </button>
           ) : (
             <button
@@ -324,7 +346,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
             </button>
           )}
           </span>
-          <span className={`px-3 py-1.5 rounded-full transition-all duration-300 ${headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+          <span className={`px-3 py-1.5 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             {location.pathname.startsWith('/secretary/notes') ? (
               <>
@@ -341,7 +363,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
               location.pathname === '/secretary/logs' ? 'Тайм-Менеджер' :
               location.pathname === '/accountant' ? 'Финансовый-помощник' :
              location.pathname === '/dietitian' ? 'Диетолог' :
-             location.pathname === '/psychologist' ? 'Психолог' :
+              location.pathname === '/psychologist' ? <span className="text-white">Психолог</span> :
              location.pathname === '/mentor' ? 'Ментор' : 
              <>
                 Ixteria
@@ -452,12 +474,14 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
               </div>
             </div>
           )}
+          <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <button
             onClick={() => navigate('/profile')}
             className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
           >
             <User size={24} className="text-gray-700 dark:text-gray-300" />
           </button>
+          </span>
         </div>
       </header>
       )}
