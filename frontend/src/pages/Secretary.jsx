@@ -7,6 +7,7 @@ import { Calendar as BigCalendar, momentLocalizer, Views } from 'react-big-calen
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '../styles/calendar.css';
 import axios from 'axios';
+import 'moment/locale/ru';
 
 const API_URL = 'http://localhost:8001';
 const localizer = momentLocalizer(moment);
@@ -67,8 +68,6 @@ const Secretary = ({ theme }) => {
   const [newReminder, setNewReminder] = useState({ text: '', time: '' });
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItemText, setNewItemText] = useState('');
-  const [widgetDate, setWidgetDate] = useState(new Date());
-  const [widgetMode, setWidgetMode] = useState('schedule'); // 'schedule' or 'events'
   const [selectedColor, setSelectedColor] = useState('#3B82F6');
 
   const colorOptions = [
@@ -641,19 +640,123 @@ const Secretary = ({ theme }) => {
             </div>
           </button>
 
-          <div className={`overflow-hidden transition-all duration-300 ${heroExpanded ? 'max-h-40 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
-            <div className="flex gap-3">
-              <div className="flex-1 text-center bg-white/10 rounded-[3rem] p-3">
-                <div className="text-xl font-bold">{eventsCount}</div>
-                <div className="text-[10px] text-white/70">{language === 'ru' ? 'предстоящих событий' : 'upcoming events'}</div>
+          <div className={`overflow-hidden transition-all duration-300 ${heroExpanded ? 'max-h-[500px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Schedule Container */}
+              <div className="bg-white/10 rounded-[3rem] p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-1.5 rounded-full bg-white/10">
+                    <Clock size={16} className="text-white" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-white">
+                    {language === 'ru' ? 'Расписание на сегодня' : "Today's Schedule"}
+                  </h3>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                  {events.filter(e => moment(e.start).isSame(moment(), 'day')).length === 0 ? (
+                    <div className="text-center py-6">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-white/10 flex items-center justify-center">
+                        <Calendar size={18} className="text-white/50" />
+                      </div>
+                      <p className="text-xs text-white/50">
+                        {language === 'ru' ? 'Нет событий на сегодня' : 'No events today'}
+                      </p>
+                    </div>
+                  ) : (
+                    events
+                      .filter(e => moment(e.start).isSame(moment(), 'day'))
+                      .sort((a, b) => moment(a.start).diff(moment(b.start)))
+                      .map((event) => (
+                        <div
+                          key={event.id}
+                          className="flex items-center gap-3 p-2.5 bg-white/10 rounded-[2rem] hover:bg-white/15 transition-colors cursor-pointer"
+                          onClick={() => setSelectedDate(event.start)}
+                        >
+                          <div
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: event.color }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium text-white truncate ${
+                              event.completed ? 'line-through text-white/40' : ''
+                            }`}>
+                              {event.title}
+                            </p>
+                            <p className="text-xs text-white/60 flex items-center gap-1">
+                              <Clock size={10} />
+                              {moment(event.start).format('HH:mm')} — {moment(event.end).format('HH:mm')}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
               </div>
-              <div className="flex-1 text-center bg-white/10 rounded-[3rem] p-3">
-                <div className="text-xl font-bold">{remindersCount}</div>
-                <div className="text-[10px] text-white/70">{language === 'ru' ? 'активных напоминаний' : 'active reminders'}</div>
-              </div>
-              <div className="flex-1 text-center bg-white/10 rounded-[3rem] p-3">
-                <div className="text-xl font-bold">{todayEvents}</div>
-                <div className="text-[10px] text-white/70">{language === 'ru' ? 'событий сегодня' : "today's events"}</div>
+
+              {/* Events & Reminders Container */}
+              <div className="bg-white/10 rounded-[3rem] p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-1.5 rounded-full bg-white/10">
+                    <Bell size={16} className="text-white" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-white">
+                    {language === 'ru' ? 'События и напоминания' : 'Events & Reminders'}
+                  </h3>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                  {reminders.filter(r => {
+                    const reminderDate = r.date ? moment(r.date) : moment(r.created_at);
+                    return reminderDate.isSame(moment(), 'day');
+                  }).length === 0 ? (
+                    <div className="text-center py-6">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-white/10 flex items-center justify-center">
+                        <Bell size={18} className="text-white/50" />
+                      </div>
+                      <p className="text-xs text-white/50">
+                        {language === 'ru' ? 'Нет напоминаний на сегодня' : 'No reminders today'}
+                      </p>
+                    </div>
+                  ) : (
+                    reminders
+                      .filter(r => {
+                        const reminderDate = r.date ? moment(r.date) : moment(r.created_at);
+                        return reminderDate.isSame(moment(), 'day');
+                      })
+                      .map((reminder) => (
+                        <div
+                          key={reminder.id}
+                          className="flex items-center gap-3 p-2.5 bg-white/10 rounded-[2rem] hover:bg-white/15 transition-colors"
+                        >
+                          <button
+                            onClick={() => toggleReminder(reminder.id)}
+                            className={`p-1.5 rounded-full transition-colors ${
+                              reminder.completed
+                                ? 'bg-white/20 text-white'
+                                : 'bg-white/10 text-white/70 hover:text-white'
+                            }`}
+                          >
+                            {reminder.completed ? <Check size={12} /> : <Bell size={12} />}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-medium truncate ${
+                              reminder.completed
+                                ? 'text-white/40 line-through'
+                                : 'text-white'
+                            }`}>
+                              {reminder.text}
+                            </p>
+                            <p className="text-[10px] text-white/50 mt-0.5">{reminder.time}</p>
+                          </div>
+                          <button
+                            onClick={() => deleteReminder(reminder.id)}
+                            className="p-1.5 rounded-full hover:bg-white/20 text-white/40 hover:text-white/80 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -697,6 +800,26 @@ const Secretary = ({ theme }) => {
             </span>
           </button>
         </div>
+
+        {/* Info Banner — одноразовая подсказка */}
+        {localStorage.getItem('secretary_calendar_hint') !== 'hidden' && (
+          <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 dark:from-blue-500/5 dark:via-purple-500/5 dark:to-pink-500/5 rounded-[3rem] p-4 mb-4 flex items-center gap-3 border border-blue-200/30 dark:border-blue-700/30">
+            <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30 shrink-0">
+              <Sparkles size={18} className="text-blue-600 dark:text-blue-400" />
+            </div>
+            <p className="text-sm text-gray-700 dark:text-gray-300 flex-1">
+              {language === 'ru'
+                ? 'Нажмите на дату в календаре, чтобы распланировать расписание и события самостоятельно'
+                : 'Click on a date in the calendar to plan your schedule and events manually'}
+            </p>
+            <button
+              onClick={() => localStorage.setItem('secretary_calendar_hint', 'hidden')}
+              className="p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-black/20 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {/* Calendar Section — flat */}
         <div className="bg-white dark:bg-surface-dark rounded-[3.5rem] p-5 sm:p-6 mb-8 shadow-sm border border-gray-100 dark:border-transparent">
@@ -812,174 +935,6 @@ const Secretary = ({ theme }) => {
           </div>
         </div>
 
-        {/* Schedule & Events Widget — flat */}
-        <div className="bg-white dark:bg-surface-dark rounded-[3.5rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-transparent">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                <Calendar size={20} className="text-blue-600 dark:text-blue-400" />
-              </div>
-              <h2 className="text-lg font-bold text-gray-800 dark:text-white">
-                {language === 'ru' ? 'Расписание и события' : 'Schedule & Events'}
-              </h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setWidgetDate(moment(widgetDate).subtract(1, 'day').toDate())}
-                className="p-2 bg-background-light dark:bg-background-dark hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"
-              >
-                <ChevronLeft size={18} className="text-gray-600 dark:text-gray-400" />
-              </button>
-              <span className="text-base font-bold text-gray-800 dark:text-white min-w-[80px] text-center">
-                {moment(widgetDate).format('DD MMM')}
-              </span>
-              <button
-                onClick={() => setWidgetDate(moment(widgetDate).add(1, 'day').toDate())}
-                className="p-2 bg-background-light dark:bg-background-dark hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"
-              >
-                <ChevronRight size={18} className="text-gray-600 dark:text-gray-400" />
-              </button>
-            </div>
-          </div>
-
-          {/* Mode Toggle */}
-          <div className="flex gap-2 mb-6 p-1 bg-background-light dark:bg-background-dark rounded-[3rem]">
-            <button
-              onClick={() => setWidgetMode('schedule')}
-              className={`flex-1 px-4 py-2.5 rounded-[2.5rem] transition-colors text-sm font-medium ${
-                widgetMode === 'schedule'
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-            >
-              {language === 'ru' ? 'Расписание' : 'Schedule'}
-            </button>
-            <button
-              onClick={() => setWidgetMode('events')}
-              className={`flex-1 px-4 py-2.5 rounded-[2.5rem] transition-colors text-sm font-medium ${
-                widgetMode === 'events'
-                  ? 'bg-purple-500 text-white'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-            >
-              {language === 'ru' ? 'События и напоминания' : 'Events & Reminders'}
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="bg-gray-100 dark:bg-background-dark rounded-[2.5rem] p-4 border border-gray-200 dark:border-gray-800">
-            <div className="space-y-2 max-h-[240px] sm:max-h-[300px] lg:max-h-[400px] overflow-y-auto pr-1">
-              {widgetMode === 'schedule' ? (
-                events.filter(event => moment(event.start).isSame(widgetDate, 'day')).length === 0 ? (
-                  <div className="text-center py-10">
-                    <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                      <Calendar size={24} className="text-blue-400 dark:text-blue-500" />
-                    </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {language === 'ru' ? 'Нет событий на эту дату' : 'No events for this date'}
-                    </p>
-                  </div>
-                ) : (
-                  events
-                    .filter(event => moment(event.start).isSame(widgetDate, 'day'))
-                    .sort((a, b) => moment(a.start).diff(moment(b.start)))
-                    .map((event) => (
-                      <div
-                        key={event.id}
-                        className="flex items-center gap-4 p-3.5 bg-white dark:bg-surface-dark rounded-[2.5rem] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer group border border-gray-100 dark:border-transparent"
-                        onClick={() => setSelectedDate(event.start)}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleEventCompleted(event.id);
-                          }}
-                          className={`p-2 rounded-full transition-colors ${
-                            event.completed
-                              ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-green-500'
-                          }`}
-                        >
-                          {event.completed ? <Check size={16} /> : <div className="w-4 h-4 rounded-full border-2 border-current" />}
-                        </button>
-                        <div 
-                          className="w-3 h-3 rounded-full shrink-0" 
-                          style={{ backgroundColor: event.color }} 
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className={`font-semibold text-gray-800 dark:text-white mb-0.5 truncate text-sm ${
-                            event.completed ? 'line-through text-gray-400 dark:text-gray-500' : ''
-                          }`}>
-                            {event.title}
-                          </h4>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                            <Clock size={12} />
-                            {moment(event.start).format('HH:mm')} — {moment(event.end).format('HH:mm')}
-                          </p>
-                        </div>
-                        <ChevronRight size={16} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    ))
-                )
-              ) : (
-                reminders
-                  .filter(reminder => {
-                    const reminderDate = reminder.date ? moment(reminder.date) : moment(reminder.created_at);
-                    return reminderDate.isSame(widgetDate, 'day');
-                  })
-                  .length === 0 ? (
-                  <div className="text-center py-10">
-                    <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                      <Bell size={24} className="text-purple-400 dark:text-purple-500" />
-                    </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {language === 'ru' ? 'Нет событий и напоминаний на эту дату' : 'No events and reminders for this date'}
-                    </p>
-                  </div>
-                ) : (
-                  reminders
-                    .filter(reminder => {
-                      const reminderDate = reminder.date ? moment(reminder.date) : moment(reminder.created_at);
-                      return reminderDate.isSame(widgetDate, 'day');
-                    })
-                    .map((reminder) => (
-                      <div
-                        key={reminder.id}
-                        className="flex items-center gap-3 p-3.5 bg-white dark:bg-surface-dark rounded-[2.5rem] group hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border border-gray-100 dark:border-transparent"
-                      >
-                        <button
-                          onClick={() => toggleReminder(reminder.id)}
-                          className={`p-2 rounded-full transition-colors ${
-                            reminder.completed
-                              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-purple-500'
-                          }`}
-                        >
-                          {reminder.completed ? <Check size={16} /> : <Bell size={16} />}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium truncate ${
-                            reminder.completed 
-                              ? 'text-gray-400 dark:text-gray-500 line-through' 
-                              : 'text-gray-800 dark:text-white'
-                          }`}>
-                            {reminder.text}
-                          </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{reminder.time}</p>
-                        </div>
-                        <button
-                          onClick={() => deleteReminder(reminder.id)}
-                          className="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ))
-                )
-              )}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
