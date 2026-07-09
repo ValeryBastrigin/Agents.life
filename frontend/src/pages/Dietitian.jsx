@@ -1048,6 +1048,35 @@ const Dietitian = () => {
           </div>
         </button>
 
+        {/* ===== Блок "Укажите ваши параметры и цель" ===== */}
+        <button
+          onClick={() => setShowOnboarding(true)}
+          className="w-full bg-white/95 dark:bg-surface-dark rounded-[3rem] p-5 mb-4 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-4 relative overflow-hidden group shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg"
+        >
+          {/* Иконка */}
+          <div className="flex-shrink-0 w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-400">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </div>
+
+          {/* Текст */}
+          <div className="text-left flex-1">
+            <span className="text-base font-semibold text-gray-800 dark:text-white block leading-snug">
+              Укажите ваши параметры и цель
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
+              Ixteria рассчитает для вас КБЖУ
+            </span>
+          </div>
+
+          {/* Стрелка */}
+          <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 group-hover:bg-green-200 dark:group-hover:bg-green-800/40 transition-colors">
+            <ChevronRight size={18} className="text-green-600 dark:text-green-400 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </button>
+
         {/* ===== Dashboard Widgets (3 columns) ===== */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {/* Widget 1: Manual */}

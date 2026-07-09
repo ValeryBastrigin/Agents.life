@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign, TrendingUp, Upload, Wallet, CreditCard, Bell, PieChart } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
+import AccountantBackground from '../components/AccountantBackground';
 
 // ---------- Modal: Как пользоваться ----------
 const ManualModal = ({ isOpen, onClose }) => {
@@ -465,7 +466,6 @@ const Accountant = () => {
   const [showManual, setShowManual] = useState(false);
   const [showStatements, setShowStatements] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
-
   const [obligations, setObligations] = useState([]);
 
   // Активная вкладка: 'main' или 'investments'
@@ -516,8 +516,10 @@ const Accountant = () => {
     .slice(0, 10);
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="flex-1 relative overflow-y-auto px-6 pt-0 pb-8">
+      {/* Purple animated background — fixed, покрывает весь экран (включая хедер) */}
+      <AccountantBackground />
+      <div className="relative z-10 max-w-2xl mx-auto pt-4">
         {/* ===== 3 блока-виджета (как в диетологе) ===== */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {/* Блок 1: Как пользоваться */}
@@ -657,7 +659,7 @@ const Accountant = () => {
             </div>
 
             {/* Загрузить банковскую выписку */}
-            <div className="bg-gradient-to-br from-yellow-500 to-amber-600 dark:from-yellow-600 dark:to-amber-700 rounded-[3rem] p-6 text-white text-center mb-6 shadow-lg">
+            <div className="bg-gradient-to-br from-purple-500 to-indigo-600 dark:from-purple-600 dark:to-indigo-700 rounded-[3rem] p-6 text-white text-center mb-6 shadow-lg">
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white/20 flex items-center justify-center">
                 <Upload size={24} className="text-white" />
               </div>
@@ -665,7 +667,7 @@ const Accountant = () => {
               <p className="text-xs text-white/80 leading-relaxed max-w-md mx-auto">
                 Загрузите выписку для анализа трат и поступлений. Ixteria разберёт всё по категориям и сделает анализ.
               </p>
-              <button className="mt-4 px-6 py-2.5 bg-white text-amber-600 font-semibold rounded-[2rem] hover:bg-amber-50 transition-colors shadow-md inline-flex items-center gap-2 text-sm">
+              <button className="mt-4 px-6 py-2.5 bg-white text-purple-600 font-semibold rounded-[2rem] hover:bg-purple-50 transition-colors shadow-md inline-flex items-center gap-2 text-sm">
                 <Upload size={16} />
                 Загрузить выписку
               </button>

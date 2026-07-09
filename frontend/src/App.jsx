@@ -214,6 +214,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       location.pathname === '/secretary' ||
       location.pathname === '/accountant' ||
       location.pathname === '/dietitian' ||
+      location.pathname.startsWith('/dietitian/plan') ||
       location.pathname === '/mentor'
     ) {
       setHeaderSolid(false);
@@ -319,10 +320,10 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       />
 
       {/* Header */}
-      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && (
+      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/dietitian/plan') && (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
-          <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+          <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           {location.pathname.startsWith('/secretary/notes') ? (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -335,7 +336,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
               onClick={() => navigate('/chat')}
               className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
             >
-              <ArrowLeft size={20} className={`${location.pathname === '/psychologist' ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`} />
+              <ArrowLeft size={20} className={`${location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'text-gray-800 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`} />
             </button>
           ) : (
             <button
@@ -346,7 +347,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
             </button>
           )}
           </span>
-          <span className={`px-3 py-1.5 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+          <span className={`px-3 py-1.5 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             {location.pathname.startsWith('/secretary/notes') ? (
               <>
@@ -361,10 +362,11 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
             ) :
               location.pathname === '/secretary' ? 'Тайм-Менеджер' :
               location.pathname === '/secretary/logs' ? 'Тайм-Менеджер' :
-              location.pathname === '/accountant' ? 'Финансовый-помощник' :
-             location.pathname === '/dietitian' ? 'Диетолог' :
-              location.pathname === '/psychologist' ? <span className="text-white">Психолог</span> :
-             location.pathname === '/mentor' ? 'Ментор' : 
+              location.pathname === '/accountant' ? <span className="text-gray-800 dark:text-white">Финансовый-помощник</span> :
+              location.pathname === '/dietitian' ? 'Диетолог' :
+
+              location.pathname === '/psychologist' ? <span className="text-gray-800 dark:text-white">Психолог</span> :
+              location.pathname === '/mentor' ? <span className="text-gray-800 dark:text-white">Ментор</span> : 
              <>
                 Ixteria
                 <img src="/assets/icons/agents/ixteria.svg" alt="Ixteria" className="w-6 h-6 rounded-full" />
@@ -474,7 +476,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
               </div>
             </div>
           )}
-          <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+          <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <button
             onClick={() => navigate('/profile')}
             className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
