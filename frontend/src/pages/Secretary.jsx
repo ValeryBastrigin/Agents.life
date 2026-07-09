@@ -1,6 +1,7 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Calendar, Clock, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Check, X, Bell, Sparkles, BookOpen, ListTodo, Zap, ArrowLeft, Layers } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Check, X, Bell, Sparkles, BookOpen, ListTodo, Zap, ArrowLeft, ArrowRight, Layers } from 'lucide-react';
 import SecretaryBackground from '../components/SecretaryBackground';
 import { useLanguage } from '../contexts/LanguageContext';
 import moment from 'moment';
@@ -940,6 +941,40 @@ const Secretary = ({ theme }) => {
                   localizer.format(date, 'ddd', culture).slice(0, 1)
               }}
             />
+          </div>
+        </div>
+
+        {/* CTA Apple-style */}
+        <div className="group relative">
+          {/* Glow effect */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-[3rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative flex items-center gap-4 sm:gap-5 p-4 sm:p-6 bg-white dark:bg-gray-800/90 backdrop-blur-xl rounded-[3rem] border border-gray-200/60 dark:border-gray-700/40 shadow-sm hover:shadow-lg transition-all duration-300">
+            {/* Icon container */}
+            <div className="relative shrink-0 w-14 h-14 sm:w-16 sm:h-16">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/15 to-purple-500/15 dark:from-blue-500/20 dark:to-purple-500/20 rounded-[2rem] blur-md" />
+              <img
+                src="/assets/icons/agents/секретарь.svg"
+                alt=""
+                className="relative w-full h-full scale-150 animate-gentle-bounce group-hover:scale-[1.6] transition-transform duration-300"
+              />
+            </div>
+            {/* Text */}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white leading-snug">
+                {language === 'ru'
+                  ? 'Создайте своё идеальное расписание и достигайте целей'
+                  : 'Create your perfect schedule and achieve your goals'}
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed mt-1.5">
+                {language === 'ru'
+                  ? 'Поделитесь с Ixteria вашими делами или имеющимся расписанием — AI поможет расставить приоритеты и ничего не упустить'
+                  : 'Share your tasks or existing schedule with Ixteria — AI will help prioritize and never miss a thing'}
+              </p>
+            </div>
+            {/* Chevron */}
+            <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200">
+              <ArrowRight size={18} />
+            </div>
           </div>
         </div>
 

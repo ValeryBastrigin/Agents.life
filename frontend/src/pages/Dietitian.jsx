@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2, Plus } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2, Plus, Sparkles, ArrowRight } from 'lucide-react';
 import DietitianBackground from '../components/DietitianBackground';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -57,15 +57,18 @@ function calculateNutrition(profile, goal, speed, activity) {
 }
 
 // ---------- Onboarding Modal ----------
-const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
-  const [step, setStep] = useState(1);
+const OnboardingModal = ({ isOpen, onClose, onComplete, editData }) => {
+  const [step, setStep] = useState(editData ? 4 : 1);
   const totalSteps = 4;
 
-  const [profile, setProfile] = useState({ height: '', weight: '', age: '', gender: 'male' });
-  const [goal, setGoal] = useState('lose');
-  const [activity, setActivity] = useState('moderate');
-  const [speed, setSpeed] = useState('medium');
-  const [result, setResult] = useState(null);
+  const [profile, setProfile] = useState(editData?.profile || { height: '', weight: '', age: '', gender: 'male' });
+  const [goal, setGoal] = useState(editData?.goal || 'lose');
+  const [activity, setActivity] = useState(editData?.activity || 'moderate');
+  const [speed, setSpeed] = useState(editData?.speed || 'medium');
+  const [result, setResult] = useState(
+    editData?.nutrition ||
+    (editData ? calculateNutrition(editData.profile, editData.goal, editData.speed || 'medium', editData.activity) : null)
+  );
 
   const canAdvance = () => {
     if (step === 2) return profile.height && profile.weight && profile.age && Number(profile.height) > 0 && Number(profile.weight) > 0 && Number(profile.age) > 0;
@@ -101,9 +104,11 @@ const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
               <div key={i} className={`h-1.5 rounded-full transition-all ${i <= step ? 'w-8 bg-green-500' : 'w-4 bg-gray-300 dark:bg-gray-700'}`} />
             ))}
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-            <X size={20} className="text-gray-500" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+              <X size={20} className="text-gray-500" />
+            </button>
+          </div>
         </div>
 
         <div className="px-6 py-4 min-h-[280px]">
@@ -243,6 +248,153 @@ const OnboardingModal = ({ isOpen, onClose, onComplete }) => {
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+// ---------- Profile Modal (when user already has data) ----------
+const ProfileModal = ({ isOpen, onClose, userProfile, nutrition, onDelete }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  if (!isOpen) return null;
+
+  const goalLabels = { lose: '🔥 Похудеть', gain: '💪 Набрать массу', maintain: '⚖️ Поддерживать вес' };
+  const activityLabels = {
+    sedentary: 'Сидячий',
+    light: 'Лёгкий',
+    moderate: 'Умеренный',
+    active: 'Активный',
+    veryActive: 'Очень активный',
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden max-h-[85vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            <Sparkles size={22} className="text-green-500" />
+            Ваши параметры
+          </h2>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors"
+              title="Удалить настройки"
+            >
+              <Trash2 size={18} className="text-red-400 hover:text-red-500" />
+            </button>
+            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+              <X size={20} className="text-gray-500" />
+            </button>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 overflow-y-auto space-y-4">
+          {/* User info card */}
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-[2rem] p-4">
+            <p className="text-sm font-semibold text-gray-800 dark:text-white mb-3">📋 Ваши данные</p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-3 text-center">
+                <p className="text-xs text-gray-400">Рост</p>
+                <p className="font-bold text-gray-800 dark:text-white">{userProfile.profile.height} см</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-3 text-center">
+                <p className="text-xs text-gray-400">Вес</p>
+                <p className="font-bold text-gray-800 dark:text-white">{userProfile.profile.weight} кг</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-3 text-center">
+                <p className="text-xs text-gray-400">Возраст</p>
+                <p className="font-bold text-gray-800 dark:text-white">{userProfile.profile.age} лет</p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-3 text-center">
+                <p className="text-xs text-gray-400">Пол</p>
+                <p className="font-bold text-gray-800 dark:text-white">{userProfile.profile.gender === 'male' ? '♂ Мужской' : '♀ Женский'}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Goal & Activity */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] p-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">🎯 Цель</p>
+              <p className="font-semibold text-gray-800 dark:text-white text-sm">{goalLabels[userProfile.goal] || userProfile.goal}</p>
+            </div>
+            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-[2rem] p-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">🏃 Активность</p>
+              <p className="font-semibold text-gray-800 dark:text-white text-sm">{activityLabels[userProfile.activity] || userProfile.activity}</p>
+            </div>
+          </div>
+
+          {/* KBJU result */}
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-[2rem] p-4">
+            <p className="text-sm font-semibold text-gray-800 dark:text-white mb-2">📊 Рассчитанный КБЖУ</p>
+            <div className="text-center mb-3">
+              <span className="text-2xl font-bold text-gray-800 dark:text-white">{nutrition.calories.goal}</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400"> ккал/день</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-sm">
+              <div>
+                <p className="font-bold text-gray-800 dark:text-white">{nutrition.protein.goal} г</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Белки</p>
+              </div>
+              <div>
+                <p className="font-bold text-gray-800 dark:text-white">{nutrition.fats.goal} г</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Жиры</p>
+              </div>
+              <div>
+                <p className="font-bold text-gray-800 dark:text-white">{nutrition.carbs.goal} г</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Углеводы</p>
+              </div>
+            </div>
+            <div className="text-center mt-2 text-sm text-gray-600 dark:text-gray-400">
+              💧 Вода: <span className="font-semibold text-gray-800 dark:text-white">{nutrition.water.goal} ст.</span> в день
+            </div>
+          </div>
+
+          {/* Info text */}
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-[2rem] p-4 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Для изменения параметров пройдите воронку заново через кнопку «Укажите параметры»
+            </p>
+          </div>
+        </div>
+
+        <div className="px-6 pb-6 pt-2">
+          <button onClick={onClose} className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-[2rem] transition-colors">
+            Закрыть
+          </button>
+        </div>
+      </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700/50 p-6 text-center">
+            <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={28} className="text-red-500" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Удалить настройки?</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Все ваши параметры и рассчитанный КБЖУ будут удалены. Это действие нельзя отменить.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-[2rem] transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); onDelete?.(); onClose(); }}
+                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-medium rounded-[2rem] transition-colors"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -787,10 +939,12 @@ const Dietitian = () => {
   const navigate = useNavigate();
 
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [showDiary, setShowDiary] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [todayMeals, setTodayMeals] = useState([]);
+  const [deleteState, setDeleteState] = useState(null); // 'confirming' | null
 
   const [nutrition, setNutrition] = useState({
     calories: { current: 0, goal: 2000 },
@@ -896,7 +1050,6 @@ const Dietitian = () => {
   }, [loadFoodToday]);
 
   // Immediately refresh when page becomes visible or gets focus
-  // (fixes issue where circular chart doesn't update after returning from chat)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -930,7 +1083,6 @@ const Dietitian = () => {
     }
 
     // Save to backend API
-    const DEMO_USER_ID = 1;
     try {
       await apiClient.put(`/api/user/${DEMO_USER_ID}/diet-profile`, {
         height: Number(profile.height),
@@ -959,6 +1111,40 @@ const Dietitian = () => {
       console.warn('Failed to delete food item:', e);
     }
   }, [loadFoodToday]);
+
+  const handleDeleteProfile = useCallback(() => {
+    // Clear state
+    setUserProfile(null);
+    setNutrition({
+      calories: { current: 0, goal: 2000 },
+      protein: { current: 0, goal: 120 },
+      fats: { current: 0, goal: 65 },
+      carbs: { current: 0, goal: 250 },
+      water: { current: 0, goal: 8 },
+    });
+    setShowOnboarding(false);
+    setShowProfile(false);
+    // Clear localStorage
+    try {
+      localStorage.removeItem('dietitian_profile');
+    } catch (e) {
+      console.warn('Failed to remove dietitian profile from localStorage:', e);
+    }
+    // Clear backend
+    try {
+      apiClient.delete(`/api/user/${DEMO_USER_ID}/diet-profile`);
+    } catch (e) {
+      console.warn('Failed to delete diet profile from API:', e);
+    }
+  }, []);
+
+  const handleTopButtonClick = () => {
+    if (userProfile) {
+      setShowProfile(true);
+    } else {
+      setShowOnboarding(true);
+    }
+  };
 
   const WELCOME_MESSAGE = `👋 Привет! Я твой диетолог.
 Расскажи, что ты съел сегодня — я помогу посчитать калории и БЖУ!
@@ -1018,64 +1204,21 @@ const Dietitian = () => {
           }
         `}</style>
       <div className="max-w-2xl mx-auto">
-        {/* ===== Виджет "Создайте идеальный план питания" (над 3 блоками) ===== */}
-        <button
-          onClick={() => navigate('/dietitian/plan')}
-          className="w-full bg-gradient-to-br from-green-500 via-emerald-600 to-green-700 hover:from-green-600 hover:via-emerald-700 hover:to-green-800 text-white rounded-[3rem] p-6 mb-4 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-green-500/25 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-4 relative overflow-hidden group"
+        {/* ===== Блок "Ваши параметры / Укажите параметры" ===== */}
+        <div
+          onClick={handleTopButtonClick}
+          className="bg-gradient-to-r from-green-500/90 via-emerald-500/90 to-green-600/90 dark:from-green-500/85 dark:via-emerald-500/85 dark:to-green-600/85 rounded-[3rem] p-4 mb-4 flex items-center gap-3 border-2 border-green-300/70 dark:border-green-400/60 cursor-pointer hover:from-green-500 hover:via-emerald-500 hover:to-green-600 dark:hover:from-green-500 dark:hover:via-emerald-500 dark:hover:to-green-600 backdrop-blur-md shadow-lg transition-all duration-300"
         >
-          {/* Декоративный фон */}
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-xl group-hover:w-32 group-hover:h-32 transition-all duration-500" />
-          <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-white/5 rounded-full blur-lg group-hover:w-28 group-hover:h-28 transition-all duration-500" />
-          <div className="absolute right-12 bottom-0 w-16 h-16 bg-white/5 rounded-full blur-md group-hover:w-20 group-hover:h-20 transition-all duration-500" />
-
-          {/* Иконка */}
-          <div className="flex-shrink-0 w-[4.5rem] h-[4.5rem] rounded-full bg-white/20 backdrop-blur flex items-center justify-center agent-float-icon">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-              <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z" />
-              <line x1="6" y1="17" x2="18" y2="17" />
-            </svg>
+          <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30 shrink-0">
+            <Sparkles size={18} className="text-green-600 dark:text-green-400" />
           </div>
-
-          {/* Текст */}
-          <div className="text-left flex-1 relative z-10">
-            <span className="text-base font-bold block leading-snug">Создайте идеальный план питания</span>
-            <span className="text-xs text-green-100/80 block mt-0.5">под ваши параметры</span>
+              <p className="text-sm text-white flex-1">
+            {userProfile ? 'Ваши параметры, нажмите, чтобы изменить' : 'Укажите ваши параметры и цель, Ixteria расчитает для вас идеальный состав КБЖУ.'}
+          </p>
+          <div className="p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-black/20 text-green-500 hover:text-green-600 dark:hover:text-green-400 transition-colors shrink-0">
+            <ArrowRight size={16} />
           </div>
-
-          {/* Стрелка */}
-          <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 group-hover:bg-white/25 transition-colors relative z-10">
-            <ChevronRight size={18} className="text-white group-hover:translate-x-0.5 transition-transform" />
-          </div>
-        </button>
-
-        {/* ===== Блок "Укажите ваши параметры и цель" ===== */}
-        <button
-          onClick={() => setShowOnboarding(true)}
-          className="w-full bg-white/95 dark:bg-surface-dark rounded-[3rem] p-5 mb-4 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-4 relative overflow-hidden group shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg"
-        >
-          {/* Иконка */}
-          <div className="flex-shrink-0 w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:scale-105 transition-transform">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-400">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-          </div>
-
-          {/* Текст */}
-          <div className="text-left flex-1">
-            <span className="text-base font-semibold text-gray-800 dark:text-white block leading-snug">
-              Укажите ваши параметры и цель
-            </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
-              Ixteria рассчитает для вас КБЖУ
-            </span>
-          </div>
-
-          {/* Стрелка */}
-          <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 group-hover:bg-green-200 dark:group-hover:bg-green-800/40 transition-colors">
-            <ChevronRight size={18} className="text-green-600 dark:text-green-400 group-hover:translate-x-0.5 transition-transform" />
-          </div>
-        </button>
+        </div>
 
         {/* ===== Dashboard Widgets (3 columns) ===== */}
         <div className="grid grid-cols-3 gap-3 mb-6">
@@ -1155,6 +1298,36 @@ const Dietitian = () => {
             </div>
           ))}
         </div>
+
+        {/* ===== Виджет "Создайте идеальный план питания" (над списком еды) ===== */}
+        <button
+          onClick={() => navigate('/dietitian/plan')}
+          className="w-full bg-gradient-to-br from-green-500 via-emerald-600 to-green-700 hover:from-green-600 hover:via-emerald-700 hover:to-green-800 text-white rounded-[3rem] p-6 mb-4 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-green-500/25 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-4 relative overflow-hidden group"
+        >
+          {/* Декоративный фон */}
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-xl group-hover:w-32 group-hover:h-32 transition-all duration-500" />
+          <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-white/5 rounded-full blur-lg group-hover:w-28 group-hover:h-28 transition-all duration-500" />
+          <div className="absolute right-12 bottom-0 w-16 h-16 bg-white/5 rounded-full blur-md group-hover:w-20 group-hover:h-20 transition-all duration-500" />
+
+          {/* Иконка */}
+          <div className="flex-shrink-0 w-[4.5rem] h-[4.5rem] rounded-full bg-white/20 backdrop-blur flex items-center justify-center agent-float-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+              <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z" />
+              <line x1="6" y1="17" x2="18" y2="17" />
+            </svg>
+          </div>
+
+          {/* Текст */}
+          <div className="text-left flex-1 relative z-10">
+            <span className="text-base font-bold block leading-snug">Создайте идеальный план питания</span>
+            <span className="text-xs text-green-100/80 block mt-0.5">под ваши параметры</span>
+          </div>
+
+          {/* Стрелка */}
+          <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 group-hover:bg-white/25 transition-colors relative z-10">
+            <ChevronRight size={18} className="text-white group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </button>
 
         {/* ===== Съедено сегодня ===== */}
         <div className="bg-surface-light/90 dark:bg-surface-dark/90 rounded-[3rem] p-6 mb-6 backdrop-blur-lg">
@@ -1245,7 +1418,8 @@ const Dietitian = () => {
       </div>
 
       {/* Modals */}
-      <OnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} onComplete={handleOnboardingComplete} />
+      <OnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} onComplete={handleOnboardingComplete} editData={userProfile} />
+      <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} userProfile={userProfile} nutrition={nutrition} onDelete={handleDeleteProfile} />
       <ManualModal isOpen={showManual} onClose={() => setShowManual(false)} />
       <FoodDiaryModal isOpen={showDiary} onClose={() => setShowDiary(false)} nutritionGoal={nutrition.calories.goal} />
     </div>

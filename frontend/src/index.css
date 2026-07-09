@@ -22,6 +22,15 @@ html {
   height: 100vh;
 }
 
+/* Bounce animation for CTA icon */
+@keyframes gentle-bounce {
+  0%, 100% { transform: translateY(0) scale(1.5); }
+  50% { transform: translateY(-5px) scale(1.5); }
+}
+.animate-gentle-bounce {
+  animation: gentle-bounce 2s ease-in-out infinite;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

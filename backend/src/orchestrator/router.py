@@ -893,6 +893,16 @@ async def update_diet_profile(user_id: int, data: dict = Body(...), db: AsyncSes
     await db.refresh(profile)
     return {"id": profile.id, "message": "Diet profile saved"}
 
+@router.delete("/user/{user_id}/diet-profile")
+async def delete_diet_profile(user_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(UserDietProfile).where(UserDietProfile.user_id == user_id))
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Diet profile not found")
+    await db.delete(profile)
+    await db.commit()
+    return {"message": "Diet profile deleted"}
+
 @router.get("/user/{user_id}/food-today")
 async def get_food_today(user_id: int, db: AsyncSession = Depends(get_db)):
     today = datetime.now(timezone.utc).date()

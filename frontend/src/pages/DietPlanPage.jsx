@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChefHat, Ruler, Weight, Target, Activity, Sparkles, Settings } from 'lucide-react';
+import { ArrowRight, ArrowLeft, ChefHat, Ruler, Weight, Target, Activity, Sparkles, Settings } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 import DietitianBackground from '../components/DietitianBackground';
 
@@ -136,13 +136,20 @@ const DietPlanPage = () => {
               Для начала заполните информацию о себе — это займёт всего минуту.
             </p>
 
-            <button
+            <div
               onClick={() => navigate('/dietitian')}
-              className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-[2rem] transition-all duration-300 shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 flex items-center justify-center gap-2"
+              className="bg-gradient-to-r from-green-500/90 via-emerald-500/90 to-green-600/90 dark:from-green-500/85 dark:via-emerald-500/85 dark:to-green-600/85 rounded-[3rem] p-4 mb-4 flex items-center gap-3 border-2 border-green-300/70 dark:border-green-400/60 cursor-pointer hover:from-green-500 hover:via-emerald-500 hover:to-green-600 dark:hover:from-green-500 dark:hover:via-emerald-500 dark:hover:to-green-600 backdrop-blur-md shadow-lg transition-all duration-300"
             >
-              <ArrowLeft size={18} />
-              Заполнить параметры
-            </button>
+              <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30 shrink-0">
+                <Sparkles size={18} className="text-green-600 dark:text-green-400" />
+              </div>
+              <p className="text-sm text-white flex-1">
+                Укажите ваши параметры и цель, Ixteria расчитает для вас идеальный состав КБЖУ.
+              </p>
+              <div className="p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-black/20 text-green-500 hover:text-green-600 dark:hover:text-green-400 transition-colors shrink-0">
+                <ArrowRight size={16} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
