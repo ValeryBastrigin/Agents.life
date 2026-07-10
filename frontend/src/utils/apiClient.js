@@ -4,7 +4,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 30000,
+  timeout: 120000,
 });
 
 // Request interceptor

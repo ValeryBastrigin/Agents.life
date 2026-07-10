@@ -532,7 +532,7 @@ function getAgentAvatar(agentName) {
 function isWidgetContent(content) {
   try {
     const parsed = JSON.parse(content);
-    return parsed && typeof parsed === 'object' && ['schedule', 'event_created', 'note_created', 'food_log'].includes(parsed.type);
+    return parsed && typeof parsed === 'object' && ['schedule', 'event_created', 'note_created', 'food_log', 'meal_plan'].includes(parsed.type);
   } catch {
     return false;
   }

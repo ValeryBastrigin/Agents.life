@@ -31,6 +31,48 @@ ACTIVITY_LABELS = {
 }
 
 MEAL_EMOJIS = {"breakfast": "🌅", "lunch": "☀️", "dinner": "🌙", "snack": "🍪", "other": "🍽️"}
+
+MEAL_PLAN_SYSTEM_PROMPT = """Ты — ИИ-диетолог по составлению персональных рационов питания.
+
+Пользователь просит составить рацион на день. Твоя задача — сгенерировать полноценный план питания, включив завтрак, обед, ужин и перекус.
+
+ПРАВИЛА:
+1. Блюда должны быть разнообразными, вкусными и сбалансированными по КБЖУ.
+2. Учитывай пожелания пользователя.
+3. Если известен профиль пользователя — используй его данные для калорийности.
+4. Каждое блюдо должно иметь название, краткое описание и КБЖУ.
+
+ОТВЕТЬ СТРОГО В ФОРМАТЕ JSON (без markdown-разметки, без комментариев, только валидный JSON):
+{
+  "meals": [
+    {
+      "type": "breakfast",
+      "dishes": [
+        { "name": "Название блюда", "description": "Краткое описание", "calories": "ккал", "protein": "г", "fats": "г", "carbs": "г" }
+      ]
+    },
+    {
+      "type": "lunch",
+      "dishes": [
+        { "name": "Название блюда", "description": "Краткое описание", "calories": "ккал", "protein": "г", "fats": "г", "carbs": "г" }
+      ]
+    },
+    {
+      "type": "dinner",
+      "dishes": [
+        { "name": "Название блюда", "description": "Краткое описание", "calories": "ккал", "protein": "г", "fats": "г", "carbs": "г" }
+      ]
+    },
+    {
+      "type": "snack",
+      "dishes": [
+        { "name": "Название блюда", "description": "Краткое описание", "calories": "ккал", "protein": "г", "fats": "г", "carbs": "г" }
+      ]
+    }
+  ]
+}
+
+В каждом блоке может быть НЕСКОЛЬКО блюд (2-3). Не ограничивайся одним блюдом на приём пищи."""
 MEAL_LABELS = {"breakfast": "Завтрак", "lunch": "Обед", "dinner": "Ужин", "snack": "Перекус", "other": "Приём пищи"}
 
 
@@ -55,6 +97,52 @@ def _build_profile_context(profile: UserDietProfile | None) -> str:
 Используй эти данные во всех расчётах и рекомендациях. Не спрашивай рост, вес, возраст и цели повторно — они уже известны."""
     else:
         return "\n\nПользователь ещё не настроил свой профиль. Если он спрашивает про диету или похудение — попроси его настроить профиль в разделе «Настройте агента под вас» на странице диетолога, чтобы получить персональные расчёты КБЖУ."
+
+
+async def _detect_meal_plan_intent(message: str) -> bool:
+    """
+    Determine if the user is asking to GENERATE a meal/diet plan (рацион).
+    """
+    prompt = f"""Определи, просит ли пользователь СОСТАВИТЬ РАЦИОН ПИТАНИЯ / ПЛАН ПИТАНИЯ на день.
+    
+Примеры ДА (meal plan):
+- "составь план питания на день"
+- "рацион на сегодня"
+- "сгенерируй меню на день"
+- "что мне съесть сегодня?"
+- "составь рацион"
+- "план питания"
+- "меню на день"
+- "персональный план питания" 
+- "составь персональный план питания на 1 день"
+
+Примеры НЕТ (не meal plan):
+- "съел шоколадку"
+- "сколько калорий в яблоке"
+- "какая норма калорий?"
+- "удали пюре из рациона"
+- "привет"
+- "спасибо"
+
+Сообщение: "{message}"
+
+Верни ТОЛЬКО одно слово: "да" или "нет"."""
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=10,
+            timeout=15.0
+        )
+        result = (response.choices[0].message.content or "").strip().lower()
+        return "да" in result
+    except Exception as e:
+        print(f"Error detecting meal plan intent: {e}")
+        # Fallback: keyword check
+        meal_plan_kw = ["составь", "сгенерируй", "рацион", "план питания", "меню на день", "питания на день"]
+        msg_lower = message.lower()
+        return any(kw in msg_lower for kw in meal_plan_kw)
 
 
 async def _detect_food_intent(message: str) -> bool:
@@ -343,6 +431,48 @@ async def _get_today_totals(db: AsyncSession, user_id: int) -> dict:
     }
 
 
+async def _handle_meal_plan(message: str, db: AsyncSession, user_id: int, profile: UserDietProfile | None) -> tuple[str, int]:
+    """
+    Generate a full meal plan with LLM using MEAL_PLAN_SYSTEM_PROMPT.
+    Uses larger max_tokens to allow complete JSON generation.
+    Returns: (response_json_string_with_type, tokens_used)
+    """
+    user_context = _build_profile_context(profile)
+    llm_messages = [
+        {"role": "system", "content": MEAL_PLAN_SYSTEM_PROMPT + user_context},
+        {"role": "user", "content": message}
+    ]
+
+    try:
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=llm_messages,
+            temperature=0.7,
+            max_tokens=2000,
+            timeout=60.0
+        )
+        response_text = response.choices[0].message.content
+        if response_text is None:
+            return "Ошибка генерации рациона. Пожалуйста, попробуйте ещё раз.", 0
+
+        # Try to extract JSON and wrap with type: "meal_plan" for widget rendering
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group())
+                if "meals" in parsed and isinstance(parsed["meals"], list):
+                    parsed["type"] = "meal_plan"
+                    return json.dumps(parsed, ensure_ascii=False), 0
+            except (json.JSONDecodeError, Exception):
+                pass
+        # Fallback: return raw response if JSON wrapping fails
+        return response_text, 0
+    except Exception as e:
+        print(f"Error generating meal plan: {e}")
+        return "Ошибка генерации рациона. Пожалуйста, попробуйте ещё раз.", 0
+
+
 async def process(message: str, system_prompt: str, db: AsyncSession, user_id: int, attachments: list[dict] | None = None) -> tuple[str, int]:
     """
     Process message with Dietitian agent.
@@ -357,7 +487,13 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
         )
         profile = result.scalar_one_or_none()
 
-        # Detect if this is a food DELETE command (check BEFORE food log)
+        # Detect if user is asking to generate a meal plan (check FIRST)
+        is_meal_plan = await _detect_meal_plan_intent(message)
+        if is_meal_plan:
+            print(f"DEBUG: Detected meal plan intent — generating with 2000 max_tokens")
+            return await _handle_meal_plan(message, db, user_id, profile)
+
+        # Detect if this is a food DELETE command
         is_food_delete = await _detect_food_delete_intent(message)
         if is_food_delete:
             return await _handle_food_delete(message, db, user_id)

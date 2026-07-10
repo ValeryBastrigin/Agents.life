@@ -365,8 +365,12 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Route message to appropriate agent
-    agent_name = await route_to_agent(request.message)
+    # Route message to appropriate agent — use explicit agent if specified
+    if request.agent:
+        agent_name = request.agent
+        print(f"DEBUG: Using explicit agent from request: {agent_name}")
+    else:
+        agent_name = await route_to_agent(request.message)
 
     # Get or create agent
     if agent_name == "default":
@@ -482,8 +486,12 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Route message to appropriate agent
-    agent_name = await route_to_agent(request.message)
+    # Route message to appropriate agent — use explicit agent if specified
+    if request.agent:
+        agent_name = request.agent
+        print(f"DEBUG: Using explicit agent from request: {agent_name}")
+    else:
+        agent_name = await route_to_agent(request.message)
 
     # Get or create agent
     if agent_name == "default":
@@ -628,10 +636,10 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
 async def _stream_final_response(response_text, chat_id, is_new_chat):
     """Stream a pre-computed response as tokens for specialized agents."""
-    # If it looks like widget JSON, send as one chunk
+    # If it looks like widget JSON or meal plan JSON, send as one chunk
     try:
         parsed = json.loads(response_text)
-        if isinstance(parsed, dict) and 'type' in parsed:
+        if isinstance(parsed, dict) and ('type' in parsed or 'meals' in parsed):
             metadata = {
                 'type': 'widget',
                 'content': response_text,
