@@ -365,10 +365,19 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Route message to appropriate agent — use explicit agent if specified
+    # Determine agent: explicit > chat's existing agent > route
     if request.agent:
         agent_name = request.agent
         print(f"DEBUG: Using explicit agent from request: {agent_name}")
+    elif request.chat_id:
+        # For existing chats, use the agent from the chat itself
+        chat_result = await db.execute(select(Chat).where(Chat.id == request.chat_id).options(selectinload(Chat.agent)))
+        existing_chat = chat_result.scalar_one_or_none()
+        if existing_chat and existing_chat.agent:
+            agent_name = existing_chat.agent.name
+            print(f"DEBUG: Using agent '{agent_name}' from existing chat {request.chat_id}")
+        else:
+            agent_name = await route_to_agent(request.message)
     else:
         agent_name = await route_to_agent(request.message)
 
@@ -386,7 +395,6 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
             db.add(agent)
             await db.flush()
         else:
-            # Update system prompt if it's different
             correct_prompt = "Ты — Ixteria, ИИ-управляющий. Отвечай по существу, без лишних формальностей и пустых фраз. Длина ответа должна соответствовать сложности и объёму вопроса пользователя: на простые вопросы отвечай кратко, на сложные — развёрнуто и детально. Не задавай встречных вопросов вроде «Как проходит день?». Используй приветствие только если пользователь поздоровался. Никакой воды."
             if agent.system_prompt != correct_prompt:
                 agent.system_prompt = correct_prompt
@@ -395,7 +403,6 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
         result = await db.execute(select(Agent).where(Agent.name == agent_name))
         agent = result.scalar_one_or_none()
         if not agent:
-            # Create agent if it doesn't exist
             agent = Agent(
                 name=agent_name,
                 description=f"{agent_name.capitalize()} agent",
@@ -428,11 +435,19 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
     db.add(user_message)
 
-    # Process message
+    # Process with agent if available (including new dietitian chats)
     if agent_name in AGENT_REGISTRY:
-        # Use specialized agent
         agent_process = AGENT_REGISTRY[agent_name]
         response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id)
+        
+        # If it's a new dietitian chat and not a plan request, send the greeting
+        if (not request.chat_id) and (agent_name == "dietitian") and (response_text is None or "рацион" not in message_text.lower()):
+            response_text = (
+                "Здравствуйте! 👋\n\n"
+                "Я — ваш ИИ-диетолог. Пожалуйста, расскажите о своих пожеланиях по питанию, целях или опишите, "
+                "как обычно выглядит ваш рацион. Когда будете готовы, попросите меня «составить рацион»!"
+            )
+            tokens_used = 0
     else:
         # Use default LLM mode
         messages = []
@@ -666,6 +681,81 @@ async def _stream_final_response(response_text, chat_id, is_new_chat):
         'full_content': response_text,
     }
     yield f"data: {json.dumps(metadata)}\n\n"
+
+
+# ======================== CHAT CREATION ENDPOINT ========================
+
+class ChatCreateRequest(BaseModel):
+    user_id: int
+    title: Optional[str] = None
+    agent_type: Optional[str] = None  # 'dietitian', 'secretary', 'psychologist', etc.
+    welcome_message: Optional[str] = None
+
+
+@router.post("/chats")
+async def create_chat(request: ChatCreateRequest, db: AsyncSession = Depends(get_db)):
+    """Create a new chat with optional welcome message from a specific agent."""
+    # Get user
+    result = await db.execute(select(User).where(User.id == request.user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Determine agent based on agent_type
+    if request.agent_type:
+        agent_name = request.agent_type
+    else:
+        agent_name = "default"
+
+    # Get or create agent
+    if agent_name == "default":
+        result = await db.execute(select(Agent).where(Agent.name == "agents"))
+        agent = result.scalar_one_or_none()
+        if not agent:
+            agent = Agent(
+                name="agents",
+                description="Main AI orchestrator and personal assistant",
+                system_prompt="Ты — Ixteria, ИИ-управляющий. Отвечай по существу, без лишних формальностей.",
+                is_active=True
+            )
+            db.add(agent)
+            await db.flush()
+    else:
+        result = await db.execute(select(Agent).where(Agent.name == agent_name))
+        agent = result.scalar_one_or_none()
+        if not agent:
+            agent = Agent(
+                name=agent_name,
+                description=f"{agent_name.capitalize()} agent",
+                system_prompt=f"Ты — {agent_name}, специализированный ИИ-агент.",
+                is_active=True
+            )
+            db.add(agent)
+            await db.flush()
+
+    # Create chat
+    chat_title = request.title or "Новый чат"
+    chat = Chat(user_id=request.user_id, agent_id=agent.id, title=chat_title)
+    db.add(chat)
+    await db.flush()
+
+    # If welcome_message provided, save it as assistant message
+    if request.welcome_message:
+        assistant_message = Message(chat_id=chat.id, role="assistant", content=request.welcome_message, tokens_used=0)
+        db.add(assistant_message)
+        await db.commit()
+        await db.refresh(chat)
+    else:
+        await db.commit()
+        await db.refresh(chat)
+
+    return {
+        "id": chat.id,
+        "chat_id": chat.id,
+        "title": chat.title,
+        "agent_name": agent.name,
+    }
 
 
 # ======================== OTHER ENDPOINTS ========================
@@ -1085,9 +1175,18 @@ async def create_chat(data: dict = Body(...), db: AsyncSession = Depends(get_db)
     result = await db.execute(select(Agent).where(Agent.name == agent_name))
     agent = result.scalar_one_or_none()
     if not agent:
-        # Fallback to general agent if needed
-        result = await db.execute(select(Agent).where(Agent.name == "agents"))
-        agent = result.scalar_one_or_none()
+        # Create the agent if it doesn't exist
+        agent = Agent(
+            name=agent_name,
+            description=f"{agent_name.capitalize()} agent",
+            system_prompt=(
+                "Ты — диетолог. Твоя задача — составлять персональные рационы питания на основе пожеланий пользователя, "
+                "его параметров (рост, вес, возраст, пол, цель) и предпочтений."
+            ) if agent_name == "dietitian" else f"Ты — {agent_name}, специализированный ИИ-агент.",
+            is_active=True
+        )
+        db.add(agent)
+        await db.flush()
 
     chat = Chat(user_id=user_id, agent_id=agent.id, title=title)
     db.add(chat)

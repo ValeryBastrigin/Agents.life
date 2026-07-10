@@ -123,6 +123,22 @@ code {
   animation: slideInLeft 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
+/* Slide out animation for page transitions */
+@keyframes slideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+
+.animate-slide-out-right {
+  animation: slideOutRight 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
 /* Streaming fade-in animation */
 @keyframes fadeIn {
   from {

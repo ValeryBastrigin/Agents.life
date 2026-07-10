@@ -142,4 +142,45 @@ export async function getDietPlan(userId) {
   return response.data;
 }
 
+/**
+ * Create a new chat with optional welcome message.
+ * @param {Object} params - { user_id, title, agent_type, welcome_message }
+ * @returns {Promise<{ id: number, chat_id: number, title: string }>}
+ */
+export async function createChat(params) {
+  const response = await apiClient.post('/api/chats', params);
+  return response.data;
+}
+
+/**
+ * Delete diet plan from database.
+ * @param {number} userId
+ * @returns {Promise<Object>}
+ */
+export async function deleteDietPlan(userId) {
+  const response = await apiClient.delete(`/api/dietplan/${userId}`);
+  return response.data;
+}
+
+/**
+ * Get user's diet profile (height, weight, age, gender, goal, etc.)
+ * @param {number} userId
+ * @returns {Promise<{profile: object|null}>}
+ */
+export async function getUserDietProfile(userId) {
+  const response = await apiClient.get(`/api/dietplan/profile/${userId}`);
+  return response.data;
+}
+
+/**
+ * Save/update user's diet profile
+ * @param {number} userId
+ * @param {Object} profileData - { height, weight, age, gender, goal, activity_level, calorie_target, protein_target, fats_target, carbs_target, water_target }
+ * @returns {Promise<Object>}
+ */
+export async function saveUserDietProfile(userId, profileData) {
+  const response = await apiClient.post(`/api/dietplan/profile/${userId}`, profileData);
+  return response.data;
+}
+
 export { apiClient };
