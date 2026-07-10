@@ -21,6 +21,7 @@ class User(Base):
     calendar_events = relationship("CalendarEvent", back_populates="user", cascade="all, delete-orphan")
     reminders = relationship("Reminder", back_populates="user", cascade="all, delete-orphan")
     notes = relationship("Note", back_populates="user", cascade="all, delete-orphan")
+
 class Agent(Base):
     __tablename__ = "agents"
     
@@ -238,6 +239,19 @@ class ActiveGoal(Base):
     branch_type = Column(String(50), default="")
     resources = Column(Text, default="[]")  # JSON string of resources
     status = Column(String(20), default="active")  # active, completed, cancelled
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
+class DietPlan(Base):
+    """Хранит сгенерированный план питания пользователя (один на пользователя)."""
+    __tablename__ = "diet_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    plan_data = Column(Text, nullable=False)  # JSON string с рационом
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

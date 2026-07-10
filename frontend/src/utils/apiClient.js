@@ -121,4 +121,25 @@ export async function sendMessageStream(payload, callbacks) {
   }
 }
 
+/**
+ * Save diet plan to database.
+ * @param {number} userId
+ * @param {string} planData - JSON string of meal plan
+ * @returns {Promise<Object>}
+ */
+export async function saveDietPlan(userId, planData) {
+  const response = await apiClient.put(`/api/dietplan/${userId}`, { plan_data: planData });
+  return response.data;
+}
+
+/**
+ * Get diet plan from database.
+ * @param {number} userId
+ * @returns {Promise<{plan_data: string|null}>}
+ */
+export async function getDietPlan(userId) {
+  const response = await apiClient.get(`/api/dietplan/${userId}`);
+  return response.data;
+}
+
 export { apiClient };

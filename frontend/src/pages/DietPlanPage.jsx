@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChefHat, Sparkles, Loader2 } from 'lucide-react';
-import { sendMessage } from '../utils/apiClient';
+import { sendMessage, getDietPlan, saveDietPlan } from '../utils/apiClient';
 import DietitianBackground from '../components/DietitianBackground';
 import FoodPreferencesModal from '../components/FoodPreferencesModal';
 
@@ -53,9 +53,28 @@ const MealCard = ({ icon, title, dishes }) => (
 const DietPlanPage = () => {
   const navigate = useNavigate();
   const [generating, setGenerating] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [mealPlan, setMealPlan] = useState(null);
   const [showPreferences, setShowPreferences] = useState(false);
-  const [userPreferences, setUserPreferences] = useState('');
+
+  // Загружаем рацион из БД при монтировании
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getDietPlan(DEMO_USER_ID);
+        if (data.plan_data) {
+          const parsed = JSON.parse(data.plan_data);
+          if (parsed && parsed.meals) {
+            setMealPlan(parsed);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load saved meal plan:', e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const mealConfig = {
     breakfast: { icon: '🌅', title: 'Завтрак' },
@@ -116,14 +135,12 @@ const DietPlanPage = () => {
         .trim();
       const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        // Удаляем trailing commas перед ] и } (распространённая ошибка LLM)
         const cleaned = jsonMatch[0]
           .replace(/,\s*([\]}])/g, '$1');
         let parsed;
         try {
           parsed = JSON.parse(cleaned);
         } catch {
-          // Если всё равно не парсится — пробуем более агрессивную очистку
           const aggressive = cleaned
             .replace(/,\s*}/g, '}')
             .replace(/,\s*]/g, ']')
@@ -131,6 +148,12 @@ const DietPlanPage = () => {
           parsed = JSON.parse(aggressive);
         }
         setMealPlan(parsed);
+        // Сохраняем в БД — рацион намертво, пока пользователь не сгенерирует новый
+        try {
+          await saveDietPlan(DEMO_USER_ID, JSON.stringify(parsed));
+        } catch (e) {
+          console.warn('Failed to save meal plan to DB:', e);
+        }
       } else {
         console.error('Failed to parse meal plan from LLM response');
         setMealPlan({ meals: [] });
@@ -141,6 +164,21 @@ const DietPlanPage = () => {
     }
     setGenerating(false);
   };
+
+  // ── Пока грузим из БД ──
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center relative">
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <DietitianBackground />
+        </div>
+        <div className="relative z-10 flex items-center gap-3 text-gray-500">
+          <Loader2 size={24} className="animate-spin" />
+          <span>Загрузка рациона...</span>
+        </div>
+      </div>
+    );
+  }
 
   // ── Render meal plan if generated ──
   if (mealPlan && mealPlan.meals) {
@@ -154,10 +192,10 @@ const DietPlanPage = () => {
           <DietitianBackground />
         </div>
         <div className="relative z-10 max-w-2xl mx-auto px-6 pt-4 pb-8">
-          {/* Header */}
+          {/* Header — без удаления рациона */}
           <div className="flex items-center gap-3 mb-6 pt-2">
             <button
-              onClick={() => { setMealPlan(null); }}
+              onClick={() => navigate('/dietitian')}
               className="p-2 hover:bg-white/30 dark:hover:bg-gray-800/30 rounded-full transition-colors"
             >
               <ArrowLeft size={20} className="text-gray-700 dark:text-gray-300" />
