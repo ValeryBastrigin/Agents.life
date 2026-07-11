@@ -197,6 +197,18 @@ CREATE TABLE IF NOT EXISTS transactions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Portfolio analyses table
+CREATE TABLE IF NOT EXISTS portfolio_analyses (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    overall_score INTEGER NOT NULL DEFAULT 5,
+    strengths TEXT DEFAULT '[]',
+    weaknesses TEXT DEFAULT '[]',
+    recommendations TEXT DEFAULT '[]',
+    asset_allocation TEXT DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);
 CREATE INDEX IF NOT EXISTS idx_chats_agent_id ON chats(agent_id);
@@ -213,6 +225,8 @@ CREATE INDEX IF NOT EXISTS idx_bank_statements_user_id ON bank_statements(user_i
 CREATE INDEX IF NOT EXISTS idx_transactions_statement_id ON transactions(statement_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
+CREATE INDEX IF NOT EXISTS idx_portfolio_analyses_user_id ON portfolio_analyses(user_id);
+CREATE INDEX IF NOT EXISTS idx_portfolio_analyses_created_at ON portfolio_analyses(created_at);
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

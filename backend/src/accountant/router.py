@@ -393,3 +393,142 @@ def _statement_to_out(stmt: BankStatement, transactions: list) -> StatementOut:
             for t in transactions
         ],
     )
+
+
+# ===== Portfolio Analysis =====
+
+class PortfolioAnalysisOut(BaseModel):
+    id: int
+    user_id: int
+    overall_score: int
+    strengths: str  # JSON list
+    weaknesses: str  # JSON list
+    recommendations: str  # JSON list
+    asset_allocation: str  # JSON dict
+    created_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/portfolio/analyze/{user_id}", response_model=PortfolioAnalysisOut)
+async def analyze_portfolio(
+    user_id: int,
+    files: List[UploadFile] = File(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Upload screenshots of investment portfolio and analyze with LLM."""
+    from src.models import PortfolioAnalysis
+    from src.agents.accountant_agent import analyze_portfolio
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
+
+    # Convert uploaded images to base64 data URIs
+    import base64
+    image_urls = []
+    for file in files:
+        content = await file.read()
+        ext = os.path.splitext(file.filename or ".png")[1].lower().replace(".", "")
+        if not ext:
+            ext = "png"
+        b64 = base64.b64encode(content).decode("utf-8")
+        data_uri = f"data:image/{ext};base64,{b64}"
+        image_urls.append(data_uri)
+
+    # Analyze with LLM
+    result = await analyze_portfolio(image_urls)
+
+    # Save to database
+    portfolio = PortfolioAnalysis(
+        user_id=user_id,
+        overall_score=result.get("overall_score", 5),
+        strengths=json.dumps(result.get("strengths", []), ensure_ascii=False),
+        weaknesses=json.dumps(result.get("weaknesses", []), ensure_ascii=False),
+        recommendations=json.dumps(result.get("recommendations", []), ensure_ascii=False),
+        asset_allocation=json.dumps(result.get("asset_allocation", {}), ensure_ascii=False),
+    )
+    db.add(portfolio)
+    await db.commit()
+    await db.refresh(portfolio)
+
+    return PortfolioAnalysisOut(
+        id=portfolio.id,
+        user_id=portfolio.user_id,
+        overall_score=portfolio.overall_score,
+        strengths=portfolio.strengths,
+        weaknesses=portfolio.weaknesses,
+        recommendations=portfolio.recommendations,
+        asset_allocation=portfolio.asset_allocation,
+        created_at=str(portfolio.created_at) if portfolio.created_at else None,
+    )
+
+
+@router.get("/portfolio/analyses/{user_id}", response_model=List[PortfolioAnalysisOut])
+async def get_portfolio_analyses(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Get all portfolio analyses for a user (latest first)."""
+    from src.models import PortfolioAnalysis
+
+    result = await db.execute(
+        select(PortfolioAnalysis)
+        .where(PortfolioAnalysis.user_id == user_id)
+        .order_by(PortfolioAnalysis.created_at.desc())
+        .limit(10)
+    )
+    analyses = result.scalars().all()
+
+    return [
+        PortfolioAnalysisOut(
+            id=a.id,
+            user_id=a.user_id,
+            overall_score=a.overall_score,
+            strengths=a.strengths,
+            weaknesses=a.weaknesses,
+            recommendations=a.recommendations,
+            asset_allocation=a.asset_allocation,
+            created_at=str(a.created_at) if a.created_at else None,
+        )
+        for a in analyses
+    ]
+
+
+@router.get("/portfolio/analyses/latest/{user_id}", response_model=Optional[PortfolioAnalysisOut])
+async def get_latest_portfolio_analysis(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Get the latest portfolio analysis for a user."""
+    from src.models import PortfolioAnalysis
+
+    result = await db.execute(
+        select(PortfolioAnalysis)
+        .where(PortfolioAnalysis.user_id == user_id)
+        .order_by(PortfolioAnalysis.created_at.desc())
+        .limit(1)
+    )
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        return None
+
+    return PortfolioAnalysisOut(
+        id=analysis.id,
+        user_id=analysis.user_id,
+        overall_score=analysis.overall_score,
+        strengths=analysis.strengths,
+        weaknesses=analysis.weaknesses,
+        recommendations=analysis.recommendations,
+        asset_allocation=analysis.asset_allocation,
+        created_at=str(analysis.created_at) if analysis.created_at else None,
+    )
+
+
+@router.delete("/portfolio/analyses/{analysis_id}", status_code=204)
+async def delete_portfolio_analysis(analysis_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a portfolio analysis."""
+    from src.models import PortfolioAnalysis
+
+    result = await db.execute(
+        select(PortfolioAnalysis).where(PortfolioAnalysis.id == analysis_id)
+    )
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Portfolio analysis not found")
+    await db.delete(analysis)
+    await db.commit()

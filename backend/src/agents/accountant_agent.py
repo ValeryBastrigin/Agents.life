@@ -1,3 +1,4 @@
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.config import client
 from src.image_utils import build_llm_user_message
@@ -33,3 +34,96 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
         response = "Извините, произошла ошибка при обработке вашего запроса."
         tokens_used = 0  # Disabled for development
         return response, tokens_used
+
+
+async def analyze_portfolio(image_urls: list[str]) -> dict:
+    """
+    Analyze investment portfolio screenshots using LLM.
+    image_urls: list of base64 data URIs or file URLs of screenshots
+    Returns: dict with overall_score, strengths, weaknesses, recommendations, asset_allocation
+    """
+    portfolio_prompt = """Ты — финансовый аналитик и инвестиционный консультант. Проанализируй предоставленные скриншоты инвестиционного портфеля.
+
+Верни ТОЛЬКО JSON (без markdown, без ```) в следующем формате:
+{
+  "overall_score": <число от 1 до 10>,
+  "strengths": ["сильная сторона 1", "сильная сторона 2", ...],
+  "weaknesses": ["слабая сторона 1", "слабая сторона 2", ...],
+  "recommendations": ["рекомендация 1", "рекомендация 2", ...],
+  "asset_allocation": {
+    "Акции": <процент>,
+    "Облигации": <процент>,
+    "Недвижимость": <процент>,
+    "Наличные/Депозиты": <процент>,
+    "Другое": <процент>
+  }
+}
+
+Оценивай:
+- Диверсификацию по классам активов
+- Риск-профиль (соответствие целям)
+- Концентрацию в отдельных бумагах
+- Наличие защитных активов
+- Валютную диверсификацию
+- Качество активов (голубые фишки vs мусорные)
+
+Будь строг, но объективен. Укажи 2-4 пункта для каждого списка.
+Проценты в asset_allocation должны в сумме давать 100."""
+
+    try:
+        # Build user message with images
+        user_content = [{"type": "text", "text": "Проанализируй этот инвестиционный портфель по скриншотам."}]
+        for url in image_urls:
+            user_content.append({
+                "type": "image_url",
+                "image_url": {"url": url, "detail": "high"}
+            })
+
+        messages = [
+            {"role": "system", "content": portfolio_prompt},
+            {"role": "user", "content": user_content},
+        ]
+
+        response = client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=messages,
+            temperature=0.3,
+            max_tokens=2000,
+            timeout=120.0
+        )
+        response_text = response.choices[0].message.content.strip()
+        print(f"[Portfolio Analysis] Raw response: {response_text[:200]}...")
+
+        # Parse JSON response
+        # Handle potential markdown code fence wrapping
+        if response_text.startswith("```"):
+            lines = response_text.split("\n")
+            # Remove first and last ``` lines
+            lines = [l for l in lines if not l.startswith("```")]
+            response_text = "\n".join(lines).strip()
+            # Also remove possible "json" language tag
+            if response_text.startswith("json"):
+                response_text = response_text[4:].strip()
+
+        result = json.loads(response_text)
+        return result
+
+    except json.JSONDecodeError as e:
+        print(f"[Portfolio Analysis] JSON parse error: {e}")
+        print(f"[Portfolio Analysis] Raw text: {response_text}")
+        return {
+            "overall_score": 5,
+            "strengths": ["Портфель существует и имеет некоторую диверсификацию"],
+            "weaknesses": ["Не удалось детально проанализировать портфель по скриншотам"],
+            "recommendations": ["Загрузите более качественные скриншоты для детального анализа"],
+            "asset_allocation": {"Акции": 50, "Облигации": 20, "Наличные/Депозиты": 20, "Другое": 10}
+        }
+    except Exception as e:
+        print(f"[Portfolio Analysis] Error: {e}")
+        return {
+            "overall_score": 5,
+            "strengths": ["Анализ выполнен с базовыми настройками"],
+            "weaknesses": [f"Ошибка анализа: {str(e)[:100]}"],
+            "recommendations": ["Попробуйте повторить анализ позже"],
+            "asset_allocation": {"Акции": 40, "Облигации": 30, "Наличные/Депозиты": 20, "Другое": 10}
+        }

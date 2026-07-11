@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign, TrendingUp, Upload, Wallet, CreditCard, Bell, PieChart, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign, TrendingUp, Upload, Wallet, CreditCard, Bell, PieChart, ChevronDown, ChevronUp, Trash2, Camera, Lightbulb, AlertTriangle, Star } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 import AccountantBackground from '../components/AccountantBackground';
+import PortfolioAnalysisModal from '../components/PortfolioAnalysisModal';
 import { useNavigate } from 'react-router-dom';
 
 // ---------- Modal: Как пользоваться ----------
@@ -770,6 +771,40 @@ const Accountant = () => {
   // Активная вкладка: 'main' или 'investments'
   const [activeTab, setActiveTab] = useState('main');
 
+  // Состояние для модалки анализа портфеля
+  const [showPortfolioAnalysis, setShowPortfolioAnalysis] = useState(false);
+  const [portfolioData, setPortfolioData] = useState(null);
+
+  // Загрузка последнего анализа портфеля
+  useEffect(() => {
+    const loadPortfolio = async () => {
+      try {
+        const res = await apiClient.get('/api/accountant/portfolio/analyses/latest/1');
+        if (res.data) {
+          setPortfolioData(res.data);
+        }
+      } catch (err) {
+        console.error('Ошибка загрузки анализа портфеля:', err);
+      }
+    };
+    loadPortfolio();
+  }, []);
+
+  const handlePortfolioAnalysisComplete = (data) => {
+    setPortfolioData(data);
+    setShowPortfolioAnalysis(false);
+  };
+
+  // Функция для парсинга JSON-полей (strengths, weaknesses, recommendations, asset_allocation)
+  const parseJsonField = (field) => {
+    if (!field) return null;
+    try {
+      return JSON.parse(field);
+    } catch {
+      return null;
+    }
+  };
+
   // Загрузка обязательств из БД
   useEffect(() => {
     const loadObligations = async () => {
@@ -1110,18 +1145,210 @@ const Accountant = () => {
 
         {/* ===== Контент вкладки "Инвестиции" ===== */}
         {activeTab === 'investments' && (
-          <div className="bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-[3rem] p-8 text-white text-center shadow-lg">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/20 flex items-center justify-center">
-              <PieChart size={32} className="text-white" />
-            </div>
-            <h3 className="text-xl font-bold mb-4">Инвестиционный портфель</h3>
-            <p className="text-sm text-white/90 leading-relaxed max-w-sm mx-auto">
-              Загрузите свой инвестиционный портфель из приложения-брокера и Ixteria произведет анализ вашего портфеля и подскажет, как его улучшить.
-            </p>
-            <button className="mt-6 px-6 py-2.5 bg-white text-purple-600 font-semibold rounded-[2rem] hover:bg-purple-50 transition-colors shadow-md inline-flex items-center gap-2 text-sm">
-              <Upload size={16} />
-              Загрузить портфель
+          <div className="space-y-4">
+            {/* Кнопка "Сделайте анализ инвестиционного портфеля" */}
+            <button
+              onClick={() => setShowPortfolioAnalysis(true)}
+              className="group w-full bg-gradient-to-br from-purple-500 to-indigo-600 dark:from-purple-600 dark:to-indigo-700 rounded-[3rem] py-3.5 px-4 md:p-5 text-white text-left shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.98] transition-all duration-300"
+            >
+              <div className="flex items-center gap-3 md:gap-4 w-full">
+                <div className="w-12 h-12 md:w-20 md:h-20 rounded-full bg-white/20 flex items-center justify-center shrink-0 animate-bounce-soft group-hover:scale-110 transition-all duration-300">
+                  <Camera size={28} className="text-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm md:text-lg font-semibold leading-tight md:leading-normal mb-0.5">Сделайте анализ инвестиционного портфеля</h3>
+                  <p className="text-[10px] md:text-xs text-white/80 leading-tight md:leading-relaxed">
+                    Загрузите скриншоты своего портфеля — Ixteria найдёт слабые стороны и предложит план ребалансировки
+                  </p>
+                </div>
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors shrink-0 group-hover:bg-white/20">
+                  <ChevronRight size={18} className="text-white group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </div>
             </button>
+
+            {/* Виджет: Анализ вашего инвестиционного портфеля */}
+            <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-5 shadow-sm border border-gray-100 dark:border-gray-700/30">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                  <PieChart size={16} className="text-purple-600 dark:text-purple-400" />
+                </div>
+                <h2 className="text-base font-semibold text-gray-800 dark:text-white">
+                  Анализ вашего инвестиционного портфеля
+                </h2>
+              </div>
+
+              {!portfolioData ? (
+                <>
+                  {/* Пустое состояние */}
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Оценка портфеля</h3>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] p-6 text-center">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                        <PieChart size={18} className="text-purple-500" />
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Анализ ещё не выполнен
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        Сделайте анализ портфеля, нажав на кнопку выше
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Оценка портфеля */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Общая оценка</h3>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] p-4 flex items-center gap-4">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        portfolioData.overall_score >= 7
+                          ? 'bg-green-100 dark:bg-green-900/30'
+                          : portfolioData.overall_score >= 4
+                            ? 'bg-amber-100 dark:bg-amber-900/30'
+                            : 'bg-red-100 dark:bg-red-900/30'
+                      }`}>
+                        <span className={`text-2xl font-bold ${
+                          portfolioData.overall_score >= 7
+                            ? 'text-green-600 dark:text-green-400'
+                            : portfolioData.overall_score >= 4
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {portfolioData.overall_score}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1 mb-1">
+                          {[1,2,3,4,5,6,7,8,9,10].map(i => (
+                            <Star
+                              key={i}
+                              size={12}
+                              className={i <= portfolioData.overall_score ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}
+                            />
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {portfolioData.overall_score >= 8 ? 'Отличная диверсификация и низкий риск' :
+                           portfolioData.overall_score >= 6 ? 'Хороший портфель, есть зоны для улучшения' :
+                           portfolioData.overall_score >= 4 ? 'Средний уровень, требуется ребалансировка' :
+                           'Требуется серьёзная ребалансировка портфеля'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Распределение активов */}
+                  {(() => {
+                    const allocation = parseJsonField(portfolioData.asset_allocation);
+                    if (!allocation) return null;
+                    const colors = ['bg-blue-500', 'bg-green-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-500'];
+                    const entries = Object.entries(allocation).filter(([, v]) => v > 0);
+                    return (
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Распределение активов</h3>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] p-4">
+                          {/* Полоска распределения */}
+                          <div className="flex h-3 rounded-full overflow-hidden mb-3">
+                            {entries.map(([name, percent], idx) => (
+                              <div
+                                key={name}
+                                style={{ width: `${percent}%` }}
+                                className={`${colors[idx % colors.length]} transition-all duration-500`}
+                                title={`${name}: ${percent}%`}
+                              />
+                            ))}
+                          </div>
+                          {/* Легенда */}
+                          <div className="grid grid-cols-2 gap-2">
+                            {entries.map(([name, percent], idx) => (
+                              <div key={name} className="flex items-center gap-2">
+                                <div className={`w-2.5 h-2.5 rounded-full ${colors[idx % colors.length]} flex-shrink-0`} />
+                                <span className="text-xs text-gray-600 dark:text-gray-400 truncate">{name}</span>
+                                <span className="text-xs font-semibold text-gray-800 dark:text-white ml-auto">{percent}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Сильные стороны */}
+                  {(() => {
+                    const strengths = parseJsonField(portfolioData.strengths);
+                    if (!strengths || strengths.length === 0) return null;
+                    return (
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Lightbulb size={14} className="text-green-500" />
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Сильные стороны</h3>
+                        </div>
+                        <div className="space-y-1.5">
+                          {strengths.map((s, i) => (
+                            <div key={i} className="flex items-start gap-2 bg-green-50 dark:bg-green-900/20 rounded-[1.25rem] px-3 py-2">
+                              <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>
+                              <span className="text-xs text-gray-700 dark:text-gray-300">{s}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Слабые стороны */}
+                  {(() => {
+                    const weaknesses = parseJsonField(portfolioData.weaknesses);
+                    if (!weaknesses || weaknesses.length === 0) return null;
+                    return (
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertTriangle size={14} className="text-red-500" />
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Слабые стороны</h3>
+                        </div>
+                        <div className="space-y-1.5">
+                          {weaknesses.map((w, i) => (
+                            <div key={i} className="flex items-start gap-2 bg-red-50 dark:bg-red-900/20 rounded-[1.25rem] px-3 py-2">
+                              <span className="text-red-500 mt-0.5 flex-shrink-0">✗</span>
+                              <span className="text-xs text-gray-700 dark:text-gray-300">{w}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Рекомендации */}
+                  {(() => {
+                    const recommendations = parseJsonField(portfolioData.recommendations);
+                    if (!recommendations || recommendations.length === 0) return null;
+                    return (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Star size={14} className="text-amber-500" />
+                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Рекомендации по ребалансировке</h3>
+                        </div>
+                        <div className="space-y-1.5">
+                          {recommendations.map((r, i) => (
+                            <div key={i} className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-[1.25rem] px-3 py-2">
+                              <span className="text-amber-500 mt-0.5 flex-shrink-0 font-bold text-xs">{i + 1}.</span>
+                              <span className="text-xs text-gray-700 dark:text-gray-300">{r}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1134,6 +1361,12 @@ const Accountant = () => {
         onStatementsChange={() => setStatementsRefresh(prev => prev + 1)}
       />
       <CalendarModal isOpen={showCalendar} onClose={() => setShowCalendar(false)} obligations={obligations} onAddObligation={addObligation} onDeleteObligation={deleteObligation} />
+      <PortfolioAnalysisModal
+        isOpen={showPortfolioAnalysis}
+        onClose={() => setShowPortfolioAnalysis(false)}
+        onComplete={handlePortfolioAnalysisComplete}
+        userId={1}
+      />
     </div>
   );
 };

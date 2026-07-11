@@ -297,3 +297,20 @@ class Transaction(Base):
 
     statement = relationship("BankStatement", back_populates="transactions")
     user = relationship("User")
+
+
+class PortfolioAnalysis(Base):
+    """Хранит результаты анализа инвестиционного портфеля."""
+    __tablename__ = "portfolio_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    overall_score = Column(Integer, default=0)  # Оценка от 0 до 10
+    strengths = Column(Text, default="[]")  # JSON list
+    weaknesses = Column(Text, default="[]")  # JSON list
+    recommendations = Column(Text, default="[]")  # JSON list
+    asset_allocation = Column(Text, default="{}")  # JSON dict
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")

@@ -4,10 +4,12 @@ import { TrendingUp, ArrowLeft, ArrowRight } from 'lucide-react';
 import bankcardIcon from './bankcard.svg';
 import portfelIcon from './portfel.svg';
 import StatementAnalysisModal from '../components/StatementAnalysisModal';
+import PortfolioAnalysisModal from '../components/PortfolioAnalysisModal';
 
 const FinancialAnalyst = () => {
   const navigate = useNavigate();
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [showPortfolio, setShowPortfolio] = useState(false);
 
   const cards = [
     {
@@ -46,8 +48,12 @@ const FinancialAnalyst = () => {
   ];
 
   const handleCardClick = (index) => {
-    if (cards[index].action === 'modal') {
+    if (index === 0) {
+      // Первая карточка — анализ выписок
       setShowAnalysis(true);
+    } else if (index === 1) {
+      // Вторая карточка — анализ портфеля
+      setShowPortfolio(true);
     } else {
       sessionStorage.setItem('financialPrompt', prompts[index]);
       navigate('/chat');
@@ -130,6 +136,16 @@ const FinancialAnalyst = () => {
         onStatementSaved={() => {
           // Можно обновить список выписок если нужно
         }}
+      />
+
+      {/* Модалка анализа портфеля — для второй карточки */}
+      <PortfolioAnalysisModal
+        isOpen={showPortfolio}
+        onClose={() => setShowPortfolio(false)}
+        onComplete={() => {
+          setShowPortfolio(false);
+        }}
+        userId={1}
       />
     </div>
   );
