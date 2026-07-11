@@ -82,9 +82,13 @@ const FinancialAnalyst = () => {
               className={`w-full text-left bg-gradient-to-br ${card.gradient} rounded-[2.5rem] p-6 text-white shadow-lg ${card.shadow} hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group`}
             >
               <div className="flex items-start gap-5">
-                <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                  <card.icon size={26} className="text-white" />
-                </div>
+                {index === 0 ? (
+                  <img src="/assets/icons/agents/бухгалтер.svg" alt="" className="w-14 h-14 flex-shrink-0 group-hover:scale-110 transition-transform duration-300" />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                    <card.icon size={26} className="text-white" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0 pt-1">
                   <h3 className="text-lg font-bold mb-2 leading-snug">{card.title}</h3>
                   <p className="text-sm text-white/85 leading-relaxed">{card.description}</p>

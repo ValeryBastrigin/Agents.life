@@ -32,10 +32,15 @@ module.exports = {
           '70%': { transform: 'scale(1.1)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
+        'bounce-soft': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-5px)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.2s ease-out',
         'scale-in': 'scale-in 0.4s ease-out',
+        'bounce-soft': 'bounce-soft 1s ease-in-out infinite',
       },
     },
   },
