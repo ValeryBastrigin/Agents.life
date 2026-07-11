@@ -4,7 +4,7 @@ import axios from 'axios';
 import { ArrowLeft, ChefHat, Sparkles, Loader2, Trash2, X, UserCircle, Settings } from 'lucide-react';
 import { getDietPlan, saveDietPlan, createChat, deleteDietPlan } from '../utils/apiClient';
 import DietitianBackground from '../components/DietitianBackground';
-import FoodPreferencesModal from '../components/FoodPreferencesModal';
+import MealPlanRequestModal from '../components/MealPlanRequestModal';
 import MealPlanWidget from '../components/ui/widgets/MealPlanWidget';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
@@ -96,10 +96,11 @@ const DietPlanPage = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
-  const [showFoodModal, setShowFoodModal] = useState(false);
+  const [showMealRequestModal, setShowMealRequestModal] = useState(false);
   const [foodSubmitting, setFoodSubmitting] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [generationStep, setGenerationStep] = useState('idle'); // idle, checking_profile, showing_modal, creating_chat, generating, done
+  const [generationError, setGenerationError] = useState(null);
 
   const handleBack = () => {
     setExiting(true);
@@ -180,45 +181,139 @@ const DietPlanPage = () => {
     }
   };
 
-  // ── Handle food preferences submission (step 5 of funnel) ──
-  const handleFoodPreferencesSubmit = async (preferencesText) => {
+  // ── Handle meal plan request from modal ──
+  const handleMealPlanRequest = async (preferencesText) => {
     setFoodSubmitting(true);
+    setShowMealRequestModal(false);
     try {
-      // Save preferences to session or backend (we'll store in localStorage for now)
-      localStorage.setItem('food_preferences', preferencesText);
-      setShowFoodModal(false);
-      
-      // After modal closes, proceed to chat creation
-      await startDietitianChatWithPreferences(preferencesText);
+      await startDietitianChatWithPreferences(preferencesText, false);
     } catch (e) {
-      console.error('Failed to save food preferences:', e);
+      console.error('Failed to handle meal plan request:', e);
+      setFoodSubmitting(false);
+    }
+  };
+
+  // ── Handle regenerate meal plan (stay on page, don't redirect to chat) ──
+  const handleRegeneratePlan = async (preferencesText) => {
+    setFoodSubmitting(true);
+    setShowMealRequestModal(false);
+    try {
+      await startDietitianChatWithPreferences(preferencesText, true);
+    } catch (e) {
+      console.error('Failed to regenerate meal plan:', e);
       setFoodSubmitting(false);
     }
   };
 
   // ── Start dietitian chat with meal plan generation context ──
-  const startDietitianChatWithPreferences = async (preferencesText = null) => {
+  const startDietitianChatWithPreferences = async (preferencesText = null, stayOnPage = false) => {
     setCreatingChat(true);
+    setGenerationError(null);
     try {
-      // Get stored preferences if not passed directly
-      const prefs = preferencesText || localStorage.getItem('food_preferences');
+      const prefs = preferencesText;
       
-      const welcomeMessage = prefs 
-        ? `Привет! Я — твой ИИ-диетолог. Я уже знаю твои параметры (рост, вес, возраст, цель). Расскажи, что ты обычно ешь за день? Какие продукты любишь, а от каких не можешь отказаться? Это поможет мне составить идеальный рацион.`
-        : `Привет! Я — твой ИИ-диетолог. Я знаю твои параметры. Расскажи, что ты обычно ешь за день? Что любишь есть на завтрак, обед, ужин? Какие продукты не любишь? Это поможет мне составить персональный рацион.`;
+      // Build the message text with profile context and preferences
+      let messageText = 'Составь мне персональный рацион питания на один день.';
+      
+      if (userProfile) {
+        const profileInfo = [];
+        if (userProfile.height) profileInfo.push(`рост ${userProfile.height} см`);
+        if (userProfile.weight) profileInfo.push(`вес ${userProfile.weight} кг`);
+        if (userProfile.age) profileInfo.push(`возраст ${userProfile.age} лет`);
+        if (userProfile.goal) {
+          const goalMap = { 'lose': 'похудение', 'gain': 'набор массы', 'maintain': 'поддержание веса' };
+          profileInfo.push(`цель: ${goalMap[userProfile.goal] || userProfile.goal}`);
+        }
+        if (userProfile.calorie_target) profileInfo.push(`калорийность ~${userProfile.calorie_target} ккал/день`);
+        if (userProfile.activity_level) {
+          const actMap = { 'sedentary': 'сидячий', 'light': 'лёгкая активность', 'moderate': 'умеренная активность', 'active': 'высокая активность' };
+          profileInfo.push(`активность: ${actMap[userProfile.activity_level] || userProfile.activity_level}`);
+        }
+        messageText = `Составь мне персональный рацион питания на один день. Мои параметры: ${profileInfo.join(', ')}.`;
+      }
+      
+      if (prefs) {
+        messageText += ` Мои предпочтения: ${prefs}`;
+      }
 
-      const response = await createChat({
-        user_id: DEMO_USER_ID,
-        title: '🍽️ Персональный рацион',
-        agent_type: 'dietitian',
-        welcome_message: welcomeMessage,
+      // Call the streaming chat endpoint with generate_meal_plan=true
+      const response = await fetch(`${API_URL}/api/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: DEMO_USER_ID,
+          agent: 'dietitian',
+          message: messageText,
+          generate_meal_plan: true,
+        }),
       });
 
-      if (response && response.chat_id) {
-        navigate(`/chat/${response.chat_id}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error ${response.status}: ${errorText}`);
       }
+
+      // Read the SSE stream to get the final chat_id
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let chatId = null;
+      let fullContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+        
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'token' && data.content) {
+              fullContent += data.content;
+            }
+            if (data.type === 'done' && data.chat_id) {
+              chatId = data.chat_id;
+            }
+            if (data.type === 'widget') {
+              fullContent = data.content;
+              chatId = data.chat_id;
+            }
+          } catch (e) {
+            console.warn('Failed to parse SSE data:', e);
+          }
+        }
+      }
+
+      if (!chatId) {
+        throw new Error('Failed to get chat_id from stream');
+      }
+
+      if (stayOnPage) {
+        // Reload the meal plan from the server
+        try {
+          const data = await getDietPlan(DEMO_USER_ID);
+          if (data.plan_data) {
+            const parsed = JSON.parse(data.plan_data);
+            if (parsed && parsed.meals) {
+              setMealPlan(parsed);
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to reload meal plan after regeneration:', e);
+        }
+        setFoodSubmitting(false);
+        setCreatingChat(false);
+      } else {
+        // Navigate to the chat
+        navigate(`/chat/${chatId}`);
+      }
+      
     } catch (e) {
-      console.error('Failed to create dietitian chat:', e);
+      console.error('Failed to create dietitian chat with meal plan:', e);
+      setGenerationError(e.message || 'Не удалось создать чат с диетологом');
       setCreatingChat(false);
     }
   };
@@ -231,8 +326,8 @@ const DietPlanPage = () => {
       return;
     }
 
-    // Profile is complete, proceed to chat
-    await startDietitianChatWithPreferences();
+    // Profile is complete — open modal to ask for preferences
+    setShowMealRequestModal(true);
   };
 
   // ── Loading state while checking profile ──
@@ -302,16 +397,24 @@ const DietPlanPage = () => {
             <MealPlanWidget data={mealPlan} />
           </div>
 
-          {/* Generate again button */}
+          {/* Meal Plan Request Modal for regeneration */}
+          <MealPlanRequestModal
+            isOpen={showMealRequestModal}
+            onClose={() => setShowMealRequestModal(false)}
+            onSubmit={handleRegeneratePlan}
+            isLoading={foodSubmitting}
+          />
+
+          {/* Generate again button — opens modal and regenerates on the same page */}
           <button
-            onClick={handleStartGeneration}
-            disabled={creatingChat}
+            onClick={() => setShowMealRequestModal(true)}
+            disabled={creatingChat || generating}
             className="w-full mt-4 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-[2rem] transition-all duration-300 shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 flex items-center justify-center gap-2 text-lg disabled:opacity-70"
           >
-            {creatingChat ? (
+            {(creatingChat || generating) ? (
               <>
                 <Loader2 size={22} className="animate-spin" />
-                Открываем чат...
+                Генерируем рацион...
               </>
             ) : (
               <>
@@ -320,6 +423,12 @@ const DietPlanPage = () => {
               </>
             )}
           </button>
+          
+          {generationError && (
+            <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-2xl text-red-600 dark:text-red-400 text-sm text-center">
+              {generationError}
+            </div>
+          )}
         </div>
 
         {/* Delete confirmation modal */}
@@ -434,13 +543,13 @@ const DietPlanPage = () => {
               
               <button
                 onClick={handleStartGeneration}
-                disabled={creatingChat}
+                disabled={creatingChat || generating}
                 className="w-full py-4 px-8 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-[2rem] transition-all duration-300 shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 flex items-center justify-center gap-2 text-lg disabled:opacity-70"
               >
-                {creatingChat ? (
+                {(creatingChat || generating) ? (
                   <>
                     <Loader2 size={22} className="animate-spin" />
-                    Открываем чат...
+                    Генерируем рацион...
                   </>
                 ) : (
                   <>
@@ -449,16 +558,22 @@ const DietPlanPage = () => {
                   </>
                 )}
               </button>
+              
+              {generationError && (
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-2xl text-red-600 dark:text-red-400 text-sm text-center">
+                  {generationError}
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Food Preferences Modal (step of funnel) */}
-      <FoodPreferencesModal
-        isOpen={showFoodModal}
-        onClose={() => setShowFoodModal(false)}
-        onSubmit={handleFoodPreferencesSubmit}
+      {/* Meal Plan Request Modal */}
+      <MealPlanRequestModal
+        isOpen={showMealRequestModal}
+        onClose={() => setShowMealRequestModal(false)}
+        onSubmit={mealPlan ? handleRegeneratePlan : handleMealPlanRequest}
         isLoading={foodSubmitting}
       />
     </div>

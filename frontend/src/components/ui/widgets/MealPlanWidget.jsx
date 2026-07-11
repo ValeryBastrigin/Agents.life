@@ -1,4 +1,6 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 
 const MEAL_EMOJIS = {
   breakfast: '🌅',
@@ -16,11 +18,12 @@ const MEAL_LABELS = {
   other: 'Приём пищи',
 };
 
-const MealPlanWidget = ({ data }) => {
+const MealPlanWidget = ({ data, inChat = false }) => {
+  const navigate = useNavigate();
   const meals = data?.meals || [];
   if (!meals.length) {
     return (
-      <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-2xl p-5 border border-orange-200 dark:border-orange-700/30 shadow-sm">
+      <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-[2.5rem] p-5 border border-orange-200 dark:border-orange-700/30 shadow-sm">
         <div className="text-center text-gray-500 dark:text-gray-400">
           Не удалось загрузить план питания
         </div>
@@ -46,13 +49,13 @@ const MealPlanWidget = ({ data }) => {
   });
 
   return (
-    <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-2xl p-5 border border-orange-200 dark:border-orange-700/30 shadow-sm">
+    <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-[2.5rem] p-5 border border-orange-200 dark:border-orange-700/30 shadow-sm">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-lg shadow-md">
           🥗
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-lg">
             План питания на день
           </h3>
@@ -60,12 +63,21 @@ const MealPlanWidget = ({ data }) => {
             {totalDishes} блюд · {totalCalories} ккал
           </p>
         </div>
+        {inChat && (
+          <button
+            onClick={() => navigate('/dietitian/plan')}
+            className="p-2 rounded-full bg-orange-100 dark:bg-orange-900/40 hover:bg-orange-200 dark:hover:bg-orange-800/50 transition-colors flex-shrink-0"
+            title="Перейти к плану питания"
+          >
+            <ChevronRight className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+          </button>
+        )}
       </div>
 
       {/* Meals */}
       <div className="space-y-3">
         {meals.map((meal, mealIdx) => (
-          <div key={mealIdx} className="bg-white/70 dark:bg-gray-800/50 rounded-xl p-3 border border-orange-100 dark:border-orange-700/20">
+          <div key={mealIdx} className="bg-white/70 dark:bg-gray-800/50 rounded-[2rem] p-3 border border-orange-100 dark:border-orange-700/20">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">{MEAL_EMOJIS[meal.type] || '🍽️'}</span>
               <span className="font-medium text-gray-700 dark:text-gray-200 text-sm">
@@ -77,7 +89,7 @@ const MealPlanWidget = ({ data }) => {
               {(meal.dishes || []).map((dish, dishIdx) => (
                 <div
                   key={dishIdx}
-                  className="flex justify-between items-start py-1.5 px-2 rounded-lg hover:bg-orange-50/50 dark:hover:bg-gray-700/30 transition-colors"
+                  className="flex justify-between items-start py-1.5 px-2 rounded-[1.5rem] hover:bg-orange-50/50 dark:hover:bg-gray-700/30 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">

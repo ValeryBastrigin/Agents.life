@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from src.config import client
 from src.image_utils import build_vision_message_parts, attachment_to_image_url, is_image_attachment
-from src.models import UserDietProfile, FoodConsumption
+from src.models import UserDietProfile, FoodConsumption, DietPlan
 from datetime import datetime, timedelta, timezone
 import json
 import re
@@ -470,6 +470,51 @@ async def _handle_meal_plan(message: str, db: AsyncSession, user_id: int, profil
         return response_text, 0
     except Exception as e:
         print(f"Error generating meal plan: {e}")
+        return "Ошибка генерации рациона. Пожалуйста, попробуйте ещё раз.", 0
+
+
+async def generate_meal_plan(message: str, db: AsyncSession, user_id: int) -> tuple[str, int]:
+    """
+    Public function: Generate a meal plan and save it to DietPlan table.
+    1. Loads user diet profile
+    2. Calls _handle_meal_plan with the message (preferences from user)
+    3. If result is JSON with type: "meal_plan", saves to DietPlan table
+    Returns: (response_text_with_widget, tokens_used)
+    """
+    try:
+        # Load user diet profile
+        result = await db.execute(
+            select(UserDietProfile).where(UserDietProfile.user_id == user_id)
+        )
+        profile = result.scalar_one_or_none()
+
+        # Combine preferences with profile context
+        response_text, tokens_used = await _handle_meal_plan(message, db, user_id, profile)
+
+        # Try to extract JSON and save to DietPlan if valid meal_plan
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group())
+                if parsed.get("type") == "meal_plan" and "meals" in parsed:
+                    # Save/update DietPlan in DB
+                    result = await db.execute(
+                        select(DietPlan).where(DietPlan.user_id == user_id)
+                    )
+                    existing_plan = result.scalar_one_or_none()
+                    if existing_plan:
+                        existing_plan.plan_data = json.dumps(parsed, ensure_ascii=False)
+                    else:
+                        new_plan = DietPlan(user_id=user_id, plan_data=json.dumps(parsed, ensure_ascii=False))
+                        db.add(new_plan)
+                    await db.commit()
+                    print(f"DEBUG: Saved meal plan to DietPlan for user {user_id}")
+            except (json.JSONDecodeError, Exception) as e:
+                print(f"DEBUG: Failed to save meal plan to DietPlan: {e}")
+
+        return response_text, tokens_used
+    except Exception as e:
+        print(f"Error in generate_meal_plan: {e}")
         return "Ошибка генерации рациона. Пожалуйста, попробуйте ещё раз.", 0
 
 

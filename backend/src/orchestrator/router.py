@@ -4,11 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func
 from sqlalchemy.orm import selectinload
 from src.database import get_db
-from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption
+from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, DietPlan
 from datetime import datetime, timedelta, timezone
 from src.config import client
 from pydantic import BaseModel, ValidationError
 from typing import Optional, List, Union, Any
+from src.agents import dietitian_agent
 import importlib
 import os
 import json
@@ -238,6 +239,7 @@ class ChatRequest(BaseModel):
     chat_id: Optional[int] = None
     history: Optional[List[dict]] = None
     agent: Optional[str] = None  # 'orchestrator', 'secretary', etc.
+    generate_meal_plan: bool = False
 
 class ChatResponse(BaseModel):
     response: str
@@ -568,7 +570,13 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
     if agent_name in AGENT_REGISTRY:
         # For specialized agents, get full response first, then stream it
         agent_process = AGENT_REGISTRY[agent_name]
-        response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id)
+        
+        # If generate_meal_plan flag is set, use dietitian_agent.generate_meal_plan
+        if request.generate_meal_plan and agent_name == "dietitian":
+            print(f"DEBUG: Generating meal plan via generate_meal_plan for user {request.user_id}")
+            response_text, tokens_used = await dietitian_agent.generate_meal_plan(message_text, db, request.user_id)
+        else:
+            response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id)
         
         if response_text is None:
             response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
@@ -580,7 +588,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
         # Return as JSON event with the full response (specialized agents may return widget JSON)
         return StreamingResponse(
-            _stream_final_response(response_text, chat.id, is_new_chat),
+            _stream_final_response(response_text, chat.id, is_new_chat, agent_name),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -649,7 +657,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
     )
 
 
-async def _stream_final_response(response_text, chat_id, is_new_chat):
+async def _stream_final_response(response_text, chat_id, is_new_chat, agent_name="ixteria"):
     """Stream a pre-computed response as tokens for specialized agents."""
     # If it looks like widget JSON or meal plan JSON, send as one chunk
     try:
@@ -660,9 +668,10 @@ async def _stream_final_response(response_text, chat_id, is_new_chat):
                 'content': response_text,
                 'chat_id': chat_id,
                 'is_new_chat': is_new_chat,
+                'agent_name': agent_name,
             }
             yield f"data: {json.dumps(metadata)}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'chat_id': chat_id, 'is_new_chat': is_new_chat, 'full_content': response_text})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'chat_id': chat_id, 'is_new_chat': is_new_chat, 'full_content': response_text, 'agent_name': agent_name})}\n\n"
             return
     except json.JSONDecodeError:
         pass
@@ -679,6 +688,7 @@ async def _stream_final_response(response_text, chat_id, is_new_chat):
         'chat_id': chat_id,
         'is_new_chat': is_new_chat,
         'full_content': response_text,
+        'agent_name': agent_name,
     }
     yield f"data: {json.dumps(metadata)}\n\n"
 
@@ -814,12 +824,20 @@ async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
     )
     messages = result.scalars().all()
     
+    # Get chat with agent to determine agent_name for assistant messages
+    chat_result = await db.execute(
+        select(Chat).where(Chat.id == chat_id).options(selectinload(Chat.agent))
+    )
+    chat = chat_result.scalar_one_or_none()
+    agent_name = chat.agent.name if chat and chat.agent else None
+    
     return [
         {
             "id": m.id,
             "role": m.role,
             "content": m.content,
             "tokens_used": m.tokens_used,
+            "agent_name": agent_name if m.role == "assistant" else None,
             "created_at": m.created_at.isoformat()
         }
         for m in messages

@@ -28,7 +28,7 @@ const ChatWidgetRenderer = ({ content }) => {
     }
     
     if (parsedData.meals) {
-      return <MealPlanWidget data={parsedData} />;
+      return <MealPlanWidget data={parsedData} inChat={true} />;
     }
     
     // If it's JSON but not a recognized widget type, render as formatted text
