@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign, TrendingUp, Upload, Wallet, CreditCard, Bell, PieChart } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign, TrendingUp, Upload, Wallet, CreditCard, Bell, PieChart, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 import AccountantBackground from '../components/AccountantBackground';
 import { useNavigate } from 'react-router-dom';
@@ -353,40 +353,272 @@ const CalendarModal = ({ isOpen, onClose, obligations, onAddObligation, onDelete
   );
 };
 
+// ---------- Компонент: просмотр деталей выписки с категориями и транзакциями ----------
+const StatementDetailView = ({ statement, onBack }) => {
+  const [expandedCategories, setExpandedCategories] = useState({});
+
+  const toggleCategory = (catName) => {
+    setExpandedCategories(prev => ({ ...prev, [catName]: !prev[catName] }));
+  };
+
+  // Парсим categories_data
+  let categories = {};
+  try {
+    categories = JSON.parse(statement.categories_data || '{}');
+  } catch (e) {
+    categories = {};
+  }
+
+  // Группируем транзакции по категориям
+  const transactionsByCategory = {};
+  (statement.transactions || []).forEach(tx => {
+    const cat = tx.category || 'other';
+    if (!transactionsByCategory[cat]) transactionsByCategory[cat] = [];
+    transactionsByCategory[cat].push(tx);
+  });
+
+  // Собираем все категории
+  const allCategoryNames = [...new Set([
+    ...Object.keys(categories),
+    ...Object.keys(transactionsByCategory)
+  ])];
+
+  // Сортируем: сначала расходы (по убыванию суммы), потом доходы
+  const sortedCategories = allCategoryNames.sort((a, b) => {
+    const catA = categories[a] || {};
+    const catB = categories[b] || {};
+    const totalA = Math.abs(catA.expense || 0);
+    const totalB = Math.abs(catB.expense || 0);
+    if (totalA !== totalB) return totalB - totalA;
+    return a.localeCompare(b);
+  });
+
+  // Иконки для категорий
+  const categoryIcon = (name) => {
+    const icons = {
+      'продукты': '🛒',
+      'продукты питания': '🛒',
+      'супермаркет': '🛒',
+      'транспорт': '🚗',
+      'такси': '🚕',
+      'бензин': '⛽',
+      'коммунальные платежи': '🏠',
+      'коммуналка': '🏠',
+      'жильё': '🏠',
+      'квартплата': '🏠',
+      'связь': '📱',
+      'интернет': '🌐',
+      'телефон': '📞',
+      'развлечения': '🎬',
+      'досуг': '🎮',
+      'кафе': '☕',
+      'рестораны': '🍽',
+      'здоровье': '💊',
+      'аптека': '💊',
+      'медицина': '🏥',
+      'образование': '📚',
+      'обучение': '📖',
+      'одежда': '👕',
+      'покупки': '🛍',
+      'магазин': '🛍',
+      'зп': '💰',
+      'зарплата': '💰',
+      'доход': '💵',
+      'перевод': '💸',
+      'прочее': '📋',
+      'other': '📋',
+      'другое': '📋',
+    };
+    return icons[name.toLowerCase()] || '📋';
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Кнопка назад */}
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-blue-500 hover:text-blue-600 transition-colors"
+      >
+        <ChevronLeft size={16} />
+        Назад к списку
+      </button>
+
+      {/* Шапка выписки */}
+      <div className="flex items-center gap-3 mb-2">
+        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+          <Wallet size={18} className="text-blue-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">
+            {statement.bank_name || 'Банковская выписка'}
+          </p>
+          <p className="text-xs text-gray-400">
+            {statement.period_start && statement.period_end
+              ? `${statement.period_start} — ${statement.period_end}`
+              : statement.filename}
+          </p>
+        </div>
+      </div>
+
+      {/* Итого */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-[1.5rem] p-3 text-center">
+          <p className="text-[10px] text-gray-400 mb-0.5">Поступления</p>
+          <p className="text-sm font-bold text-green-500">
+            +{statement.total_income.toLocaleString()} ₽
+          </p>
+        </div>
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-[1.5rem] p-3 text-center">
+          <p className="text-[10px] text-gray-400 mb-0.5">Траты</p>
+          <p className="text-sm font-bold text-red-500">
+            -{statement.total_expense.toLocaleString()} ₽
+          </p>
+        </div>
+      </div>
+
+      {/* Категории с транзакциями */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">Категории</h3>
+        {sortedCategories.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">Нет данных по категориям</p>
+        ) : (
+          sortedCategories.map(catName => {
+            const catData = categories[catName] || {};
+            const txList = transactionsByCategory[catName] || [];
+            const isExpanded = expandedCategories[catName];
+            const totalIncome = catData.income || 0;
+            const totalExpense = Math.abs(catData.expense || 0);
+
+            return (
+              <div
+                key={catName}
+                className="bg-gray-50 dark:bg-gray-800/50 rounded-[1.5rem] overflow-hidden transition-all"
+              >
+                {/* Заголовок категории — кликабельный */}
+                <button
+                  onClick={() => toggleCategory(catName)}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors text-left"
+                >
+                  <span className="text-lg flex-shrink-0">{categoryIcon(catName)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-white capitalize">
+                      {catName === 'other' ? 'Прочее' : catName}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {txList.length} {txList.length === 1 ? 'операция' : 'операций'}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {totalExpense > 0 && (
+                      <p className="text-sm font-bold text-red-500">-{totalExpense.toLocaleString()} ₽</p>
+                    )}
+                    {totalIncome > 0 && (
+                      <p className="text-sm font-bold text-green-500">+{totalIncome.toLocaleString()} ₽</p>
+                    )}
+                  </div>
+                  {txList.length > 0 && (
+                    <div className="text-gray-400">
+                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </div>
+                  )}
+                </button>
+
+                {/* Раскрывающийся список транзакций */}
+                {isExpanded && txList.length > 0 && (
+                  <div className="border-t border-gray-200 dark:border-gray-700/50">
+                    {txList.map((tx, idx) => (
+                      <div
+                        key={tx.id || idx}
+                        className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700/30 transition-colors"
+                      >
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          tx.type === 'income'
+                            ? 'bg-green-100 dark:bg-green-900/30'
+                            : 'bg-red-100 dark:bg-red-900/30'
+                        }`}>
+                          {tx.type === 'income' ? (
+                            <TrendingUp size={12} className="text-green-500" />
+                          ) : (
+                            <CreditCard size={12} className="text-red-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-800 dark:text-white truncate">
+                            {tx.description || 'Транзакция'}
+                          </p>
+                          {tx.date && (
+                            <p className="text-[10px] text-gray-400">{tx.date}</p>
+                          )}
+                        </div>
+                        <p className={`text-xs font-bold flex-shrink-0 ${
+                          tx.type === 'income' ? 'text-green-500' : 'text-red-500'
+                        }`}>
+                          {tx.type === 'income' ? '+' : '-'}{Math.abs(tx.amount).toLocaleString()} ₽
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Анализ от LLM */}
+      {statement.analysis_text && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[1.5rem] p-4 mt-2">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">Анализ</h3>
+          <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-wrap">
+            {statement.analysis_text}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ---------- Modal: История выписок ----------
-const StatementsModal = ({ isOpen, onClose }) => {
-  const [statements] = useState([
-    {
-      id: 1,
-      period: '1–30 июня 2026',
-      bank: 'Сбербанк',
-      type: 'Дебетовая карта',
-      amount: '45 230 ₽',
-      income: '120 000 ₽',
-      expenses: '74 770 ₽',
-      categories: 8,
-    },
-    {
-      id: 2,
-      period: '1–31 мая 2026',
-      bank: 'Тинькофф',
-      type: 'Кредитная карта',
-      amount: '32 150 ₽',
-      income: '120 000 ₽',
-      expenses: '87 850 ₽',
-      categories: 6,
-    },
-    {
-      id: 3,
-      period: '1–30 апреля 2026',
-      bank: 'Сбербанк',
-      type: 'Дебетовая карта',
-      amount: '38 900 ₽',
-      income: '115 000 ₽',
-      expenses: '76 100 ₽',
-      categories: 7,
-    },
-  ]);
+const StatementsModal = ({ isOpen, onClose, statementsRefresh }) => {
+  const [statements, setStatements] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedStatement, setSelectedStatement] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // Загрузка списка выписок
+  useEffect(() => {
+    if (!isOpen) return;
+    const loadStatements = async () => {
+      setLoading(true);
+      try {
+        const res = await apiClient.get('/api/accountant/statements/1');
+        setStatements(res.data || []);
+      } catch (err) {
+        console.error('Ошибка загрузки выписок:', err);
+        setStatements([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadStatements();
+  }, [isOpen, statementsRefresh]);
+
+  // Загрузка деталей выписки при клике
+  const handleStatementClick = async (stmtId) => {
+    setDetailLoading(true);
+    try {
+      const res = await apiClient.get(`/api/accountant/statements/detail/${stmtId}`);
+      setSelectedStatement(res.data);
+    } catch (err) {
+      console.error('Ошибка загрузки деталей выписки:', err);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    setSelectedStatement(null);
+  };
 
   if (!isOpen) return null;
 
@@ -396,15 +628,27 @@ const StatementsModal = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between px-6 pt-6 pb-2">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
             <FileText size={22} className="text-blue-500" />
-            История выписок
+            {selectedStatement ? 'Детали выписки' : 'История выписок'}
           </h2>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
             <X size={20} className="text-gray-500" />
           </button>
         </div>
 
-        <div className="px-6 overflow-y-auto flex-1">
-          {statements.length === 0 ? (
+        <div className="px-6 overflow-y-auto flex-1 pb-4">
+          {selectedStatement ? (
+            detailLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <StatementDetailView statement={selectedStatement} onBack={handleBack} />
+            )
+          ) : loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : statements.length === 0 ? (
             <div className="text-center py-10 text-gray-400 dark:text-gray-500">
               <FileText size={40} className="mx-auto mb-3 opacity-50" />
               <p className="text-sm font-medium">Нет загруженных выписок</p>
@@ -415,6 +659,7 @@ const StatementsModal = ({ isOpen, onClose }) => {
               {statements.map((stmt) => (
                 <div
                   key={stmt.id}
+                  onClick={() => handleStatementClick(stmt.id)}
                   className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border border-gray-100 dark:border-transparent"
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -423,27 +668,29 @@ const StatementsModal = ({ isOpen, onClose }) => {
                         <Wallet size={18} className="text-blue-500" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-gray-800 dark:text-white">{stmt.bank}</p>
-                        <p className="text-xs text-gray-400">{stmt.type}</p>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-white">{stmt.bank_name || 'Банковская выписка'}</p>
+                        <p className="text-xs text-gray-400">{stmt.filename}</p>
                       </div>
                     </div>
-                    <span className="text-xs font-medium text-gray-500 bg-gray-200 dark:bg-gray-700 px-2.5 py-1 rounded-full">
-                      {stmt.period}
-                    </span>
+                    {stmt.period_start && stmt.period_end && (
+                      <span className="text-xs font-medium text-gray-500 bg-gray-200 dark:bg-gray-700 px-2.5 py-1 rounded-full">
+                        {stmt.period_start} — {stmt.period_end}
+                      </span>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 mt-3">
                     <div className="text-center p-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
                       <p className="text-[10px] text-gray-400 mb-0.5">Поступления</p>
-                      <p className="text-sm font-bold text-green-500">{stmt.income}</p>
+                      <p className="text-sm font-bold text-green-500">+{stmt.total_income.toLocaleString()} ₽</p>
                     </div>
                     <div className="text-center p-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
                       <p className="text-[10px] text-gray-400 mb-0.5">Траты</p>
-                      <p className="text-sm font-bold text-red-500">{stmt.expenses}</p>
+                      <p className="text-sm font-bold text-red-500">-{stmt.total_expense.toLocaleString()} ₽</p>
                     </div>
                     <div className="text-center p-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
                       <p className="text-[10px] text-gray-400 mb-0.5">Категории</p>
-                      <p className="text-sm font-bold text-gray-800 dark:text-white">{stmt.categories}</p>
+                      <p className="text-sm font-bold text-gray-800 dark:text-white">{stmt.categories_count}</p>
                     </div>
                   </div>
                 </div>
@@ -469,6 +716,8 @@ const Accountant = () => {
   const [showStatements, setShowStatements] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [obligations, setObligations] = useState([]);
+  const [latestStatement, setLatestStatement] = useState(null);
+  const [statementsRefresh, setStatementsRefresh] = useState(0);
 
   // Активная вкладка: 'main' или 'investments'
   const [activeTab, setActiveTab] = useState('main');
@@ -506,6 +755,31 @@ const Accountant = () => {
     }
   }, []);
 
+  // Загрузка последней выписки
+  useEffect(() => {
+    const loadLatest = async () => {
+      try {
+        const res = await apiClient.get('/api/accountant/statements/1');
+        const data = res.data;
+        if (data && data.length > 0) {
+          // Получаем детали последней выписки
+          try {
+            const detailRes = await apiClient.get(`/api/accountant/statements/detail/${data[0].id}`);
+            setLatestStatement(detailRes.data);
+          } catch {
+            setLatestStatement(data[0]);
+          }
+        } else {
+          setLatestStatement(null);
+        }
+      } catch (err) {
+        console.error('Ошибка загрузки выписок:', err);
+        setLatestStatement(null);
+      }
+    };
+    loadLatest();
+  }, [statementsRefresh]);
+
   // Вычисляем ближайшие обязательства на сегодня и ближайшие дни
   const today = new Date();
   const currentDay = today.getDate();
@@ -516,6 +790,9 @@ const Accountant = () => {
     }))
     .sort((a, b) => a.daysLeft - b.daysLeft)
     .slice(0, 10);
+
+  // Для модалки просмотра деталей последней выписки
+  const [showLatestDetail, setShowLatestDetail] = useState(false);
 
   return (
     <div className="flex-1 relative overflow-y-auto px-6 pt-0 pb-8">
@@ -685,20 +962,101 @@ const Accountant = () => {
               </div>
             </div>
 
-            {/* Загрузить банковскую выписку */}
-            <div className="bg-gradient-to-br from-purple-500 to-indigo-600 dark:from-purple-600 dark:to-indigo-700 rounded-[3rem] p-6 text-white text-center mb-6 shadow-lg">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white/20 flex items-center justify-center">
-                <Upload size={24} className="text-white" />
+            {/* Последняя загруженная выписка */}
+            <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-5 mb-6 shadow-sm border border-gray-100 dark:border-gray-700/30">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                  <FileText size={18} className="text-purple-500" />
+                  {latestStatement ? 'Последняя выписка' : 'Банковская выписка'}
+                </h2>
+                <button
+                  onClick={() => navigate('/financial-analyst')}
+                  className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center hover:bg-purple-200 dark:hover:bg-purple-800/40 transition-colors"
+                >
+                  <Upload size={16} className="text-purple-600 dark:text-purple-400" />
+                </button>
               </div>
-              <h3 className="text-lg font-bold mb-2">Загрузите банковскую выписку</h3>
-              <p className="text-xs text-white/80 leading-relaxed max-w-md mx-auto">
-                Загрузите выписку для анализа трат и поступлений. Ixteria разберёт всё по категориям и сделает анализ.
-              </p>
-              <button className="mt-4 px-6 py-2.5 bg-white text-purple-600 font-semibold rounded-[2rem] hover:bg-purple-50 transition-colors shadow-md inline-flex items-center gap-2 text-sm">
-                <Upload size={16} />
-                Загрузить выписку
-              </button>
+
+              {latestStatement ? (
+                <div
+                  onClick={() => setShowLatestDetail(true)}
+                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                      <Wallet size={18} className="text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">
+                        {latestStatement.bank_name || 'Банковская выписка'}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {latestStatement.period_start && latestStatement.period_end
+                          ? `${latestStatement.period_start} — ${latestStatement.period_end}`
+                          : latestStatement.filename}
+                      </p>
+                    </div>
+                    <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-green-50 dark:bg-green-900/20 rounded-[1.5rem] p-3 text-center">
+                      <p className="text-[10px] text-gray-400 mb-0.5">Поступления</p>
+                      <p className="text-sm font-bold text-green-500">
+                        +{latestStatement.total_income.toLocaleString()} ₽
+                      </p>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-900/20 rounded-[1.5rem] p-3 text-center">
+                      <p className="text-[10px] text-gray-400 mb-0.5">Траты</p>
+                      <p className="text-sm font-bold text-red-500">
+                        -{latestStatement.total_expense.toLocaleString()} ₽
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                    <FileText size={20} className="text-purple-500" />
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Выписок пока нет</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Нажмите + чтобы загрузить</p>
+                </div>
+              )}
             </div>
+
+            {/* Модалка с деталями последней выписки */}
+            {showLatestDetail && latestStatement && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden max-h-[85vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50">
+                  <div className="flex items-center justify-between px-6 pt-6 pb-2">
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                      <FileText size={22} className="text-blue-500" />
+                      Детали выписки
+                    </h2>
+                    <button onClick={() => setShowLatestDetail(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                      <X size={20} className="text-gray-500" />
+                    </button>
+                  </div>
+
+                  <div className="px-6 overflow-y-auto flex-1 pb-4">
+                    <StatementDetailView
+                      statement={latestStatement}
+                      onBack={() => setShowLatestDetail(false)}
+                    />
+                  </div>
+
+                  <div className="px-6 pb-6 pt-2">
+                    <button
+                      onClick={() => setShowLatestDetail(false)}
+                      className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-[2rem] transition-colors"
+                    >
+                      Закрыть
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -722,7 +1080,11 @@ const Accountant = () => {
 
       {/* Модалки */}
       <ManualModal isOpen={showManual} onClose={() => setShowManual(false)} />
-      <StatementsModal isOpen={showStatements} onClose={() => setShowStatements(false)} />
+      <StatementsModal
+        isOpen={showStatements}
+        onClose={() => setShowStatements(false)}
+        statementsRefresh={statementsRefresh}
+      />
       <CalendarModal isOpen={showCalendar} onClose={() => setShowCalendar(false)} obligations={obligations} onAddObligation={addObligation} onDeleteObligation={deleteObligation} />
     </div>
   );

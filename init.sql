@@ -167,6 +167,36 @@ CREATE TABLE IF NOT EXISTS therapy_sessions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Bank statements table
+CREATE TABLE IF NOT EXISTS bank_statements (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    filename VARCHAR(255) NOT NULL,
+    bank_name VARCHAR(100) DEFAULT '',
+    period_start DATE,
+    period_end DATE,
+    total_income FLOAT DEFAULT 0,
+    total_expense FLOAT DEFAULT 0,
+    categories_data TEXT DEFAULT '{}',
+    analysis_text TEXT DEFAULT '',
+    raw_content TEXT DEFAULT '',
+    status VARCHAR(20) DEFAULT 'processing',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Transactions table
+CREATE TABLE IF NOT EXISTS transactions (
+    id SERIAL PRIMARY KEY,
+    statement_id INTEGER REFERENCES bank_statements(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    date DATE,
+    description VARCHAR(500) DEFAULT '',
+    amount FLOAT NOT NULL,
+    type VARCHAR(10) NOT NULL,
+    category VARCHAR(100) DEFAULT 'other',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);
 CREATE INDEX IF NOT EXISTS idx_chats_agent_id ON chats(agent_id);
@@ -179,6 +209,10 @@ CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id);
 CREATE INDEX IF NOT EXISTS idx_reminders_date ON reminders(date);
 CREATE INDEX IF NOT EXISTS idx_mood_entries_user_id ON mood_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_mood_entries_created_at ON mood_entries(created_at);
+CREATE INDEX IF NOT EXISTS idx_bank_statements_user_id ON bank_statements(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_statement_id ON transactions(statement_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
