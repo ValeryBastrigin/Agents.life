@@ -401,33 +401,58 @@ class PortfolioAnalysisOut(BaseModel):
     id: int
     user_id: int
     overall_score: int
-    strengths: str  # JSON list
-    weaknesses: str  # JSON list
-    recommendations: str  # JSON list
-    asset_allocation: str  # JSON dict
+    strengths: list
+    weaknesses: list
+    recommendations: list
+    asset_allocation: dict
     created_at: Optional[str] = None
 
     class Config:
         from_attributes = True
+        arbitrary_types_allowed = True
+
+    @classmethod
+    def from_orm(cls, model):
+        """Parse JSON string fields from DB to lists/dicts."""
+        def _parse(val, expected_type=list):
+            if isinstance(val, str):
+                try:
+                    parsed = json.loads(val)
+                    return parsed if isinstance(parsed, expected_type) else (expected_type([parsed]) if expected_type is list else expected_type())
+                except (json.JSONDecodeError, TypeError):
+                    return [val] if expected_type is list else {}
+            if val is None:
+                return [] if expected_type is list else {}
+            return val if isinstance(val, expected_type) else (expected_type([val]) if expected_type is list else {})
+        return cls(
+            id=model.id,
+            user_id=model.user_id,
+            overall_score=model.overall_score,
+            strengths=_parse(model.strengths, list),
+            weaknesses=_parse(model.weaknesses, list),
+            recommendations=_parse(model.recommendations, list),
+            asset_allocation=_parse(model.asset_allocation, dict),
+            created_at=str(model.created_at) if model.created_at else None,
+        )
 
 
 @router.post("/portfolio/analyze/{user_id}", response_model=PortfolioAnalysisOut)
 async def analyze_portfolio(
     user_id: int,
-    files: List[UploadFile] = File(...),
+    screenshots: List[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db)
 ):
     """Upload screenshots of investment portfolio and analyze with LLM."""
     from src.models import PortfolioAnalysis
     from src.agents.accountant_agent import analyze_portfolio
 
-    if not files:
+    if not screenshots:
         raise HTTPException(status_code=400, detail="No files uploaded")
 
     # Convert uploaded images to base64 data URIs
     import base64
     image_urls = []
-    for file in files:
+    for file in screenshots:
         content = await file.read()
         ext = os.path.splitext(file.filename or ".png")[1].lower().replace(".", "")
         if not ext:
@@ -452,16 +477,7 @@ async def analyze_portfolio(
     await db.commit()
     await db.refresh(portfolio)
 
-    return PortfolioAnalysisOut(
-        id=portfolio.id,
-        user_id=portfolio.user_id,
-        overall_score=portfolio.overall_score,
-        strengths=portfolio.strengths,
-        weaknesses=portfolio.weaknesses,
-        recommendations=portfolio.recommendations,
-        asset_allocation=portfolio.asset_allocation,
-        created_at=str(portfolio.created_at) if portfolio.created_at else None,
-    )
+    return PortfolioAnalysisOut.from_orm(portfolio)
 
 
 @router.get("/portfolio/analyses/{user_id}", response_model=List[PortfolioAnalysisOut])
@@ -477,19 +493,7 @@ async def get_portfolio_analyses(user_id: int, db: AsyncSession = Depends(get_db
     )
     analyses = result.scalars().all()
 
-    return [
-        PortfolioAnalysisOut(
-            id=a.id,
-            user_id=a.user_id,
-            overall_score=a.overall_score,
-            strengths=a.strengths,
-            weaknesses=a.weaknesses,
-            recommendations=a.recommendations,
-            asset_allocation=a.asset_allocation,
-            created_at=str(a.created_at) if a.created_at else None,
-        )
-        for a in analyses
-    ]
+    return [PortfolioAnalysisOut.from_orm(a) for a in analyses]
 
 
 @router.get("/portfolio/analyses/latest/{user_id}", response_model=Optional[PortfolioAnalysisOut])
@@ -507,16 +511,7 @@ async def get_latest_portfolio_analysis(user_id: int, db: AsyncSession = Depends
     if not analysis:
         return None
 
-    return PortfolioAnalysisOut(
-        id=analysis.id,
-        user_id=analysis.user_id,
-        overall_score=analysis.overall_score,
-        strengths=analysis.strengths,
-        weaknesses=analysis.weaknesses,
-        recommendations=analysis.recommendations,
-        asset_allocation=analysis.asset_allocation,
-        created_at=str(analysis.created_at) if analysis.created_at else None,
-    )
+    return PortfolioAnalysisOut.from_orm(analysis)
 
 
 @router.delete("/portfolio/analyses/{analysis_id}", status_code=204)

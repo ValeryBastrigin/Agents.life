@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Image, PieChart, Loader, CheckCircle, AlertCircle, Save, FileText, TrendingUp, Shield, AlertTriangle, Lightbulb, BarChart3 } from 'lucide-react';
+import { X, Upload, Image, PieChart, Loader, CheckCircle, AlertCircle, Save, TrendingUp, Shield, AlertTriangle, Lightbulb, Star } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 
-export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
+export default function PortfolioAnalysisModal({ isOpen, onClose, onComplete, userId }) {
   const [step, setStep] = useState('intro');
   const [screenshots, setScreenshots] = useState([]);
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [currentAnalysisId, setCurrentAnalysisId] = useState(null);
   const [error, setError] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrls, setPreviewUrls] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -16,9 +18,11 @@ export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
       setStep('intro');
       setScreenshots([]);
       setAnalysisResult(null);
+      setCurrentAnalysisId(null);
       setError(null);
       setUploadProgress(0);
       setPreviewUrls([]);
+      setIsSaving(false);
     }
   }, [isOpen]);
 
@@ -79,7 +83,7 @@ export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
       setUploadProgress(30);
       setStep('analyzing');
 
-      const res = await apiClient.post('/api/accountant/portfolio/analyze/1', formData, {
+      const res = await apiClient.post(`/api/accountant/portfolio/analyze/${userId}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
@@ -92,6 +96,7 @@ export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
 
       setUploadProgress(100);
       setAnalysisResult(res.data);
+      setCurrentAnalysisId(res.data.id);
       setStep('results');
     } catch (err) {
       console.error('Analysis error:', err);
@@ -104,6 +109,7 @@ export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
     setStep('intro');
     setScreenshots([]);
     setAnalysisResult(null);
+    setCurrentAnalysisId(null);
     setError(null);
     setUploadProgress(0);
     previewUrls.forEach(url => URL.revokeObjectURL(url));
@@ -113,11 +119,55 @@ export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
     }
   };
 
-  const handleSave = () => {
-    if (onSave && analysisResult) {
-      onSave(analysisResult);
+  const handleSave = async () => {
+    if (!analysisResult || !currentAnalysisId) return;
+    setIsSaving(true);
+
+    try {
+      // Удаляем все старые анализы пользователя, кроме текущего
+      const listRes = await apiClient.get(`/api/accountant/portfolio/analyses/${userId}`);
+      const oldAnalyses = listRes.data || [];
+      
+      const deletePromises = oldAnalyses
+        .filter(a => a.id !== currentAnalysisId)
+        .map(a => apiClient.delete(`/api/accountant/portfolio/analyses/${a.id}`).catch(() => {}));
+      
+      await Promise.all(deletePromises);
+    } catch (err) {
+      console.error('Error cleaning up old analyses:', err);
+    }
+
+    setIsSaving(false);
+    if (onComplete) {
+      onComplete(analysisResult);
     }
     onClose();
+  };
+
+  // Helper to safely get array from possibly-json-string field
+  const safeArray = (field) => {
+    if (Array.isArray(field)) return field;
+    if (typeof field === 'string') {
+      try {
+        const parsed = JSON.parse(field);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch(e) {
+        return [field];
+      }
+    }
+    return [];
+  };
+
+  // Helper to safely parse JSON object field (e.g. asset_allocation)
+  const safeObject = (field) => {
+    if (field && typeof field === 'object' && !Array.isArray(field)) return field;
+    if (typeof field === 'string') {
+      try {
+        const parsed = JSON.parse(field);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+      } catch(e) {}
+    }
+    return null;
   };
 
   // ===== Intro Step =====
@@ -136,7 +186,6 @@ export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
           </div>
 
           <div className="px-6 overflow-y-auto flex-1 pb-4 space-y-5">
-            {/* Описание услуги */}
             <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 dark:from-purple-900/20 dark:to-pink-900/20 rounded-[2rem] p-5 border border-purple-200/30 dark:border-purple-700/30">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
@@ -168,7 +217,6 @@ export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
               </div>
             </div>
 
-            {/* Выбранные скриншоты */}
             {previewUrls.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -274,6 +322,17 @@ export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
 
   // ===== Results Step =====
   if (step === 'results' && analysisResult) {
+    const score = analysisResult.overall_score || 0;
+    const strengths = safeArray(analysisResult.strengths);
+    const weaknesses = safeArray(analysisResult.weaknesses);
+    const recommendations = safeArray(analysisResult.recommendations);
+    const assetAllocation = safeObject(analysisResult.asset_allocation);
+
+    const allocColors = ['bg-blue-500', 'bg-green-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-500'];
+    const allocEntries = assetAllocation
+      ? Object.entries(assetAllocation).filter(([, v]) => v > 0)
+      : [];
+
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
         <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden max-h-[85vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50">
@@ -288,92 +347,131 @@ export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
           </div>
 
           <div className="px-6 overflow-y-auto flex-1 pb-4 space-y-4">
-            {/* Общая оценка */}
+            {/* Общая оценка со звёздами (как в виджете Accountant) */}
             <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 dark:from-green-900/20 dark:to-emerald-900/20 rounded-[2rem] p-4 border border-green-200/30 dark:border-green-700/30">
               <div className="flex items-center gap-2 mb-2">
                 <Shield size={16} className="text-green-500" />
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Общая оценка портфеля</h3>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="text-3xl font-bold text-green-500">{analysisResult.overall_score || '—'}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">из 10</div>
+              <div className="flex items-center gap-4">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  score >= 7
+                    ? 'bg-green-100 dark:bg-green-900/30'
+                    : score >= 4
+                      ? 'bg-amber-100 dark:bg-amber-900/30'
+                      : 'bg-red-100 dark:bg-red-900/30'
+                }`}>
+                  <span className={`text-2xl font-bold ${
+                    score >= 7
+                      ? 'text-green-600 dark:text-green-400'
+                      : score >= 4
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {score}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-0.5 mb-1">
+                    {[1,2,3,4,5,6,7,8,9,10].map(i => (
+                      <Star
+                        key={i}
+                        size={14}
+                        className={i <= score ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {score >= 8 ? 'Отличная диверсификация и низкий риск' :
+                     score >= 6 ? 'Хороший портфель, есть зоны для улучшения' :
+                     score >= 4 ? 'Средний уровень, требуется ребалансировка' :
+                     'Требуется серьёзная ребалансировка портфеля'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Сильные стороны */}
-            {analysisResult.strengths && analysisResult.strengths.length > 0 && (
+            {/* Распределение активов — как в виджете Accountant */}
+            {allocEntries.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp size={16} className="text-green-500" />
+                  <PieChart size={16} className="text-purple-500" />
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Распределение активов</h3>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 space-y-3">
+                  {/* Полоска распределения */}
+                  <div className="flex h-3 rounded-full overflow-hidden">
+                    {allocEntries.map(([name, percent], idx) => (
+                      <div
+                        key={name}
+                        style={{ width: `${percent}%` }}
+                        className={`${allocColors[idx % allocColors.length]} transition-all duration-500`}
+                        title={`${name}: ${percent}%`}
+                      />
+                    ))}
+                  </div>
+                  {/* Легенда */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {allocEntries.map(([name, percent], idx) => (
+                      <div key={name} className="flex items-center gap-2">
+                        <div className={`w-2.5 h-2.5 rounded-full ${allocColors[idx % allocColors.length]} flex-shrink-0`} />
+                        <span className="text-xs text-gray-600 dark:text-gray-400 truncate">{name}</span>
+                        <span className="text-xs font-semibold text-gray-800 dark:text-white ml-auto">{percent}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Сильные стороны */}
+            {strengths.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Lightbulb size={16} className="text-green-500" />
                   <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Сильные стороны</h3>
                 </div>
-                <ul className="space-y-1.5">
-                  {analysisResult.strengths.map((s, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                      <CheckCircle size={14} className="text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>{s}</span>
-                    </li>
+                <div className="space-y-1.5">
+                  {strengths.map((s, i) => (
+                    <div key={i} className="flex items-start gap-2 bg-green-50 dark:bg-green-900/20 rounded-[1.25rem] px-3 py-2">
+                      <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>
+                      <span className="text-xs text-gray-700 dark:text-gray-300">{s}</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 
             {/* Слабые стороны */}
-            {analysisResult.weaknesses && analysisResult.weaknesses.length > 0 && (
+            {weaknesses.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle size={16} className="text-amber-500" />
+                  <AlertTriangle size={16} className="text-red-500" />
                   <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Слабые стороны</h3>
                 </div>
-                <ul className="space-y-1.5">
-                  {analysisResult.weaknesses.map((w, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                      <AlertCircle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
-                      <span>{w}</span>
-                    </li>
+                <div className="space-y-1.5">
+                  {weaknesses.map((w, i) => (
+                    <div key={i} className="flex items-start gap-2 bg-red-50 dark:bg-red-900/20 rounded-[1.25rem] px-3 py-2">
+                      <span className="text-red-500 mt-0.5 flex-shrink-0">✗</span>
+                      <span className="text-xs text-gray-700 dark:text-gray-300">{w}</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 
             {/* Рекомендации */}
-            {analysisResult.recommendations && analysisResult.recommendations.length > 0 && (
+            {recommendations.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <Lightbulb size={16} className="text-purple-500" />
+                  <Lightbulb size={16} className="text-amber-500" />
                   <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Рекомендации по ребалансировке</h3>
                 </div>
-                <ul className="space-y-1.5">
-                  {analysisResult.recommendations.map((r, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                      <Lightbulb size={14} className="text-purple-500 flex-shrink-0 mt-0.5" />
-                      <span>{r}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Распределение активов */}
-            {analysisResult.asset_allocation && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <BarChart3 size={16} className="text-blue-500" />
-                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Распределение активов</h3>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-3 space-y-2">
-                  {Object.entries(analysisResult.asset_allocation).map(([key, value]) => (
-                    <div key={key}>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-gray-600 dark:text-gray-400">{key}</span>
-                        <span className="font-semibold text-gray-800 dark:text-white">{value}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
-                          style={{ width: `${Math.min(value, 100)}%` }}
-                        />
-                      </div>
+                <div className="space-y-1.5">
+                  {recommendations.map((r, i) => (
+                    <div key={i} className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-[1.25rem] px-3 py-2">
+                      <span className="text-amber-500 mt-0.5 flex-shrink-0 font-bold text-xs">{i + 1}.</span>
+                      <span className="text-xs text-gray-700 dark:text-gray-300">{r}</span>
                     </div>
                   ))}
                 </div>
@@ -384,10 +482,13 @@ export default function PortfolioAnalysisModal({ isOpen, onClose, onSave }) {
           <div className="px-6 pb-6 pt-2 space-y-2">
             <button
               onClick={handleSave}
-              className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-[2rem] hover:shadow-lg transition-all flex items-center justify-center gap-2"
+              disabled={isSaving}
+              className={`w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-[2rem] hover:shadow-lg transition-all flex items-center justify-center gap-2 ${
+                isSaving ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
             >
               <Save size={16} />
-              Сохранить результаты
+              {isSaving ? 'Сохранение...' : 'Сохранить результаты'}
             </button>
             <button
               onClick={handleReset}

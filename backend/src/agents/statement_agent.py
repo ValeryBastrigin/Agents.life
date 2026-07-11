@@ -9,8 +9,8 @@ import os
 from src.config import client
 
 # Модель для выписок — можно задать через переменную окружения STATEMENT_MODEL
-# По умолчанию google/gemini-3.2-flash-lite — лёгкая текстовая модель
-STATEMENT_MODEL = os.getenv("STATEMENT_MODEL", "deepseek/deepseek-v4-flash")
+# По умолчанию google/gemini-2.5-flash-lite — лёгкая текстовая модель
+STATEMENT_MODEL = os.getenv("STATEMENT_MODEL", "google/gemini-2.5-flash-lite")
 
 SYSTEM_PROMPT = """Ты — финансовый аналитик Ixteria. Твоя задача — проанализировать банковскую выписку пользователя и извлечь из неё структурированные данные.
 
