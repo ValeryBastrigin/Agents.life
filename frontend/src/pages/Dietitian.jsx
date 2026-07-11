@@ -485,6 +485,36 @@ const ManualModal = ({ isOpen, onClose }) => {
             </div>
           </div>
 
+          {/* Step 3.5 — Генерация рациона */}
+          <div className="bg-rose-50 dark:bg-rose-900/20 rounded-[2rem] p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">★</div>
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-white mb-2">Генерация рациона и приготовление с Ixteria</p>
+
+                <div className="mb-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">🥗</span>
+                    <span className="font-medium text-sm text-rose-700 dark:text-rose-300">Создать идеальный план питания</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed pl-8">
+                    Нажмите <span className="font-medium text-rose-600 dark:text-rose-400">«Создайте идеальный план питания»</span> на главной странице диетолога или откройте раздел <span className="font-medium text-rose-600 dark:text-rose-400">«План питания»</span>. Ixteria сгенерирует персональный рацион на день с учётом вашего КБЖУ, предпочтений и цели. Вы можете написать свои пожелания (например, «без молочки» или «побольше белка»).
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">👨‍🍳</span>
+                    <span className="font-medium text-sm text-rose-700 dark:text-rose-300">Приготовить блюдо с Ixteria</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed pl-8">
+                    У каждого блюда в сгенерированном рационе есть кнопка <span className="font-medium text-rose-600 dark:text-rose-400">«Приготовить с ixteria»</span>. Нажмите её — откроется чат, где Ixteria даст пошаговый рецепт этого блюда, расскажет о технологии приготовления и ответит на любые вопросы. Идеально, когда вы хотите не просто знать, что есть, но и <span className="italic">как это приготовить</span>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Step 4 */}
           <div className="bg-amber-50 dark:bg-amber-900/20 rounded-[2rem] p-4">
             <div className="flex items-start gap-3">

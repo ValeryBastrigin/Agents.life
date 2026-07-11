@@ -404,41 +404,6 @@ const { language, changeLanguage, t } = useLanguage();
 
       <div className="relative z-10 max-w-2xl mx-auto">
 
-        {/* Header */}
-
-        <div className="flex items-center gap-4 mb-8">
-
-          <button
-
-            onClick={() => navigate('/')}
-
-            className="p-2.5 bg-surface-light dark:bg-surface-dark hover:bg-gray-200 dark:hover:bg-gray-800 rounded-[3.5rem] transition-colors"
-
-          >
-
-            <ArrowLeft size={20} className="text-gray-700 dark:text-gray-300" />
-
-          </button>
-
-          <div className="flex items-center gap-3">
-
-            <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900/30">
-
-              <Heart size={20} className="text-purple-600 dark:text-purple-400" />
-
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white leading-tight">
-
-              Психолог
-
-            </h1>
-
-          </div>
-
-        </div>
-
-
 
         {/* ===== 3 blocks ===== */}
 

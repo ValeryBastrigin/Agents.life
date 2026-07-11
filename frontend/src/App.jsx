@@ -21,6 +21,7 @@ import ActivityLog from './pages/ActivityLog';
 import SecretaryGuide from './pages/SecretaryGuide';
 import NotesList from './pages/NotesList';
 import NoteEditor from './pages/NoteEditor';
+import FinancialAnalyst from './pages/FinancialAnalyst';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import axios from 'axios';
 import { sendMessageStream, apiClient } from './utils/apiClient';
@@ -320,7 +321,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       />
 
       {/* Header */}
-      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/dietitian/plan') && (
+      {location.pathname !== '/profile' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
           <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
@@ -506,6 +507,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/mentor" element={<Mentor />} />
         <Route path="/mentor/tree" element={<DevelopmentTree />} />
         <Route path="/mentor/habits" element={<HabitTracker />} />
+        <Route path="/financial-analyst" element={<FinancialAnalyst />} />
         <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/chat')} />} />
       </Routes>
     </div>
@@ -598,6 +600,19 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
   const abortControllerRef = useRef(null);
   const streamingStartRef = useRef(null);
   const pendingWidgetRef = useRef(null);
+
+  // Auto-send financial prompt if it was set from FinancialAnalyst page
+  useEffect(() => {
+    const prompt = sessionStorage.getItem('financialPrompt');
+    if (prompt) {
+      sessionStorage.removeItem('financialPrompt');
+      // Немного отложим, чтобы компонент успел смонтироваться
+      const timer = setTimeout(() => {
+        handleSendMessage(prompt);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, []); // Only on mount
 
   // Auto-scroll to bottom when messages or streaming content change
   useEffect(() => {

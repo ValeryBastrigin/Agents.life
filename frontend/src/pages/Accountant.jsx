@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign, TrendingUp, Upload, Wallet, CreditCard, Bell, PieChart } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign, TrendingUp, Upload, Wallet, CreditCard, Bell, PieChart, Sparkles } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 import AccountantBackground from '../components/AccountantBackground';
+import { useNavigate } from 'react-router-dom';
 
 // ---------- Modal: Как пользоваться ----------
 const ManualModal = ({ isOpen, onClose }) => {
@@ -463,6 +464,7 @@ const StatementsModal = ({ isOpen, onClose }) => {
 
 // ========== Главная страница Финансового-помощника ==========
 const Accountant = () => {
+  const navigate = useNavigate();
   const [showManual, setShowManual] = useState(false);
   const [showStatements, setShowStatements] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -520,6 +522,28 @@ const Accountant = () => {
       {/* Purple animated background — fixed, покрывает весь экран (включая хедер) */}
       <AccountantBackground />
       <div className="relative z-10 max-w-2xl mx-auto pt-4">
+        {/* ════════ ФИОЛЕТОВЫЙ ВИДЖЕТ-КНОПКА — НАВЕРХУ ════════ */}
+        <button
+          onClick={() => navigate('/financial-analyst')}
+          className="group relative w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white px-8 py-5 rounded-[3rem] shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.01] active:scale-[0.98] flex items-center gap-4 mb-6"
+        >
+          {/* Иконка с анимацией */}
+          <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+            <Sparkles size={24} className="text-white" />
+          </div>
+          {/* Текст */}
+          <div className="text-left flex-1">
+            <p className="text-lg font-bold leading-snug">Нажмите, чтобы проанализировать свои финансы</p>
+            <p className="text-xs text-purple-200 mt-1">Ixteria поможет разобраться с расходами, инвестициями и целями</p>
+          </div>
+          {/* Стрелка */}
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors flex-shrink-0 group-hover:translate-x-1 transition-transform duration-300">
+            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </button>
+
         {/* ===== 3 блока-виджета (как в диетологе) ===== */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {/* Блок 1: Как пользоваться */}
