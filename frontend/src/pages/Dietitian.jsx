@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2, Plus, Sparkles, ArrowRight } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2, Plus, Sparkles, ArrowRight, ChefHat } from 'lucide-react';
 import DietitianBackground from '../components/DietitianBackground';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -945,6 +945,7 @@ const Dietitian = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [todayMeals, setTodayMeals] = useState([]);
   const [deleteState, setDeleteState] = useState(null); // 'confirming' | null
+  const [dietPlan, setDietPlan] = useState(null); // today's diet plan
 
   const [nutrition, setNutrition] = useState({
     calories: { current: 0, goal: 2000 },
@@ -1007,6 +1008,30 @@ const Dietitian = () => {
     };
     loadProfile();
   }, []);
+
+  // Load today's diet plan
+  const loadDietPlan = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get(`/api/dietplan/${DEMO_USER_ID}`);
+      if (data && data.plan_data) {
+        try {
+          const parsed = JSON.parse(data.plan_data);
+          setDietPlan(parsed);
+        } catch (e) {
+          setDietPlan(null);
+        }
+      } else {
+        setDietPlan(null);
+      }
+    } catch (e) {
+      console.warn('Failed to load diet plan:', e);
+      setDietPlan(null);
+    }
+  }, [DEMO_USER_ID]);
+
+  useEffect(() => {
+    loadDietPlan();
+  }, [loadDietPlan]);
 
   // Load today's food consumption from API
   const loadFoodToday = useCallback(async () => {
@@ -1372,6 +1397,75 @@ const Dietitian = () => {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* ===== Рацион на день ===== */}
+        <div className="bg-surface-light/90 dark:bg-surface-dark/90 rounded-[3rem] p-6 mb-6 backdrop-blur-lg">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+              🥗 Рацион на день
+            </h2>
+          </div>
+          {dietPlan && dietPlan.meals && dietPlan.meals.length > 0 ? (
+            <div className="space-y-3">
+              {dietPlan.meals.map((meal, mealIdx) => (
+                <div key={mealIdx} className="bg-gray-100 dark:bg-gray-700/50 rounded-[2rem] p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">{meal.type === 'breakfast' ? '🌅' : meal.type === 'lunch' ? '☀️' : meal.type === 'dinner' ? '🌙' : meal.type === 'snack' ? '🍪' : '🍽️'}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-200 text-sm flex-1">
+                      {meal.type === 'breakfast' ? 'Завтрак' : meal.type === 'lunch' ? 'Обед' : meal.type === 'dinner' ? 'Ужин' : meal.type === 'snack' ? 'Перекус' : 'Приём пищи'}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {meal.dishes ? meal.dishes.reduce((sum, d) => sum + (parseInt(d.calories) || 0), 0) : 0} ккал
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {(meal.dishes || []).map((dish, dishIdx) => (
+                      <div key={dishIdx} className="flex items-center gap-2 pl-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white text-xs flex-shrink-0">
+                          {dishIdx + 1}
+                        </div>
+                        <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{dish.name || dish.title}</span>
+                        {dish.portion && <span className="text-xs text-gray-400">{dish.portion}</span>}
+                        {dish.calories && <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{dish.calories} ккал</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {/* Totals */}
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-[1.5rem] p-3 flex items-center justify-around text-sm border border-green-200 dark:border-green-800">
+                {(() => {
+                  const totalCals = dietPlan.meals.reduce((s, m) => s + (m.dishes || []).reduce((s2, d) => s2 + (parseInt(d.calories) || 0), 0), 0);
+                  const totalProtein = dietPlan.meals.reduce((s, m) => s + (m.dishes || []).reduce((s2, d) => s2 + (parseInt(d.protein) || 0), 0), 0);
+                  const totalFats = dietPlan.meals.reduce((s, m) => s + (m.dishes || []).reduce((s2, d) => s2 + (parseInt(d.fats) || 0), 0), 0);
+                  const totalCarbs = dietPlan.meals.reduce((s, m) => s + (m.dishes || []).reduce((s2, d) => s2 + (parseInt(d.carbs) || 0), 0), 0);
+                  return (
+                    <>
+                      <span className="font-semibold text-gray-800 dark:text-white">{totalCals} ккал</span>
+                      <span className="text-gray-500">·</span>
+                      <span className="text-gray-600 dark:text-gray-400">Б {totalProtein} г</span>
+                      <span className="text-gray-500">·</span>
+                      <span className="text-gray-600 dark:text-gray-400">Ж {totalFats} г</span>
+                      <span className="text-gray-500">·</span>
+                      <span className="text-gray-600 dark:text-gray-400">У {totalCarbs} г</span>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate('/dietitian/plan')}
+              className="w-full py-8 rounded-[2rem] border-2 border-dashed border-green-300 dark:border-green-600/50 hover:border-green-500 dark:hover:border-green-500 bg-green-50/50 dark:bg-green-900/10 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all flex flex-col items-center justify-center gap-2 group cursor-pointer"
+            >
+              <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-800/40 transition-colors">
+                <Plus size={28} className="text-green-500 group-hover:scale-110 transition-transform" />
+              </div>
+              <span className="text-sm font-medium text-green-600 dark:text-green-400">Создать рацион на сегодня</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">Ixteria подберёт блюда под ваш КБЖУ</span>
+            </button>
           )}
         </div>
 

@@ -101,6 +101,7 @@ const DietPlanPage = () => {
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [generationStep, setGenerationStep] = useState('idle'); // idle, checking_profile, showing_modal, creating_chat, generating, done
   const [generationError, setGenerationError] = useState(null);
+  const [cookingMealIndex, setCookingMealIndex] = useState(null);
 
   const handleBack = () => {
     setExiting(true);
@@ -255,11 +256,12 @@ const DietPlanPage = () => {
         throw new Error(`Server error ${response.status}: ${errorText}`);
       }
 
-      // Read the SSE stream to get the final chat_id
+      // Read the SSE stream — wait for the COMPLETE response before redirecting
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let chatId = null;
       let fullContent = '';
+      let receivedDone = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -271,15 +273,22 @@ const DietPlanPage = () => {
         for (const line of lines) {
           try {
             const data = JSON.parse(line.slice(6));
+            
+            // Save chat_id as soon as it's available
+            if (data.chat_id && !chatId) {
+              chatId = data.chat_id;
+            }
+            
             if (data.type === 'token' && data.content) {
               fullContent += data.content;
             }
-            if (data.type === 'done' && data.chat_id) {
-              chatId = data.chat_id;
+            if (data.type === 'done') {
+              receivedDone = true;
+              if (data.chat_id) chatId = data.chat_id;
             }
             if (data.type === 'widget') {
               fullContent = data.content;
-              chatId = data.chat_id;
+              if (data.chat_id) chatId = data.chat_id;
             }
           } catch (e) {
             console.warn('Failed to parse SSE data:', e);
@@ -307,7 +316,7 @@ const DietPlanPage = () => {
         setFoodSubmitting(false);
         setCreatingChat(false);
       } else {
-        // Navigate to the chat
+        // Redirect to chat ONLY after the full response has been received and saved
         navigate(`/chat/${chatId}`);
       }
       
@@ -315,6 +324,72 @@ const DietPlanPage = () => {
       console.error('Failed to create dietitian chat with meal plan:', e);
       setGenerationError(e.message || 'Не удалось создать чат с диетологом');
       setCreatingChat(false);
+    }
+  };
+
+  // ── Handle "Приготовить с ixteria" button — creates chat, waits for full response, then redirects ──
+  const handleCookMeal = async (meal, mealIndex) => {
+    if (!meal || !meal.dishes || !meal.dishes.length) return;
+    
+    setCookingMealIndex(mealIndex);
+    
+    const dishNames = meal.dishes.map(d => d.name).join(', ');
+    const messageText = `Давай приготовим ${dishNames} пошагово вместе!`;
+    
+    try {
+      const response = await fetch(`${API_URL}/api/chat/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: DEMO_USER_ID,
+          agent: 'dietitian',
+          message: messageText,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error ${response.status}: ${errorText}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let chatId = null;
+      let fullContent = '';
+
+      // Read the stream completely — wait for the full AI response before redirecting
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+        
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.chat_id && !chatId) {
+              chatId = data.chat_id;
+            }
+            if (data.type === 'token' && data.content) {
+              fullContent += data.content;
+            }
+          } catch (e) {
+            console.warn('Failed to parse SSE data:', e);
+          }
+        }
+      }
+
+      setCookingMealIndex(null);
+
+      if (chatId) {
+        navigate(`/chat/${chatId}`);
+      } else {
+        throw new Error('Failed to get chat_id from stream');
+      }
+    } catch (e) {
+      console.error('Failed to create cooking chat:', e);
+      setCookingMealIndex(null);
     }
   };
 
@@ -394,7 +469,7 @@ const DietPlanPage = () => {
 
           {/* Meal Plan Widget instead of manual cards */}
           <div className="mb-6">
-            <MealPlanWidget data={mealPlan} />
+            <MealPlanWidget data={mealPlan} onCookMeal={handleCookMeal} />
           </div>
 
           {/* Meal Plan Request Modal for regeneration */}
@@ -480,6 +555,19 @@ const DietPlanPage = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+        {/* Full-screen loader overlay for "Приготовить с ixteria" */}
+        {cookingMealIndex !== null && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-xl shadow-green-500/30 animate-pulse">
+                <ChefHat size={32} className="text-white" />
+              </div>
+              <Loader2 size={28} className="animate-spin text-white" />
+              <p className="text-white/90 text-lg font-medium">Создаём чат с Ixteria...</p>
+              <p className="text-white/50 text-sm">Готовим пошаговый рецепт</p>
             </div>
           </div>
         )}

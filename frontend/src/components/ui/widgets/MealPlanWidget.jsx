@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ChefHat, Loader2 } from 'lucide-react';
 
 const MEAL_EMOJIS = {
   breakfast: '🌅',
@@ -18,7 +18,7 @@ const MEAL_LABELS = {
   other: 'Приём пищи',
 };
 
-const MealPlanWidget = ({ data, inChat = false }) => {
+const MealPlanWidget = ({ data, inChat = false, onCookMeal }) => {
   const navigate = useNavigate();
   const meals = data?.meals || [];
   if (!meals.length) {
@@ -80,9 +80,18 @@ const MealPlanWidget = ({ data, inChat = false }) => {
           <div key={mealIdx} className="bg-white/70 dark:bg-gray-800/50 rounded-[2rem] p-3 border border-orange-100 dark:border-orange-700/20">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">{MEAL_EMOJIS[meal.type] || '🍽️'}</span>
-              <span className="font-medium text-gray-700 dark:text-gray-200 text-sm">
+              <span className="font-medium text-gray-700 dark:text-gray-200 text-sm flex-1">
                 {MEAL_LABELS[meal.type] || meal.type}
               </span>
+              {!inChat && onCookMeal && (
+                <button
+                  onClick={() => onCookMeal(meal, mealIdx)}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-sm shadow-green-500/20 hover:shadow-md transition-all active:scale-[0.97]"
+                >
+                  <ChefHat size={14} />
+                  Приготовить с ixteria
+                </button>
+              )}
             </div>
 
             <div className="space-y-2">

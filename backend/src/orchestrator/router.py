@@ -568,27 +568,40 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
     # Prepare messages for LLM
     if agent_name in AGENT_REGISTRY:
-        # For specialized agents, get full response first, then stream it
-        agent_process = AGENT_REGISTRY[agent_name]
+        # For specialized agents, create generator that sends chat_id IMMEDIATELY,
+        # then processes the agent and streams the response
+        async def stream_specialized_agent():
+            # 1. Send chat_id immediately — frontend can redirect right away
+            early_meta = {
+                'type': 'chat_created',
+                'chat_id': chat.id,
+                'is_new_chat': is_new_chat,
+            }
+            yield f"data: {json.dumps(early_meta)}\n\n"
+            
+            # 2. Now process the agent (may take time)
+            agent_process = AGENT_REGISTRY[agent_name]
+            
+            if request.generate_meal_plan and agent_name == "dietitian":
+                print(f"DEBUG: Generating meal plan via generate_meal_plan for user {request.user_id}")
+                response_text, tokens_used = await dietitian_agent.generate_meal_plan(message_text, db, request.user_id)
+            else:
+                response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id)
+            
+            if response_text is None:
+                response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
+            
+            # 3. Save assistant message
+            assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
+            db.add(assistant_message)
+            await db.commit()
+            
+            # 4. Stream the final response (widget or tokens)
+            async for event in _stream_final_response(response_text, chat.id, is_new_chat, agent_name):
+                yield event
         
-        # If generate_meal_plan flag is set, use dietitian_agent.generate_meal_plan
-        if request.generate_meal_plan and agent_name == "dietitian":
-            print(f"DEBUG: Generating meal plan via generate_meal_plan for user {request.user_id}")
-            response_text, tokens_used = await dietitian_agent.generate_meal_plan(message_text, db, request.user_id)
-        else:
-            response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id)
-        
-        if response_text is None:
-            response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
-
-        # Save assistant message
-        assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
-        db.add(assistant_message)
-        await db.commit()
-
-        # Return as JSON event with the full response (specialized agents may return widget JSON)
         return StreamingResponse(
-            _stream_final_response(response_text, chat.id, is_new_chat, agent_name),
+            stream_specialized_agent(),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
