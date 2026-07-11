@@ -222,6 +222,7 @@ const StepResult = ({ result, onSave, onClose, saved }) => {
   });
 
   const [expandedCats, setExpandedCats] = React.useState({});
+  const [categoriesOpen, setCategoriesOpen] = React.useState(false);
 
   const toggleCategory = (catName) => {
     setExpandedCats((prev) => ({
@@ -281,97 +282,108 @@ const StepResult = ({ result, onSave, onClose, saved }) => {
         </div>
       </div>
 
-      {/* Категории с детальными транзакциями */}
+      {/* Категории с детальными транзакциями — свёрнуты по умолчанию */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-          <PieChart size={16} className="text-purple-500" />
-          Категории
-        </h4>
-        <div className="space-y-2">
-          {categoryEntries.map(([catName, catData], idx) => {
-            const isExpanded = expandedCats[catName] || false;
-            const catTxns = txByCategory[catName] || [];
-            return (
-              <div
-                key={catName}
-                className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-[1.5rem] cursor-pointer"
-                onClick={() => catTxns.length > 0 && toggleCategory(catName)}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{getIconForCategory(catName)}</span>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800 dark:text-white">{catName}</p>
-                      <p className="text-[10px] text-gray-400">
-                        {catData.count} операций
-                        {catTxns.length > 0 && (
-                          <span className="ml-2 text-xs text-purple-400">
-                            {isExpanded ? '▲ скрыть' : '▼ детали'}
-                          </span>
-                        )}
-                      </p>
+        <div
+          className="flex items-center justify-between cursor-pointer"
+          onClick={() => setCategoriesOpen(!categoriesOpen)}
+        >
+          <h4 className="text-sm font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+            <PieChart size={16} className="text-purple-500" />
+            Категории
+          </h4>
+          <span className="text-xs text-purple-500 font-medium">
+            {categoriesOpen ? '▲ скрыть' : `▼ ${categoryEntries.length} категорий`}
+          </span>
+        </div>
+
+        {categoriesOpen && (
+          <div className="mt-3 space-y-2">
+            {categoryEntries.map(([catName, catData], idx) => {
+              const isExpanded = expandedCats[catName] || false;
+              const catTxns = txByCategory[catName] || [];
+              return (
+                <div
+                  key={catName}
+                  className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-[1.5rem] cursor-pointer"
+                  onClick={() => catTxns.length > 0 && toggleCategory(catName)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{getIconForCategory(catName)}</span>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-white">{catName}</p>
+                        <p className="text-[10px] text-gray-400">
+                          {catData.count} операций
+                          {catTxns.length > 0 && (
+                            <span className="ml-2 text-xs text-purple-400">
+                              {isExpanded ? '▲ скрыть' : '▼ детали'}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {catData.expense > 0 && (
+                        <p className="text-xs font-bold text-red-500">
+                          -{formatCurrency(catData.expense)} ₽
+                        </p>
+                      )}
+                      {catData.income > 0 && (
+                        <p className="text-xs font-bold text-green-500">
+                          +{formatCurrency(catData.income)} ₽
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    {catData.expense > 0 && (
-                      <p className="text-xs font-bold text-red-500">
-                        -{formatCurrency(catData.expense)} ₽
-                      </p>
-                    )}
-                    {catData.income > 0 && (
-                      <p className="text-xs font-bold text-green-500">
-                        +{formatCurrency(catData.income)} ₽
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {/* Прогресс-бар расхода */}
-                {totalExpense > 0 && catData.expense > 0 && (
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.min((catData.expense / totalExpense) * 100, 100)}%`,
-                        backgroundColor: getColorForIndex(idx),
-                      }}
-                    />
-                  </div>
-                )}
-
-                {/* Детальные транзакции внутри категории */}
-                {isExpanded && catTxns.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-1.5">
-                    {catTxns.map((tx, txi) => (
+                  {/* Прогресс-бар расхода */}
+                  {totalExpense > 0 && catData.expense > 0 && (
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
                       <div
-                        key={txi}
-                        className="flex items-center justify-between text-xs pl-1"
-                      >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className="text-gray-400 w-16 flex-shrink-0">
-                            {tx.date || '—'}
-                          </span>
-                          <span className="text-gray-700 dark:text-gray-300 truncate">
-                            {tx.description}
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.min((catData.expense / totalExpense) * 100, 100)}%`,
+                          backgroundColor: getColorForIndex(idx),
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Детальные транзакции внутри категории */}
+                  {isExpanded && catTxns.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-1.5">
+                      {catTxns.map((tx, txi) => (
+                        <div
+                          key={txi}
+                          className="flex items-center justify-between text-xs pl-1"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="text-gray-400 w-16 flex-shrink-0">
+                              {tx.date || '—'}
+                            </span>
+                            <span className="text-gray-700 dark:text-gray-300 truncate">
+                              {tx.description}
+                            </span>
+                          </div>
+                          <span
+                            className={`font-medium flex-shrink-0 ml-2 ${
+                              tx.type === 'income'
+                                ? 'text-green-500'
+                                : 'text-red-500'
+                            }`}
+                          >
+                            {tx.type === 'income' ? '+' : '-'}
+                            {formatCurrency(tx.amount)} ₽
                           </span>
                         </div>
-                        <span
-                          className={`font-medium flex-shrink-0 ml-2 ${
-                            tx.type === 'income'
-                              ? 'text-green-500'
-                              : 'text-red-500'
-                          }`}
-                        >
-                          {tx.type === 'income' ? '+' : '-'}
-                          {formatCurrency(tx.amount)} ₽
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Анализ от LLM */}

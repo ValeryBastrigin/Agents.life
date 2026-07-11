@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign, TrendingUp, Upload, Wallet, CreditCard, Bell, PieChart, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign, TrendingUp, Upload, Wallet, CreditCard, Bell, PieChart, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 import AccountantBackground from '../components/AccountantBackground';
 import { useNavigate } from 'react-router-dom';
@@ -579,11 +579,13 @@ const StatementDetailView = ({ statement, onBack }) => {
 };
 
 // ---------- Modal: История выписок ----------
-const StatementsModal = ({ isOpen, onClose, statementsRefresh }) => {
+const StatementsModal = ({ isOpen, onClose, onStatementsChange }) => {
   const [statements, setStatements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedStatement, setSelectedStatement] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   // Загрузка списка выписок
   useEffect(() => {
@@ -601,7 +603,7 @@ const StatementsModal = ({ isOpen, onClose, statementsRefresh }) => {
       }
     };
     loadStatements();
-  }, [isOpen, statementsRefresh]);
+  }, [isOpen, onStatementsChange]);
 
   // Загрузка деталей выписки при клике
   const handleStatementClick = async (stmtId) => {
@@ -619,6 +621,34 @@ const StatementsModal = ({ isOpen, onClose, statementsRefresh }) => {
   const handleBack = () => {
     setSelectedStatement(null);
   };
+
+  // Удаление выписки
+  const handleDeleteStatement = async (stmtId, e) => {
+    e.stopPropagation();
+    if (confirmDeleteId === stmtId) {
+      setDeletingId(stmtId);
+      try {
+        await apiClient.delete(`/api/accountant/statements/${stmtId}`);
+        setStatements(prev => prev.filter(s => s.id !== stmtId));
+        setConfirmDeleteId(null);
+        if (onStatementsChange) onStatementsChange();
+      } catch (err) {
+        console.error('Ошибка удаления выписки:', err);
+      } finally {
+        setDeletingId(null);
+      }
+    } else {
+      setConfirmDeleteId(stmtId);
+    }
+  };
+
+  // Сброс подтверждения удаления при клике вне
+  useEffect(() => {
+    if (confirmDeleteId) {
+      const timer = setTimeout(() => setConfirmDeleteId(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [confirmDeleteId]);
 
   if (!isOpen) return null;
 
@@ -655,40 +685,58 @@ const StatementsModal = ({ isOpen, onClose, statementsRefresh }) => {
               <p className="text-xs mt-1">Загрузите банковскую выписку, чтобы увидеть анализ</p>
             </div>
           ) : (
-            <div className="space-y-3 py-2">
+            <div className="space-y-3 py-1">
               {statements.map((stmt) => (
                 <div
                   key={stmt.id}
                   onClick={() => handleStatementClick(stmt.id)}
-                  className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border border-gray-100 dark:border-transparent"
+                  className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border border-gray-100 dark:border-transparent relative group"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                        <Wallet size={18} className="text-blue-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800 dark:text-white">{stmt.bank_name || 'Банковская выписка'}</p>
-                        <p className="text-xs text-gray-400">{stmt.filename}</p>
-                      </div>
+                  {/* Кнопка удаления — всегда видна на мобильных */}
+                  <button
+                    onClick={(e) => handleDeleteStatement(stmt.id, e)}
+                    disabled={deletingId === stmt.id}
+                    className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all z-10 ${
+                      confirmDeleteId === stmt.id
+                        ? 'bg-red-500 text-white scale-110 shadow-md'
+                        : 'bg-red-100/80 dark:bg-red-900/40 text-red-500 hover:bg-red-200 dark:hover:bg-red-800/50 lg:opacity-0 lg:group-hover:opacity-100'
+                    }`}
+                    title={confirmDeleteId === stmt.id ? 'Нажмите ещё раз для удаления' : 'Удалить выписку'}
+                  >
+                    {deletingId === stmt.id ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : confirmDeleteId === stmt.id ? (
+                      <X size={14} />
+                    ) : (
+                      <Trash2 size={14} />
+                    )}
+                  </button>
+
+                  <div className="flex items-center gap-3 mb-3 pr-9">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                      <Wallet size={16} className="text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">{stmt.bank_name || 'Банковская выписка'}</p>
+                      <p className="text-xs text-gray-400 truncate">{stmt.filename}</p>
                     </div>
                     {stmt.period_start && stmt.period_end && (
-                      <span className="text-xs font-medium text-gray-500 bg-gray-200 dark:bg-gray-700 px-2.5 py-1 rounded-full">
+                      <span className="text-[10px] font-medium text-gray-500 bg-gray-200 dark:bg-gray-700 px-2.5 py-1 rounded-full flex-shrink-0 hidden sm:inline">
                         {stmt.period_start} — {stmt.period_end}
                       </span>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    <div className="text-center p-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 text-center py-2.5 px-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
                       <p className="text-[10px] text-gray-400 mb-0.5">Поступления</p>
                       <p className="text-sm font-bold text-green-500">+{stmt.total_income.toLocaleString()} ₽</p>
                     </div>
-                    <div className="text-center p-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
+                    <div className="flex-1 text-center py-2.5 px-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
                       <p className="text-[10px] text-gray-400 mb-0.5">Траты</p>
                       <p className="text-sm font-bold text-red-500">-{stmt.total_expense.toLocaleString()} ₽</p>
                     </div>
-                    <div className="text-center p-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
+                    <div className="flex-1 text-center py-2.5 px-2 bg-white dark:bg-gray-900 rounded-[1.25rem]">
                       <p className="text-[10px] text-gray-400 mb-0.5">Категории</p>
                       <p className="text-sm font-bold text-gray-800 dark:text-white">{stmt.categories_count}</p>
                     </div>
@@ -1083,7 +1131,7 @@ const Accountant = () => {
       <StatementsModal
         isOpen={showStatements}
         onClose={() => setShowStatements(false)}
-        statementsRefresh={statementsRefresh}
+        onStatementsChange={() => setStatementsRefresh(prev => prev + 1)}
       />
       <CalendarModal isOpen={showCalendar} onClose={() => setShowCalendar(false)} obligations={obligations} onAddObligation={addObligation} onDeleteObligation={deleteObligation} />
     </div>

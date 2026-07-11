@@ -159,6 +159,7 @@ class StatementOut(BaseModel):
     total_income: float
     total_expense: float
     categories_data: str  # JSON string
+    categories: dict = {}  # parsed from categories_data
     analysis_text: str
     status: str
     created_at: Optional[str] = None
@@ -360,6 +361,12 @@ async def delete_statement(statement_id: int, db: AsyncSession = Depends(get_db)
 
 def _statement_to_out(stmt: BankStatement, transactions: list) -> StatementOut:
     """Convert BankStatement model to StatementOut."""
+    # Parse categories from JSON string
+    try:
+        categories_parsed = json.loads(stmt.categories_data) if stmt.categories_data else {}
+    except (json.JSONDecodeError, TypeError):
+        categories_parsed = {}
+    
     return StatementOut(
         id=stmt.id,
         user_id=stmt.user_id,
@@ -370,6 +377,7 @@ def _statement_to_out(stmt: BankStatement, transactions: list) -> StatementOut:
         total_income=stmt.total_income,
         total_expense=stmt.total_expense,
         categories_data=stmt.categories_data,
+        categories=categories_parsed,
         analysis_text=stmt.analysis_text,
         status=stmt.status,
         created_at=str(stmt.created_at) if stmt.created_at else None,
