@@ -50,6 +50,7 @@ services:
       STATEMENT_MODEL: google/gemini-2.5-flash-lite
     volumes:
       - ./uploads:/app/uploads
+      - ./backend/src:/app/src
     depends_on:
       db:
         condition: service_healthy
