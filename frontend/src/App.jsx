@@ -548,6 +548,8 @@ function hasMarkdown(content) {
 // ── Helper: resolve relative /uploads/ URL to absolute ──
 function resolveUploadUrl(url) {
   if (!url) return url;
+  // Blob URL (локальный превью) — не трогаем
+  if (url.startsWith('blob:')) return url;
   if (url.startsWith('/uploads/')) {
     return `${API_URL}${url}`;
   }
@@ -584,6 +586,9 @@ function parseUserMessageContent(content) {
 
 function Home({ onChatCreated, theme, onScroll, userProfile }) {
   const [messages, setMessages] = useState([]);
+  const messagesRef = useRef([]);
+  // Keep ref in sync
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
@@ -668,29 +673,24 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
     }
   };
 
-  // ── Send message with streaming ──
-  const handleSendMessage = useCallback((message) => {
+  // ── Core AI streaming (does NOT add user message — assumes it's already in messages) ──
+  const startAIStreaming = useCallback((message, currentMessages) => {
     setIsLoading(true);
     setIsStreaming(true);
     setStreamingContent('');
     pendingWidgetRef.current = null;
 
-    const userMessage = { role: 'user', content: message };
     const currentChatId = chatIdRef.current;
-
-    setMessages((prev) => [...prev, userMessage]);
 
     sendMessageStream(
       {
         user_id: userId,
         message: message,
         chat_id: currentChatId,
-        history: messages.map(m => ({ role: m.role, content: m.content, agent_name: m.agent_name })),
+        history: currentMessages.map(m => ({ role: m.role, content: m.content, agent_name: m.agent_name })),
       },
       {
-        onToken: (token) => {
-          setStreamingContent((prev) => prev + token);
-        },
+        onToken: (token) => setStreamingContent((prev) => prev + token),
         onWidget: (widgetContent) => {
           // Buffer widget content until done event
           pendingWidgetRef.current = widgetContent;
@@ -699,6 +699,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
         onDone: (metadata) => {
           setIsLoading(false);
           setIsStreaming(false);
+
 
           const finalContent = metadata.full_content || streamingContent;
           // Use agent_name from metadata or fallback to current ref
@@ -731,7 +732,86 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
         },
       }
     );
-  }, [userId, messages, navigate, onChatCreated]);
+  }, [userId, navigate, onChatCreated]);
+
+  // ── Send message with streaming (adds user message + starts AI) ──
+  const handleSendMessage = useCallback((message) => {
+    const userMessage = { role: 'user', content: message };
+    setMessages((prev) => {
+      const updated = [...prev, userMessage];
+      // Запускаем стриминг после добавления сообщения
+      // Используем setTimeout, чтобы setMessages успел примениться
+      setTimeout(() => startAIStreaming(message, updated), 0);
+      return updated;
+    });
+  }, [startAIStreaming]);
+
+  // ═══ Gemini-style: optimistic message for photos (no AI start) ═══
+  const handleOptimisticMessage = useCallback((message) => {
+    setMessages((prev) => {
+      const newMsg = { role: 'user', content: message };
+      const updated = [...prev, newMsg];
+      // Синхронно обновляем ref, чтобы handleFinalSend видел актуальную историю
+      messagesRef.current = updated;
+      return updated;
+    });
+  }, []);
+
+  // ═══ Final send for photos: AI streaming only (message already shown) ═══
+  const handleFinalSend = useCallback((message) => {
+    // messagesRef.current уже содержит оптимистичное сообщение (добавлено handleOptimisticMessage)
+    // Передаём как есть — AI получит актуальную историю без дублирования
+    startAIStreaming(message, messagesRef.current);
+  }, [startAIStreaming]);
+
+  // ═══ Replace local blob URLs with server URLs after upload ═══
+  const handleAttachmentsUploaded = useCallback((localUrls, uploadedAttachments) => {
+    const urlMap = {};
+    localUrls.forEach((localUrl, i) => {
+      if (uploadedAttachments[i]?.url) {
+        urlMap[localUrl] = uploadedAttachments[i].url;
+      }
+    });
+
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.role !== 'user') return msg;
+        let parsed;
+        try {
+          parsed = JSON.parse(msg.content);
+        } catch {
+          return msg;
+        }
+        if (!parsed || typeof parsed !== 'object') return msg;
+
+        // Replace attachment urls
+        let changed = false;
+        const newAttachments = (parsed.attachments || []).map((att) => {
+          if (att._isLocal && urlMap[att.url]) {
+            changed = true;
+            return { ...att, url: urlMap[att.url], _isLocal: undefined };
+          }
+          return att;
+        });
+
+        if (!changed) return msg;
+
+        // Also replace URLs in text
+        let newText = parsed.text || '';
+        Object.entries(urlMap).forEach(([localUrl, serverUrl]) => {
+          newText = newText.split(localUrl).join(serverUrl);
+        });
+
+        return {
+          ...msg,
+          content: JSON.stringify({ text: newText, attachments: newAttachments }),
+        };
+      })
+    );
+
+    // Revoke blob URL'ов после замены
+    localUrls.forEach(u => URL.revokeObjectURL(u));
+  }, []);
 
   // ── Render a single message ──
   const renderMessage = (message, index) => {
@@ -804,6 +884,53 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
 
     // If user message has images AND text is just a Markdown image, prefer raw attachments display
     const isOnlyImageMarkdown = userDisplayContent && /^!\[.*\]\(.*\)$/.test(userDisplayContent.trim());
+    const hasTextContent = !!(userDisplayContent && !isOnlyImageMarkdown);
+
+    // ── Images-only message: render inline gallery without bubble ──
+    if (!hasTextContent && userAttachments.length > 0) {
+      return (
+        <div key={index} className="flex justify-end my-2 group">
+          <div className="max-w-[85%] sm:max-w-[75%] flex items-end gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap justify-end gap-2">
+                {userAttachments.map((att, i) => {
+                  const imgUrl = resolveUploadUrl(att.url || att.data_url || '');
+                  return (
+                    <img
+                      key={i}
+                      src={imgUrl}
+                      alt={att.filename || 'attachment'}
+                      className="max-h-80 max-w-full rounded-2xl shadow-md object-cover"
+                      loading="lazy"
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            {/* User avatar — real image if set, otherwise gradient fallback */}
+            <div className="flex-shrink-0 mb-0.5">
+              {userProfile?.avatar_url ? (
+                <img
+                  src={resolveUploadUrl(userProfile.avatar_url)}
+                  alt=""
+                  className="w-8 h-8 rounded-full object-cover shadow-sm"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const fallback = e.target.nextSibling;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              {!userProfile?.avatar_url && (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-sm font-medium shadow-sm">
+                  {userProfile?.first_name?.[0] || userProfile?.username?.[0] || '?'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div key={index} className="flex justify-end my-2 group">
@@ -820,9 +947,9 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
                   )
                 )}
                 
-                {/* Image attachments inline gallery */}
-                {userAttachments.length > 0 && (
-                  <div className={`flex flex-wrap gap-2 ${isOnlyImageMarkdown ? '' : 'mt-2'}`}>
+                {/* Image attachments inline gallery — only if also has text */}
+                {userAttachments.length > 0 && hasTextContent && (
+                  <div className="flex flex-wrap gap-2 mt-2">
                     {userAttachments.map((att, i) => {
                       const imgUrl = resolveUploadUrl(att.url || att.data_url || '');
                       return (
@@ -948,6 +1075,14 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
             streamAgentRef.current = lastAssistantMsg?.agent_name || 'ixteria';
             setStreamAgentName(streamAgentRef.current);
             handleSendMessage(msg);
+          }}
+          onOptimisticMessage={handleOptimisticMessage}
+          onAttachmentsUploaded={handleAttachmentsUploaded}
+          onFinalSend={(msg) => {
+            const lastAssistantMsg = messages.filter(m => m.role === 'assistant').pop();
+            streamAgentRef.current = lastAssistantMsg?.agent_name || 'ixteria';
+            setStreamAgentName(streamAgentRef.current);
+            handleFinalSend(msg);
           }}
           disabled={isLoading || isStreaming}
           theme={theme}

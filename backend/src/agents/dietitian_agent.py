@@ -574,7 +574,7 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
             model="google/gemini-3.1-flash-lite",
             messages=llm_messages,
             temperature=0.5,
-            max_tokens=300,
+            max_tokens=1000,
             timeout=60.0
         )
         response_text = response.choices[0].message.content

@@ -19,6 +19,7 @@ const Secretary = ({ theme }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [userId] = useState(1);
+  const [creatingChat, setCreatingChat] = useState(false);
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -34,6 +35,29 @@ const Secretary = ({ theme }) => {
   const [dayEvents, setDayEvents] = useState([]);
   const [reminders, setReminders] = useState([]);
   const [heroExpanded, setHeroExpanded] = useState(false);
+
+  const handleCreateScheduleChat = async () => {
+    setCreatingChat(true);
+    try {
+       const welcomeMessage = 
+        "Привет! 👋 Расскажите о вашем дне: во сколько встаёте, работа/учёба, что делаете после. Какие задачи хотите включить в расписание?\n\n" +
+        "Я составлю индивидуальный график с учётом всех занятий, отдыха и свободного времени для новых дел. " +
+        "Если у вас уже есть график — пришлите скриншот, я его проанализирую и добавлю в календарь! 📅";
+      
+      const response = await axios.post(`${API_URL}/api/chats`, {
+        user_id: userId,
+        agent_type: "secretary",
+        title: "Создание расписания",
+        welcome_message: welcomeMessage
+      });
+      
+      const newChatId = response.data.chat_id || response.data.id;
+      navigate(`/chat/${newChatId}`);
+    } catch (error) {
+      console.error('Failed to create schedule chat:', error);
+      setCreatingChat(false);
+    }
+  };
 
   // Load events and reminders on mount
   useEffect(() => {
@@ -945,7 +969,11 @@ const Secretary = ({ theme }) => {
         </div>
 
         {/* CTA Apple-style */}
-        <div className="group relative">
+        <button
+          onClick={handleCreateScheduleChat}
+          disabled={creatingChat}
+          className="group relative w-full text-left"
+        >
           {/* Glow effect */}
           <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-[3rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative flex items-center gap-4 sm:gap-5 p-4 sm:p-6 bg-white dark:bg-gray-800/90 backdrop-blur-xl rounded-[3rem] border border-gray-200/60 dark:border-gray-700/40 shadow-sm hover:shadow-lg transition-all duration-300">
@@ -961,22 +989,34 @@ const Secretary = ({ theme }) => {
             {/* Text */}
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white leading-snug">
-                {language === 'ru'
+                {creatingChat ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    {language === 'ru' ? 'Создаём чат...' : 'Creating chat...'}
+                  </span>
+                ) : language === 'ru'
                   ? 'Создайте своё идеальное расписание и достигайте целей'
                   : 'Create your perfect schedule and achieve your goals'}
               </h3>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed mt-1.5">
-                {language === 'ru'
-                  ? 'Поделитесь с Ixteria вашими делами или имеющимся расписанием — AI поможет расставить приоритеты и ничего не упустить'
-                  : 'Share your tasks or existing schedule with Ixteria — AI will help prioritize and never miss a thing'}
-              </p>
+              {!creatingChat && (
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed mt-1.5">
+                  {language === 'ru'
+                    ? 'Поделитесь с Ixteria вашими делами или имеющимся расписанием — AI поможет расставить приоритеты и ничего не упустить'
+                    : 'Share your tasks or existing schedule with Ixteria — AI will help prioritize and never miss a thing'}
+                </p>
+              )}
             </div>
             {/* Chevron */}
-            <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200">
-              <ArrowRight size={18} />
-            </div>
+            {!creatingChat && (
+              <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200">
+                <ArrowRight size={18} />
+              </div>
+            )}
           </div>
-        </div>
+        </button>
 
       </div>
       </div>

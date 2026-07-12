@@ -18,6 +18,7 @@ import base64
 import asyncio
 import re
 import mimetypes
+import traceback
 from pathlib import Path
 
 router = APIRouter(prefix="/api")
@@ -440,7 +441,7 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     # Process with agent if available (including new dietitian chats)
     if agent_name in AGENT_REGISTRY:
         agent_process = AGENT_REGISTRY[agent_name]
-        response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id)
+        response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id, message_attachments)
         
         # If it's a new dietitian chat and not a plan request, send the greeting
         if (not request.chat_id) and (agent_name == "dietitian") and (response_text is None or "рацион" not in message_text.lower()):
@@ -586,7 +587,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
                 print(f"DEBUG: Generating meal plan via generate_meal_plan for user {request.user_id}")
                 response_text, tokens_used = await dietitian_agent.generate_meal_plan(message_text, db, request.user_id)
             else:
-                response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id)
+                response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id, message_attachments)
             
             if response_text is None:
                 response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
@@ -961,7 +962,16 @@ async def transcribe_audio(file: UploadFile = File(...)):
                 detail=f"Transcription API error: {response.text}",
             )
 
-        result = response.json()
+        # Логируем сырой ответ перед парсингом JSON
+        raw_text = response.text
+        print(f"Transcription raw response (first 500 chars): {raw_text[:500]}")
+        
+        try:
+            result = response.json()
+        except Exception as json_err:
+            print(f"Transcription JSON parse error: {json_err}\n{traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=f"Failed to parse transcription response: {raw_text[:300]}")
+        
         print(f"Transcription API response: {json.dumps(result, indent=2, ensure_ascii=False)[:500]}")
 
         # Extract text from Voxtral response
@@ -975,7 +985,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Transcription error: {e}")
+        print(f"Transcription error: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 
