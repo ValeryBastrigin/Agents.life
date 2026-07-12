@@ -1245,7 +1245,7 @@ const Accountant = () => {
 
                   {/* Распределение активов */}
                   {(() => {
-                    const allocation = parseJsonField(portfolioData.asset_allocation);
+                    const allocation = portfolioData.asset_allocation;
                     if (!allocation) return null;
                     const colors = ['bg-blue-500', 'bg-green-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-500'];
                     const entries = Object.entries(allocation).filter(([, v]) => v > 0);
@@ -1283,7 +1283,7 @@ const Accountant = () => {
 
                   {/* Сильные стороны */}
                   {(() => {
-                    const strengths = parseJsonField(portfolioData.strengths);
+                    const strengths = portfolioData.strengths;
                     if (!strengths || strengths.length === 0) return null;
                     return (
                       <div className="mb-4">
@@ -1305,7 +1305,7 @@ const Accountant = () => {
 
                   {/* Слабые стороны */}
                   {(() => {
-                    const weaknesses = parseJsonField(portfolioData.weaknesses);
+                    const weaknesses = portfolioData.weaknesses;
                     if (!weaknesses || weaknesses.length === 0) return null;
                     return (
                       <div className="mb-4">
@@ -1327,7 +1327,7 @@ const Accountant = () => {
 
                   {/* Рекомендации */}
                   {(() => {
-                    const recommendations = parseJsonField(portfolioData.recommendations);
+                    const recommendations = portfolioData.recommendations;
                     if (!recommendations || recommendations.length === 0) return null;
                     return (
                       <div>

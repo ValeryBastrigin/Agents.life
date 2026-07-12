@@ -195,26 +195,26 @@ def _history_to_llm_messages(history: list[dict] | None) -> list[dict]:
 def calculate_max_tokens(message: str) -> int:
     """Calculate dynamic max_tokens based on question complexity.
     
-    - Very short questions (1-3 words): 150 tokens
-    - Short questions (4-10 words): 300 tokens
-    - Medium questions (11-30 words): 500 tokens
-    - Long questions (31-60 words): 800 tokens
-    - Very long questions (60+ words): 1200 tokens
+    - Very short questions (1-3 words): 300 tokens
+    - Short questions (4-10 words): 600 tokens
+    - Medium questions (11-30 words): 1200 tokens
+    - Long questions (31-60 words): 2000 tokens
+    - Very long questions (60+ words): 4000 tokens
     - If message mentions code/script/explain/analyse/расскажи/объясни/проанализируй: increase by 50%
     """
     word_count = len(message.split())
     
     # Base tokens by word count
     if word_count <= 3:
-        base = 150
-    elif word_count <= 10:
         base = 300
+    elif word_count <= 10:
+        base = 600
     elif word_count <= 30:
-        base = 500
-    elif word_count <= 60:
-        base = 800
-    else:
         base = 1200
+    elif word_count <= 60:
+        base = 2000
+    else:
+        base = 4000
     
     # Boost for complex requests
     complex_keywords = [
@@ -230,8 +230,8 @@ def calculate_max_tokens(message: str) -> int:
     if any(kw in msg_lower for kw in complex_keywords):
         base = int(base * 1.5)
     
-    # Cap at 2048 to be safe
-    return min(base, 2048)
+    # Cap at 8192 to allow detailed responses (schedule evaluation, meal plans, etc.)
+    return min(base, 8192)
 
 # --- Pydantic models ---
 class ChatRequest(BaseModel):

@@ -296,7 +296,7 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
                     model="google/gemini-2.0-flash-exp",
                     messages=[{"role": "user", "content": image_url_parts}],
                     temperature=0.3,
-                    max_tokens=800
+                    max_tokens=3000
                 )
                 eval_data = json.loads(response.choices[0].message.content)
             except Exception as e:
@@ -334,7 +334,7 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
                     model="google/gemini-3.1-flash-lite",
                     messages=[{"role": "user", "content": eval_prompt}],
                     temperature=0.3,
-                    max_tokens=800
+                    max_tokens=1500
                 )
                 eval_data = json.loads(response.choices[0].message.content)
             except Exception as e:
@@ -440,7 +440,7 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
                 model="google/gemini-3.1-flash-lite",
                 messages=[{"role": "user", "content": schedule_extraction_prompt}],
                 temperature=0.4,
-                max_tokens=1200
+                max_tokens=2000
             )
             schedule_data = json.loads(response.choices[0].message.content)
             
@@ -655,7 +655,7 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
             model="google/gemini-3.1-flash-lite",
             messages=messages,
             temperature=0.5,
-            max_tokens=2000,
+            max_tokens=3000,
             timeout=60.0
         )
         response_text = response.choices[0].message.content
