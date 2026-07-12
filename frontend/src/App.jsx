@@ -591,11 +591,13 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const isStreamingRef = useRef(false);
   const [streamingContent, setStreamingContent] = useState('');
   const [streamAgentName, setStreamAgentName] = useState('');
   const streamAgentRef = useRef('');
   const [chatId, setChatId] = useState(null);
   const chatIdRef = useRef(null);
+  const navigatedFromStreamRef = useRef(false);
   const [userId] = useState(1);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -644,6 +646,11 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
     chatIdRef.current = chatId;
   }, [chatId]);
 
+  // Keep isStreamingRef in sync
+  useEffect(() => {
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
   // Load chat based on URL
   useEffect(() => {
     const loadChat = async () => {
@@ -653,6 +660,21 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
         const id = parseInt(pathMatch[1]);
         setChatId(id);
         chatIdRef.current = id;
+
+        // Skip DB load if we just navigated here from a stream completion —
+        // messages were already added by onDone, and loading from DB would
+        // race with the state update and cause duplicates.
+        if (navigatedFromStreamRef.current) {
+          navigatedFromStreamRef.current = false;
+          return;
+        }
+
+        // Skip DB load if streaming is still active — onDone will add the
+        // assistant message, and the navigate may fire before the stream ends.
+        if (isStreamingRef.current) {
+          return;
+        }
+
         await loadChatMessages(id);
       } else {
         setMessages([]);
@@ -667,7 +689,31 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
   const loadChatMessages = async (id) => {
     try {
       const response = await axios.get(`${API_URL}/api/chats/${id}/messages`);
-      setMessages(response.data);
+      const dbMessages = response.data;
+
+      // Deduplicate: merge DB messages with existing state, keeping existing
+      // messages when they match by id (or by role+content for messages without id).
+      setMessages((prev) => {
+        if (prev.length === 0) return dbMessages;
+
+        const existingIds = new Set(prev.filter(m => m.id != null).map(m => m.id));
+        const existingSignatures = new Set(
+          prev.filter(m => m.id == null).map(m => `${m.role}::${m.content}`)
+        );
+
+        const merged = [...prev];
+        for (const dbMsg of dbMessages) {
+          const isDuplicate =
+            (dbMsg.id != null && existingIds.has(dbMsg.id)) ||
+            (dbMsg.id == null && existingSignatures.has(`${dbMsg.role}::${dbMsg.content}`));
+
+          if (!isDuplicate) {
+            merged.push(dbMsg);
+          }
+        }
+
+        return merged;
+      });
     } catch (error) {
       console.error('Failed to load messages:', error);
     }
@@ -708,7 +754,14 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
           // If widget was received, use widget content
           const contentToSave = pendingWidgetRef.current || finalContent;
 
-          setMessages((prev) => [...prev, { role: 'assistant', content: contentToSave, agent_name: agentName }]);
+          // Avoid duplicate: check if the last message is already this content
+          setMessages((prev) => {
+            const lastMsg = prev[prev.length - 1];
+            if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content === contentToSave) {
+              return prev;
+            }
+            return [...prev, { role: 'assistant', content: contentToSave, agent_name: agentName }];
+          });
           setStreamingContent('');
           setStreamAgentName('');
 
@@ -716,6 +769,9 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
           if (metadata.is_new_chat && metadata.chat_id) {
             setChatId(metadata.chat_id);
             chatIdRef.current = metadata.chat_id;
+            // Signal that this navigation originated from a stream completion
+            // so the pathname useEffect skips loadChatMessages.
+            navigatedFromStreamRef.current = true;
             navigate(`/chat/${metadata.chat_id}`, { replace: true });
             if (onChatCreated) {
               onChatCreated();

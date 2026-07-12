@@ -314,6 +314,7 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
       if (text.trim()) {
         onSendMessage(text);
       }
+      setMessage('');
       return;
     }
 
@@ -409,10 +410,8 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      const hasContent = message.trim() || pendingFiles.length > 0;
-      if (hasContent && !disabled && !isUploading && previewLoadingCount === 0) {
-        doSend(message);
-      }
+      // Не вызываем doSend напрямую — полагаемся на handleSubmit формы
+      // Это предотвращает дублирование сообщения (Enter триггерит оба события)
     }
   };
 

@@ -562,11 +562,6 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
     message_text, message_attachments = _normalize_user_message_content(request.message)
 
-    # Save user message
-    user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
-    db.add(user_message)
-    await db.flush()
-
     # Prepare messages for LLM
     if agent_name in AGENT_REGISTRY:
         # For specialized agents, create generator that sends chat_id IMMEDIATELY,
@@ -580,7 +575,11 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             }
             yield f"data: {json.dumps(early_meta)}\n\n"
             
-            # 2. Now process the agent (may take time)
+            # 2. Save user message INSIDE generator (atomic with assistant message)
+            user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
+            db.add(user_message)
+            
+            # 3. Now process the agent (may take time)
             agent_process = AGENT_REGISTRY[agent_name]
             
             if request.generate_meal_plan and agent_name == "dietitian":
@@ -592,12 +591,14 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             if response_text is None:
                 response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
             
-            # 3. Save assistant message
+            # 4. Save assistant message
             assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
             db.add(assistant_message)
+            
+            # 5. Single commit for BOTH user and assistant messages
             await db.commit()
             
-            # 4. Stream the final response (widget or tokens)
+            # 6. Stream the final response (widget or tokens)
             async for event in _stream_final_response(response_text, chat.id, is_new_chat, agent_name):
                 yield event
         
@@ -618,6 +619,10 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         messages.append({"role": "system", "content": agent.system_prompt})
         messages.extend(_history_to_llm_messages(request.history))
         _append_user_message(messages, message_text, message_attachments)
+
+        # Save user message INSIDE generator (atomic with assistant message)
+        user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
+        db.add(user_message)
 
         try:
             max_tokens = calculate_max_tokens(message_text)
@@ -649,6 +654,8 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         # Save assistant message
         assistant_message = Message(chat_id=chat.id, role="assistant", content=full_response, tokens_used=0)
         db.add(assistant_message)
+        
+        # Single commit for BOTH user and assistant messages
         await db.commit()
 
         # Send done event with metadata
