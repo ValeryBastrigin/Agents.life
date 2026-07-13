@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useParams, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
+import SecretaryBackground from './components/SecretaryBackground';
+import AccountantBackground from './components/AccountantBackground';
+import PsychologistBackground from './components/PsychologistBackground';
+import DietitianBackground from './components/DietitianBackground';
+import MentorBackground from './components/MentorBackground';
 import ChatInput from './components/ChatInput';
 import AnimatedBackground from './components/AnimatedBackground';
 import ChatWidgetRenderer from './components/ui/widgets/ChatWidgetRenderer';
@@ -307,6 +312,13 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         </div>
       )}
 
+      {/* Global agent backgrounds - behind header too */}
+      {location.pathname.startsWith('/secretary') && (
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <SecretaryBackground theme={theme} />
+        </div>
+      )}
+
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
@@ -495,9 +507,9 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/chat/:chatId?" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} userProfile={userProfile} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
         <Route path="/secretary/logs" element={<ActivityLog theme={theme} />} />
-        <Route path="/secretary/guide" element={<SecretaryGuide />} />
-        <Route path="/secretary/notes" element={<NotesList />} />
-        <Route path="/secretary/notes/:id" element={<NoteEditor />} />
+        <Route path="/secretary/guide" element={<SecretaryGuide theme={theme} />} />
+        <Route path="/secretary/notes" element={<NotesList theme={theme} />} />
+        <Route path="/secretary/notes/:id" element={<NoteEditor theme={theme} />} />
         <Route path="/accountant" element={<Accountant />} />
         <Route path="/dietitian" element={<Dietitian />} />
         <Route path="/dietitian/plan" element={<DietPlanPage />} />

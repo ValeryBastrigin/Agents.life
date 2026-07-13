@@ -48,8 +48,8 @@ export default function ActivityLog({ theme }) {
   var totalText = language === 'ru' ? 'Всего записей: ' + filteredLogs.length : 'Total entries: ' + filteredLogs.length;
   
   return (
-    <div className='flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 relative'>
-      <div className='max-w-2xl mx-auto'>
+    <div className='relative flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6'>
+      <div className='max-w-2xl mx-auto relative z-10'>
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
           className='flex items-center justify-between mb-5 sm:mb-6'>
           <div className='flex items-center gap-2 sm:gap-3'>

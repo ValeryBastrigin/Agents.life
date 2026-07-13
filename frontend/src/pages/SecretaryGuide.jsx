@@ -4,7 +4,7 @@ import { ArrowLeft, Zap, Calendar, Bell, MessageSquare, Clock, CheckCircle, Arro
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 
-export default function SecretaryGuide() {
+export default function SecretaryGuide({ theme }) {
   var { language } = useLanguage();
   var nav = useNavigate();
   var ru = language === 'ru';
@@ -56,8 +56,8 @@ export default function SecretaryGuide() {
   ];
 
   return (
-    <div className='flex-1 overflow-y-auto px-4 sm:px-6 py-6'>
-      <div className='max-w-2xl mx-auto'>
+    <div className='relative flex-1 overflow-y-auto px-4 sm:px-6 py-6'>
+      <div className='max-w-2xl mx-auto relative z-10'>
         {/* Hero Section */}
         <div className='relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 dark:from-blue-700 dark:via-blue-600 dark:to-indigo-700 rounded-[3.5rem] p-6 sm:p-8 mb-8 shadow-lg shadow-blue-500/20'>
           {/* Decorative elements */}

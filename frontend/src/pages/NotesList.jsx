@@ -7,7 +7,7 @@ import axios from 'axios';
 var API='http://localhost:8001/api'; var uid=1;
 var COLORS=['#8B5CF6','#3B82F6','#10B981','#F59E0B','#EF4444','#EC4899','#6366F1','#14B8A6'];
 
-export default function NotesList() {
+export default function NotesList({ theme }) {
   var { language } = useLanguage(); var nav = useNavigate(); var ru=language==='ru';
   var [notes,setNotes]=useState([]); var [sel,setSel]=useState(new Set()); var lp=useRef(null); var [cp,setCp]=useState(false);
   var load=useCallback(async function(){ try{var r=await axios.get(API+'/notes/'+uid);setNotes(r.data)}catch(e){}},[]);
@@ -24,8 +24,8 @@ export default function NotesList() {
   var unpinnedNotes = notes.filter(function(n){return !n.is_pinned});
 
   return (
-    <div className='flex-1 overflow-y-auto px-4 sm:px-6 py-6'>
-      <div className='max-w-5xl mx-auto'>
+    <div className='relative flex-1 overflow-y-auto px-4 sm:px-6 py-6'>
+      <div className='max-w-5xl mx-auto relative z-10'>
         {/* Hero Header — синий фирменный, без кнопки "+" */}
         <div className='bg-gradient-to-br from-blue-500 to-blue-700 dark:from-blue-600 dark:to-blue-800 rounded-[3rem] p-5 mb-6 text-white'>
           <button onClick={function(){nav('/secretary')}}

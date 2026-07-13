@@ -6,7 +6,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import axios from 'axios';
 var API='http://localhost:8001/api'; var uid=1;
 
-export default function NoteEditor() {
+export default function NoteEditor({ theme }) {
   var { language } = useLanguage(); var nav = useNavigate(); var { id } = useParams(); var ru=language==='ru';
   var [title,setTitle]=useState(''); var [content,setContent]=useState('');
   var isNew = !id || id==='new';
@@ -24,8 +24,8 @@ export default function NoteEditor() {
   }
 
   return (
-    <div className='flex-1 overflow-y-auto px-4 sm:px-6 py-6'>
-      <div className='max-w-2xl mx-auto'>
+    <div className='relative flex-1 overflow-y-auto px-4 sm:px-6 py-6'>
+      <div className='max-w-2xl mx-auto relative z-10'>
         {/* Hero Header — синий фирменный */}
         <div className='bg-gradient-to-br from-blue-500 to-blue-700 dark:from-blue-600 dark:to-blue-800 rounded-[3rem] p-5 mb-6 text-white'>
           <button onClick={function(){nav('/secretary/notes')}}
