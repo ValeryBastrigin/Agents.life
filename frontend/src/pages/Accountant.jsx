@@ -3,6 +3,7 @@ import { X, ChevronRight, ChevronLeft, BookOpen, Calendar, FileText, DollarSign,
 import { apiClient } from '../utils/apiClient';
 import AccountantBackground from '../components/AccountantBackground';
 import PortfolioAnalysisModal from '../components/PortfolioAnalysisModal';
+import StatementUploadModal from '../components/StatementAnalysisModal';
 import { useNavigate } from 'react-router-dom';
 
 // ---------- Modal: Как пользоваться ----------
@@ -566,27 +567,22 @@ const StatementDetailView = ({ statement, onBack }) => {
         )}
       </div>
 
-      {/* Анализ от LLM */}
-      {statement.analysis_text && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-[1.5rem] p-4 mt-2">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">Анализ</h3>
-          <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-wrap">
-            {statement.analysis_text}
-          </p>
-        </div>
-      )}
+      {/* Кнопка анализа */}
+      <button className="w-full bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white font-semibold py-3 px-4 rounded-[2rem] transition-all duration-200 shadow-md hover:shadow-lg active:scale-[0.98] mt-2">
+        Произвести анализ
+      </button>
     </div>
   );
 };
 
 // ---------- Modal: История выписок ----------
-const StatementsModal = ({ isOpen, onClose, onStatementsChange }) => {
+const StatementsModal = ({ isOpen, onClose, onStatementsChange, onStartAnalysis }) => {
   const [statements, setStatements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedStatement, setSelectedStatement] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null); // id выписки для подтверждения
 
   // Загрузка списка выписок
   useEffect(() => {
@@ -623,33 +619,28 @@ const StatementsModal = ({ isOpen, onClose, onStatementsChange }) => {
     setSelectedStatement(null);
   };
 
-  // Удаление выписки
-  const handleDeleteStatement = async (stmtId, e) => {
+  // Открыть модалку подтверждения удаления
+  const handleDeleteClick = (stmtId, e) => {
     e.stopPropagation();
-    if (confirmDeleteId === stmtId) {
-      setDeletingId(stmtId);
-      try {
-        await apiClient.delete(`/api/accountant/statements/${stmtId}`);
-        setStatements(prev => prev.filter(s => s.id !== stmtId));
-        setConfirmDeleteId(null);
-        if (onStatementsChange) onStatementsChange();
-      } catch (err) {
-        console.error('Ошибка удаления выписки:', err);
-      } finally {
-        setDeletingId(null);
-      }
-    } else {
-      setConfirmDeleteId(stmtId);
-    }
+    setShowDeleteConfirm(stmtId);
   };
 
-  // Сброс подтверждения удаления при клике вне
-  useEffect(() => {
-    if (confirmDeleteId) {
-      const timer = setTimeout(() => setConfirmDeleteId(null), 4000);
-      return () => clearTimeout(timer);
+  // Подтвердить удаление
+  const handleConfirmDelete = async () => {
+    if (showDeleteConfirm === null) return;
+    const stmtId = showDeleteConfirm;
+    setDeletingId(stmtId);
+    setShowDeleteConfirm(null);
+    try {
+      await apiClient.delete(`/api/accountant/statements/${stmtId}`);
+      setStatements(prev => prev.filter(s => s.id !== stmtId));
+      if (onStatementsChange) onStatementsChange();
+    } catch (err) {
+      console.error('Ошибка удаления выписки:', err);
+    } finally {
+      setDeletingId(null);
     }
-  }, [confirmDeleteId]);
+  };
 
   if (!isOpen) return null;
 
@@ -680,10 +671,15 @@ const StatementsModal = ({ isOpen, onClose, onStatementsChange }) => {
               <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : statements.length === 0 ? (
-            <div className="text-center py-10 text-gray-400 dark:text-gray-500">
-              <FileText size={40} className="mx-auto mb-3 opacity-50" />
-              <p className="text-sm font-medium">Нет загруженных выписок</p>
-              <p className="text-xs mt-1">Загрузите банковскую выписку, чтобы увидеть анализ</p>
+            <div className="text-center py-10">
+              <div
+                onClick={() => { if (onStartAnalysis) onStartAnalysis(); onClose(); }}
+                className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center active:scale-95 cursor-pointer text-2xl font-bold"
+              >
+                +
+              </div>
+              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Нет загруженных выписок</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Загрузите банковскую выписку, чтобы увидеть анализ</p>
             </div>
           ) : (
             <div className="space-y-3 py-1">
@@ -693,21 +689,15 @@ const StatementsModal = ({ isOpen, onClose, onStatementsChange }) => {
                   onClick={() => handleStatementClick(stmt.id)}
                   className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border border-gray-100 dark:border-transparent relative group"
                 >
-                  {/* Кнопка удаления — всегда видна на мобильных */}
+                  {/* Кнопка удаления */}
                   <button
-                    onClick={(e) => handleDeleteStatement(stmt.id, e)}
+                    onClick={(e) => handleDeleteClick(stmt.id, e)}
                     disabled={deletingId === stmt.id}
-                    className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all z-10 ${
-                      confirmDeleteId === stmt.id
-                        ? 'bg-red-500 text-white scale-110 shadow-md'
-                        : 'bg-red-100/80 dark:bg-red-900/40 text-red-500 hover:bg-red-200 dark:hover:bg-red-800/50 lg:opacity-0 lg:group-hover:opacity-100'
-                    }`}
-                    title={confirmDeleteId === stmt.id ? 'Нажмите ещё раз для удаления' : 'Удалить выписку'}
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all z-10 bg-red-100/80 dark:bg-red-900/40 text-red-500 hover:bg-red-200 dark:hover:bg-red-800/50 lg:opacity-0 lg:group-hover:opacity-100"
+                    title="Удалить выписку"
                   >
                     {deletingId === stmt.id ? (
                       <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : confirmDeleteId === stmt.id ? (
-                      <X size={14} />
                     ) : (
                       <Trash2 size={14} />
                     )}
@@ -754,6 +744,35 @@ const StatementsModal = ({ isOpen, onClose, onStatementsChange }) => {
           </button>
         </div>
       </div>
+      {/* Модалка подтверждения удаления */}
+      {showDeleteConfirm !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-background-light dark:bg-background-dark rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700/50 p-6 text-center">
+            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <Trash2 size={24} className="text-red-500" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Удалить выписку?</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Это действие нельзя отменить. Все данные выписки будут безвозвратно удалены.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-[2rem] transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deletingId !== null}
+                className="flex-1 py-3 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-medium rounded-[2rem] transition-colors disabled:cursor-not-allowed"
+              >
+                {deletingId !== null ? 'Удаление...' : 'Удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -767,6 +786,7 @@ const Accountant = () => {
   const [obligations, setObligations] = useState([]);
   const [latestStatement, setLatestStatement] = useState(null);
   const [statementsRefresh, setStatementsRefresh] = useState(0);
+  const [showStatementUpload, setShowStatementUpload] = useState(false);
 
   // Активная вкладка: 'main' или 'investments'
   const [activeTab, setActiveTab] = useState('main');
@@ -1053,7 +1073,7 @@ const Accountant = () => {
                   {latestStatement ? 'Последняя выписка' : 'Банковская выписка'}
                 </h2>
                 <button
-                  onClick={() => navigate('/financial-analyst')}
+                  onClick={() => setShowStatementUpload(true)}
                   className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center hover:bg-purple-200 dark:hover:bg-purple-800/40 transition-colors"
                 >
                   <Upload size={16} className="text-purple-600 dark:text-purple-400" />
@@ -1359,6 +1379,7 @@ const Accountant = () => {
         isOpen={showStatements}
         onClose={() => setShowStatements(false)}
         onStatementsChange={() => setStatementsRefresh(prev => prev + 1)}
+        onStartAnalysis={() => setShowStatementUpload(true)}
       />
       <CalendarModal isOpen={showCalendar} onClose={() => setShowCalendar(false)} obligations={obligations} onAddObligation={addObligation} onDeleteObligation={deleteObligation} />
       <PortfolioAnalysisModal
@@ -1366,6 +1387,12 @@ const Accountant = () => {
         onClose={() => setShowPortfolioAnalysis(false)}
         onComplete={handlePortfolioAnalysisComplete}
         userId={1}
+      />
+      <StatementUploadModal
+        isOpen={showStatementUpload}
+        onClose={() => setShowStatementUpload(false)}
+        userId={1}
+        onStatementSaved={() => setStatementsRefresh(prev => prev + 1)}
       />
     </div>
   );
