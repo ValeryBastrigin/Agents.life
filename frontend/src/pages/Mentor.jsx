@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, BookOpen, Star, Calendar, Zap, Flag, Brain, Rocket, ChevronDown, ChevronUp, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2 } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2 } from 'lucide-react';
 import MentorBackground from '../components/MentorBackground';
+import DreamInputModal from '../components/DreamInputModal';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
@@ -21,28 +21,11 @@ function loadHabitData() {
   return { habits: [], xp: 0, level: 1, unlockedAchievements: [], lastResetDate: getTodayKey() };
 }
 
-const COLOR_MAP = {
-  'from-green-500 to-emerald-500': { bg: 'from-green-500 to-emerald-500' },
-  'from-blue-500 to-cyan-500': { bg: 'from-blue-500 to-cyan-500' },
-  'from-purple-500 to-pink-500': { bg: 'from-purple-500 to-pink-500' },
-  'from-yellow-500 to-orange-500': { bg: 'from-yellow-500 to-orange-500' },
-  'from-red-500 to-rose-500': { bg: 'from-red-500 to-rose-500' },
-  'from-teal-500 to-green-500': { bg: 'from-teal-500 to-green-500' },
-  'from-indigo-500 to-purple-500': { bg: 'from-indigo-500 to-purple-500' },
-  'from-pink-500 to-red-500': { bg: 'from-pink-500 to-red-500' },
-};
-
-const getColor = (name) => {
-  const colors = Object.keys(COLOR_MAP);
-  const idx = name.length % colors.length;
-  return colors[idx];
-};
-
 const Mentor = () => {
   const navigate = useNavigate();
-  const { t } = useLanguage();
-  const [heroExpanded, setHeroExpanded] = useState(true);
   const [habitData, setHabitData] = useState({ habits: [], xp: 0, level: 1, unlockedAchievements: [] });
+  const [dreamModalOpen, setDreamModalOpen] = useState(false);
+  const [dreamLoading, setDreamLoading] = useState(false);
 
   const toggleHabitComplete = (habitId) => {
     const data = loadHabitData();
@@ -119,43 +102,26 @@ const Mentor = () => {
       <div className="relative z-10 overflow-y-auto h-full px-6 pt-4 pb-8">
         <div className="max-w-2xl mx-auto">
 
-          {/* Collapsible Hero Section — Путь к успеху (original design) */}
-          <div className="bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3rem] p-5 mb-6 text-white">
-            {/* Clickable header that toggles collapse */}
-            <button
-              onClick={() => setHeroExpanded(!heroExpanded)}
-              className="flex items-center justify-between gap-3 w-full text-left"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="text-4xl shrink-0">🏆</div>
-                <div className="min-w-0">
-                  <h2 className="text-lg font-semibold mb-0.5">Путь к успеху</h2>
-                  <p className="text-white/80 text-xs">Большие результаты начинаются с маленьких шагов. Каждый день приближает вас к цели.</p>
-                </div>
+          {/* Dream button — replaces "Путь к успеху" widget */}
+          <button
+            onClick={() => setDreamModalOpen(true)}
+            className="w-full bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3rem] p-5 mb-6 text-white hover:shadow-2xl hover:shadow-amber-500/30 transition-all active:scale-[0.98] text-left group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-all group-hover:scale-110 duration-300">
+                <Wand2 size={28} className="text-white" />
               </div>
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors shrink-0">
-                {heroExpanded ? <ChevronUp size={18} className="text-white" /> : <ChevronDown size={18} className="text-white" />}
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-bold mb-1">На пути к мечте</h2>
+                <p className="text-white/80 text-xs leading-relaxed">
+                  Расскажите ментору о своей мечте и он проложит понятный путь к ней и будет поддерживать вас на всем пути.
+                </p>
               </div>
-            </button>
-
-            {/* Expanded content — stats row */}
-            <div className={`overflow-hidden transition-all duration-300 ${heroExpanded ? 'max-h-40 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
-              <div className="flex gap-3">
-                <div className="flex-1 text-center bg-white/10 rounded-[1rem] p-3">
-                  <div className="text-xl font-bold">0</div>
-                  <div className="text-[10px] text-white/70">активных целей</div>
-                </div>
-                <div className="flex-1 text-center bg-white/10 rounded-[1rem] p-3">
-                  <div className="text-xl font-bold">0%</div>
-                  <div className="text-[10px] text-white/70">общий прогресс</div>
-                </div>
-                <div className="flex-1 text-center bg-white/10 rounded-[1rem] p-3">
-                  <div className="text-xl font-bold">0</div>
-                  <div className="text-[10px] text-white/70">дней подряд</div>
-                </div>
+              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-all group-hover:scale-110 duration-300">
+                <Sparkles size={20} className="text-white" />
               </div>
             </div>
-          </div>
+          </button>
 
           {/* 3 Horizontal Blocks */}
           <div className="grid grid-cols-3 gap-3 mb-6">
@@ -350,6 +316,28 @@ const Mentor = () => {
             </div>
           </div>
 
+        {/* Dream Input Modal */}
+        <DreamInputModal
+          isOpen={dreamModalOpen}
+          onClose={() => setDreamModalOpen(false)}
+          onSubmit={async (dreamText) => {
+            setDreamLoading(true);
+            try {
+              const res = await axios.post(`${API_URL}/api/chats`, {
+                user_id: 1,
+                agent_type: 'mentor',
+                welcome_message: `Привет! 👋 Я — ваш ментор. Моя мечта: ${dreamText}. Помоги мне разбить эту мечту на достижимые цели и проложи путь к ней.`
+              });
+              const chatId = res.data.chat_id || res.data.id;
+              setDreamModalOpen(false);
+              navigate(`/chat/${chatId}`);
+            } catch (err) {
+              console.error('Failed to create mentor chat:', err);
+              setDreamLoading(false);
+            }
+          }}
+          isLoading={dreamLoading}
+        />
         </div>
       </div>
     </div>
