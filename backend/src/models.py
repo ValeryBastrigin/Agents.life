@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
 
+
 class User(Base):
     __tablename__ = "users"
 
@@ -22,6 +23,8 @@ class User(Base):
     reminders = relationship("Reminder", back_populates="user", cascade="all, delete-orphan")
     notes = relationship("Note", back_populates="user", cascade="all, delete-orphan")
     bank_statements = relationship("BankStatement", back_populates="user", cascade="all, delete-orphan")
+    dream_goals = relationship("DreamGoal", back_populates="user", cascade="all, delete-orphan")
+
 
 class Agent(Base):
     __tablename__ = "agents"
@@ -34,6 +37,7 @@ class Agent(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     chats = relationship("Chat", back_populates="agent")
+
 
 class Chat(Base):
     __tablename__ = "chats"
@@ -51,6 +55,7 @@ class Chat(Base):
     messages = relationship("Message", back_populates="chat", cascade="all, delete-orphan")
     therapy_sessions = relationship("TherapySession", back_populates="chat", cascade="all, delete-orphan")
 
+
 class Message(Base):
     __tablename__ = "messages"
     
@@ -63,6 +68,7 @@ class Message(Base):
     
     chat = relationship("Chat", back_populates="messages")
 
+
 class TokenTransaction(Base):
     __tablename__ = "token_transactions"
 
@@ -74,6 +80,7 @@ class TokenTransaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="token_transactions")
+
 
 class CalendarEvent(Base):
     __tablename__ = "calendar_events"
@@ -91,6 +98,7 @@ class CalendarEvent(Base):
 
     user = relationship("User", back_populates="calendar_events")
 
+
 class Reminder(Base):
     __tablename__ = "reminders"
 
@@ -107,6 +115,7 @@ class Reminder(Base):
 
     user = relationship("User", back_populates="reminders")
 
+
 class Note(Base):
     __tablename__ = "notes"
 
@@ -120,6 +129,7 @@ class Note(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="notes")
+
 
 class FinancialObligation(Base):
     __tablename__ = "financial_obligations"
@@ -155,6 +165,7 @@ class UserDietProfile(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
+
 
 class DiaryEntry(Base):
     __tablename__ = "diary_entries"
@@ -314,3 +325,24 @@ class PortfolioAnalysis(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
+
+
+class DreamGoal(Base):
+    """Хранит структурированную мечту пользователя с категорией и шагами."""
+    __tablename__ = "dream_goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    dream_text = Column(Text, nullable=False)
+    category = Column(String(50), nullable=False)  # MATERIAL_ASSET, SKILL_DEVELOPMENT, etc.
+    goal_summary = Column(String(255), nullable=False)
+    analysis = Column(Text, default="")
+    steps_data = Column(Text, default="[]")  # JSON array of step objects
+    selected_step_ids = Column(Text, default="[]")  # JSON array of selected step ids
+    chat_id = Column(Integer, ForeignKey("chats.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(20), default="active")  # active, completed, archived
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="dream_goals")
+    chat = relationship("Chat")

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2 } from 'lucide-react';
+import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X } from 'lucide-react';
 import MentorBackground from '../components/MentorBackground';
 import DreamInputModal from '../components/DreamInputModal';
 import axios from 'axios';
@@ -21,11 +21,63 @@ function loadHabitData() {
   return { habits: [], xp: 0, level: 1, unlockedAchievements: [], lastResetDate: getTodayKey() };
 }
 
+const categoryEmojis = {
+  MATERIAL_ASSET: '💰',
+  SKILL_DEVELOPMENT: '📚',
+  CAREER_GROWTH: '🚀',
+  LIFE_EXPERIENCE: '🌍',
+  EXISTENTIAL_WELLBEING: '🧘',
+  ABSTRACT_AMBITION: '✨'
+};
+
+const categoryLabels = {
+  MATERIAL_ASSET: 'Материальная цель',
+  SKILL_DEVELOPMENT: 'Развитие навыков',
+  CAREER_GROWTH: 'Карьерный рост',
+  LIFE_EXPERIENCE: 'Жизненный опыт',
+  EXISTENTIAL_WELLBEING: 'Благополучие',
+  ABSTRACT_AMBITION: 'Амбиция'
+};
+
 const Mentor = () => {
   const navigate = useNavigate();
   const [habitData, setHabitData] = useState({ habits: [], xp: 0, level: 1, unlockedAchievements: [] });
   const [dreamModalOpen, setDreamModalOpen] = useState(false);
-  const [dreamLoading, setDreamLoading] = useState(false);
+  const [goals, setGoals] = useState([]);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { goal_id, goal_summary }
+
+  // Load dream goals from backend
+  const loadDreamGoals = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/mentor/dream-goals?user_id=1`);
+      if (res.data?.goals) {
+        setGoals(res.data.goals.filter(g => g.status === 'active' || g.status === 'saved'));
+      }
+    } catch (err) {
+      console.error('Failed to load dream goals:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDreamGoals();
+  }, [loadDreamGoals]);
+
+  const handleDeleteGoal = async (goalId) => {
+    try {
+      await axios.delete(`${API_URL}/api/mentor/dream-goals/${goalId}?user_id=1`);
+      loadDreamGoals();
+    } catch (err) {
+      console.error('Failed to delete goal:', err);
+    }
+    setDeleteConfirm(null);
+  };
+
+  // Reload goals when dream modal closes
+  useEffect(() => {
+    if (!dreamModalOpen) {
+      loadDreamGoals();
+    }
+  }, [dreamModalOpen, loadDreamGoals]);
 
   const toggleHabitComplete = (habitId) => {
     const data = loadHabitData();
@@ -36,15 +88,11 @@ const Mentor = () => {
     if (!habit.log) habit.log = {};
     if (habit.log[todayKey]) {
       delete habit.log[todayKey];
-      // Remove XP when unchecking
       data.xp = Math.max(0, (data.xp || 0) - 10);
-      // Recalculate level based on XP
       data.level = Math.floor(data.xp / 100) + 1;
     } else {
       habit.log[todayKey] = true;
-      // Add XP
       data.xp = (data.xp || 0) + 10;
-      // Level up every 100 XP
       const newLevel = Math.floor(data.xp / 100) + 1;
       if (newLevel > (data.level || 1)) {
         data.level = newLevel;
@@ -59,7 +107,6 @@ const Mentor = () => {
     setHabitData(loadHabitData());
     const handleStorage = () => setHabitData(loadHabitData());
     window.addEventListener('storage', handleStorage);
-    // Also poll periodically for same-tab changes
     const interval = setInterval(() => setHabitData(loadHabitData()), 2000);
     return () => {
       window.removeEventListener('storage', handleStorage);
@@ -67,13 +114,11 @@ const Mentor = () => {
     };
   }, []);
 
-  // Compute today's habits with streak info for the widget
   const todayKey = getTodayKey();
   const habits = useMemo(() => {
     return habitData.habits.map(h => {
       const log = h.log || {};
       const history = h.history || [todayKey];
-      // Compute streak
       let streak = 0;
       const d = new Date();
       while (true) {
@@ -92,9 +137,6 @@ const Mentor = () => {
       };
     });
   }, [habitData, todayKey]);
-
-  const goals = [];
-  // goals will be loaded from API later
 
   return (
     <div className="flex-1 relative overflow-hidden">
@@ -165,7 +207,7 @@ const Mentor = () => {
             </button>
           </div>
 
-          {/* Active Goals — dynamic, no stub if empty */}
+          {/* Active Goals — loaded from dream goals API */}
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
               <Target size={18} className="text-red-500" />
@@ -179,35 +221,47 @@ const Mentor = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
                   Нет активных целей
                 </p>
-                <button className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-[2rem] text-sm font-medium transition-all shadow-md hover:shadow-xl">
+                <button
+                  onClick={() => setDreamModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-[2rem] text-sm font-medium transition-all shadow-md hover:shadow-xl"
+                >
                   <Plus size={16} />
                   Добавить цели
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {goals.map((goal, index) => (
-                  <div key={index} className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group backdrop-blur-lg">
-                    <div className={`w-10 h-10 rounded-[3rem] bg-gradient-to-br ${goal.gradient} flex items-center justify-center text-xl mb-2 shadow-md group-hover:shadow-xl transition-all`}>
-                      {goal.icon}
-                    </div>
-                    <h3 className="font-semibold text-gray-800 dark:text-white text-sm mb-0.5">{goal.title}</h3>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-2">{goal.category}</p>
-                    <div className="mb-2">
-                      <div className="flex justify-between text-[10px] mb-1">
-                        <span className="text-gray-500 dark:text-gray-400">Прогресс</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{goal.progress}%</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full bg-gradient-to-r ${goal.gradient} rounded-full transition-all`}
-                          style={{ width: `${goal.progress}%` }}
-                        />
+                {goals.map((goal) => (
+                  <div
+                    key={goal.goal_id}
+                    className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group backdrop-blur-lg border border-gray-200 dark:border-transparent"
+                  >
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteConfirm(goal); }}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-red-500 dark:hover:bg-red-500 text-gray-500 dark:text-gray-300 hover:text-white flex items-center justify-center transition-all z-10"
+                        title="Удалить"
+                      >
+                        <X size={14} />
+                      </button>
+                      <div className="w-10 h-10 rounded-[3rem] bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-lg mb-2 shadow-md group-hover:shadow-xl transition-all">
+                        {categoryEmojis[goal.category] || '🎯'}
                       </div>
                     </div>
+                    <h3 className="font-semibold text-gray-800 dark:text-white text-sm mb-0.5">
+                      {goal.goal_summary || 'Мечта'}
+                    </h3>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mb-2">
+                      {categoryLabels[goal.category] || goal.category}
+                    </p>
+                    {goal.analysis && (
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 italic line-clamp-2 mb-2">
+                        {goal.analysis}
+                      </p>
+                    )}
                     <div className="flex items-center gap-1 text-[10px] text-gray-400">
                       <Calendar size={10} />
-                      <span>До {goal.deadline}</span>
+                      <span>Создано: {goal.created_at ? new Date(goal.created_at).toLocaleDateString() : 'сегодня'}</span>
                     </div>
                   </div>
                 ))}
@@ -223,7 +277,6 @@ const Mentor = () => {
                 Трекер привычек
               </h2>
             </div>
-            {/* BIG PLUS BUTTON — always visible, opens habit tracker */}
             <button onClick={() => navigate('/mentor/habits')} className="w-full flex items-center justify-center gap-3 p-5 bg-white/95 dark:bg-surface-dark rounded-[3rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group border-2 border-dashed border-gray-300 dark:border-gray-600 backdrop-blur-lg mb-3">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
                 <Plus size={22} className="text-white" />
@@ -235,7 +288,6 @@ const Mentor = () => {
             </button>
             {habits.length > 0 && (
               <>
-                {/* Stats summary */}
                 <div className="flex gap-2 mb-3">
                   <div className="flex-1 bg-white/95 dark:bg-surface-dark rounded-[2rem] px-4 py-2.5 text-center backdrop-blur-lg">
                     <div className="text-lg font-bold text-green-600 dark:text-green-400">{habits.filter(h => h.doneToday).length}/{habits.length}</div>
@@ -250,14 +302,12 @@ const Mentor = () => {
                     <div className="text-[10px] text-gray-500 dark:text-gray-400">опыт</div>
                   </div>
                 </div>
-                {/* Habits list — vertical with checkboxes */}
                 <div className="flex flex-col gap-2">
                   {habits.map((habit, index) => (
                     <label
                       key={index}
                       className={`flex items-center gap-3 px-4 py-3 bg-white/95 dark:bg-surface-dark rounded-[2rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all cursor-pointer select-none backdrop-blur-lg ${habit.doneToday ? 'ring-2 ring-green-400 dark:ring-green-500' : ''}`}
                     >
-                      {/* Checkbox */}
                       <div
                         className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all shrink-0 ${
                           habit.doneToday
@@ -280,14 +330,12 @@ const Mentor = () => {
                           <div className="w-2.5 h-2.5 rounded-full opacity-0 group-hover:opacity-30 bg-gray-400" />
                         )}
                       </div>
-                      {/* Icon + name */}
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <span className="text-lg">{habit.icon}</span>
                         <span className={`text-sm font-medium truncate ${habit.type === 'bad' ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-white'}`}>
                           {habit.name}
                         </span>
                       </div>
-                      {/* Streak */}
                       <div className="flex items-center gap-1 shrink-0">
                         <span className="text-xs">🔥</span>
                         <span className="text-sm font-bold text-amber-500">{habit.streak}</span>
@@ -320,24 +368,45 @@ const Mentor = () => {
         <DreamInputModal
           isOpen={dreamModalOpen}
           onClose={() => setDreamModalOpen(false)}
-          onSubmit={async (dreamText) => {
-            setDreamLoading(true);
-            try {
-              const res = await axios.post(`${API_URL}/api/chats`, {
-                user_id: 1,
-                agent_type: 'mentor',
-                welcome_message: `Привет! 👋 Я — ваш ментор. Моя мечта: ${dreamText}. Помоги мне разбить эту мечту на достижимые цели и проложи путь к ней.`
-              });
-              const chatId = res.data.chat_id || res.data.id;
-              setDreamModalOpen(false);
-              navigate(`/chat/${chatId}`);
-            } catch (err) {
-              console.error('Failed to create mentor chat:', err);
-              setDreamLoading(false);
-            }
-          }}
-          isLoading={dreamLoading}
         />
+
+        {/* Delete Confirmation Modal */}
+        {deleteConfirm && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+            onClick={() => setDeleteConfirm(null)}
+          >
+            <div
+              className="bg-white dark:bg-gray-800 rounded-[2rem] p-6 max-w-sm w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <X size={24} className="text-red-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white text-center mb-2">
+                Удалить цель?
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">
+                Вы уверены, что хотите удалить цель<br />
+                <span className="font-medium text-gray-700 dark:text-gray-300">«{deleteConfirm.goal_summary}»</span>?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-[2rem] text-sm font-medium transition-all"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={() => handleDeleteGoal(deleteConfirm.goal_id)}
+                  className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-[2rem] text-sm font-medium transition-all"
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </div>
