@@ -620,6 +620,55 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
   const streamingStartRef = useRef(null);
   const pendingWidgetRef = useRef(null);
 
+  // ── Rotating greeting (Gemini-style) ──
+  const greetings = {
+    ru: [
+      'Чем займемся?',
+      'Всегда готов!',
+      'Я всегда рядом 😌',
+      'Обсудим идею? ☺️',
+      'Привет! 👋',
+    ],
+    en: [
+      'What shall we do?',
+      'Always ready!',
+      "I'm always here 😌",
+      'Got an idea? ☺️',
+      'Hello! 👋',
+    ]
+  };
+  const [greetingIndex, setGreetingIndex] = useState(() => Math.floor(Math.random() * greetings[language].length));
+  const [greetingVisible, setGreetingVisible] = useState(true);
+  const greetingTimerRef = useRef(null);
+  const fadeTimerRef = useRef(null);
+
+  // Set random greeting on mount and on new chat
+  useEffect(() => {
+    setGreetingVisible(false);
+    const timer = setTimeout(() => {
+      setGreetingIndex(Math.floor(Math.random() * greetings[language].length));
+      setGreetingVisible(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [location.pathname === '/chat']);
+
+  useEffect(() => {
+    const startCycle = () => {
+      greetingTimerRef.current = setInterval(() => {
+        setGreetingVisible(false);
+        fadeTimerRef.current = setTimeout(() => {
+          setGreetingIndex(Math.floor(Math.random() * greetings[language].length));
+          setGreetingVisible(true);
+        }, 400);
+      }, 900000); // 15 минут
+    };
+    startCycle();
+    return () => {
+      clearInterval(greetingTimerRef.current);
+      clearTimeout(fadeTimerRef.current);
+    };
+  }, [language]);
+
   // Auto-send financial prompt if it was set from FinancialAnalyst page
   useEffect(() => {
     const prompt = sessionStorage.getItem('financialPrompt');
@@ -1059,11 +1108,26 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
       {/* Messages Container */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 relative z-10 pt-10 pb-6">
         {messages.length === 0 && !isStreaming ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 select-none">
-            <img src="/assets/icons/agents/ixteria.svg" alt="Ixteria" className="w-16 h-16 mb-4 opacity-50" />
-            <p className="text-lg">
-              {t('chatWithAgents')}
-            </p>
+          <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 select-none gap-0">
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 dark:from-blue-500/10 dark:to-purple-500/10 rounded-full blur-xl" />
+              <img
+                src="/assets/icons/agents/ixteria.svg"
+                alt="Ixteria"
+                className="relative w-full h-full object-contain"
+              />
+            </div>
+            <div className="h-auto flex items-center justify-center mt-0.5">
+              <p
+                className={`text-2xl sm:text-3xl font-semibold text-gray-700 dark:text-gray-300 transition-all duration-400 ${
+                  greetingVisible
+                    ? 'opacity-100 translate-y-0 scale-100'
+                    : 'opacity-0 translate-y-2 scale-95'
+                }`}
+              >
+                {greetings[language][greetingIndex]}
+              </p>
+            </div>
           </div>
         ) : (
           <div className="max-w-3xl mx-auto flex flex-col pt-4 pb-4 space-y-4">

@@ -2,8 +2,10 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Send, Paperclip, Mic, StopCircle, X, Loader2 } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 import AttachMenu from './AttachMenu';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light', onOptimisticMessage, onAttachmentsUploaded, onFinalSend }) => {
+  const { language } = useLanguage();
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [audioLevels, setAudioLevels] = useState([]);
@@ -590,7 +592,7 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={pendingFiles.length > 0 ? 'Добавьте подпись к фото...' : 'Message...'}
+            placeholder={pendingFiles.length > 0 ? 'Добавьте подпись к фото...' : language === 'ru' ? 'Спросить Ixteria' : 'Ask Ixteria'}
             disabled={disabled || isUploading}
             className="flex-1 px-4 py-3 bg-transparent text-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none disabled:opacity-50 text-base min-w-0"
           />
