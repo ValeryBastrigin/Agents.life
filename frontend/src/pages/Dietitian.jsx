@@ -1598,7 +1598,7 @@ const Dietitian = () => {
       </div>
 
       {/* Modals */}
-      <OnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} onComplete={handleOnboardingComplete} editData={userProfile} />
+      {showOnboarding && <OnboardingModal key={Date.now()} isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} onComplete={handleOnboardingComplete} editData={userProfile} />}
       <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} userProfile={userProfile} nutrition={nutrition} onDelete={handleDeleteProfile} />
       <ManualModal isOpen={showManual} onClose={() => setShowManual(false)} />
       <FoodDiaryModal isOpen={showDiary} onClose={() => setShowDiary(false)} nutritionGoal={nutrition.calories.goal} />
