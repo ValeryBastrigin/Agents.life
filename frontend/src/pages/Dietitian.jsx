@@ -1231,6 +1231,23 @@ const Dietitian = () => {
     }
   }, [navigate, DEMO_USER_ID]);
 
+  const handleChatWithDietitian = useCallback(async () => {
+    try {
+      const chatResponse = await apiClient.post('/api/chats', {
+        title: '💬 Чат с диетологом',
+        user_id: DEMO_USER_ID,
+        agent_type: 'dietitian',
+        welcome_message: '👋 Здравствуйте! Я ваш персональный диетолог. Чем могу помочь? Расскажите, что вас интересует: составление рациона, вопросы по питанию или что-то ещё?',
+      });
+      const chatId = chatResponse.data.id || chatResponse.data.chat_id;
+
+      // Редиректим в чат с диетологом
+      navigate(`/chat/${chatId}`);
+    } catch (e) {
+      console.error('Не удалось создать чат с диетологом:', e);
+    }
+  }, [navigate, DEMO_USER_ID]);
+
   const caloriesProgress = Math.min(
     nutrition.calories.goal > 0 ? (nutrition.calories.current / nutrition.calories.goal) * 100 : 0, 100
   );
@@ -1257,6 +1274,13 @@ const Dietitian = () => {
           .agent-float-icon:hover {
             animation-duration: 0.6s;
           }
+          @keyframes dietitian-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+          }
+          .dietitian-bounce {
+            animation: dietitian-bounce 2.5s ease-in-out infinite;
+          }
         `}</style>
       <div className="max-w-2xl mx-auto">
         {/* ===== Блок "Ваши параметры / Укажите параметры" ===== */}
@@ -1282,7 +1306,7 @@ const Dietitian = () => {
             onClick={() => setShowManual(true)}
           className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg"
         >
-          <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
               <BookOpen size={20} className="text-blue-600 dark:text-blue-400" />
             </div>
@@ -1307,15 +1331,24 @@ const Dietitian = () => {
           </div>
         </button>
 
-          {/* Widget 3: Weekly Reports (бывший Profile) */}
-          <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 aspect-square shadow-sm border border-gray-100 dark:border-transparent flex flex-col items-center justify-center gap-2 backdrop-blur-lg">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <BarChart3 size={20} className="text-purple-600 dark:text-purple-400" />
+          {/* Widget 3: Chat with Dietitian */}
+          <button
+            onClick={handleChatWithDietitian}
+            className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg"
+          >
+            <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden dietitian-bounce">
+                <img
+                  src="/assets/icons/agents/диетолог.svg"
+                  alt="Диетолог"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
+                Чат с диетологом
+              </span>
             </div>
-            <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
-              Недельные отчеты
-            </span>
-          </div>
+          </button>
         </div>
 
         {/* ===== Calorie Counter (Center) ===== */}

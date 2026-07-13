@@ -433,44 +433,16 @@ async def _get_today_totals(db: AsyncSession, user_id: int) -> dict:
 
 async def _handle_meal_plan(message: str, db: AsyncSession, user_id: int, profile: UserDietProfile | None) -> tuple[str, int]:
     """
-    Generate a full meal plan with LLM using MEAL_PLAN_SYSTEM_PROMPT.
-    Uses larger max_tokens to allow complete JSON generation.
-    Returns: (response_json_string_with_type, tokens_used)
+    Handle meal plan request — return a widget with button redirecting to /dietitian/plan
+    where user can create their meal plan.
     """
-    user_context = _build_profile_context(profile)
-    llm_messages = [
-        {"role": "system", "content": MEAL_PLAN_SYSTEM_PROMPT + user_context},
-        {"role": "user", "content": message}
-    ]
-
-    try:
-        response = client.chat.completions.create(
-            model="google/gemini-3.1-flash-lite",
-            messages=llm_messages,
-            temperature=0.7,
-            max_tokens=2000,
-            timeout=60.0
-        )
-        response_text = response.choices[0].message.content
-        if response_text is None:
-            return "Ошибка генерации рациона. Пожалуйста, попробуйте ещё раз.", 0
-
-        # Try to extract JSON and wrap with type: "meal_plan" for widget rendering
-        import re
-        json_match = re.search(r'\{[\s\S]*\}', response_text)
-        if json_match:
-            try:
-                parsed = json.loads(json_match.group())
-                if "meals" in parsed and isinstance(parsed["meals"], list):
-                    parsed["type"] = "meal_plan"
-                    return json.dumps(parsed, ensure_ascii=False), 0
-            except (json.JSONDecodeError, Exception):
-                pass
-        # Fallback: return raw response if JSON wrapping fails
-        return response_text, 0
-    except Exception as e:
-        print(f"Error generating meal plan: {e}")
-        return "Ошибка генерации рациона. Пожалуйста, попробуйте ещё раз.", 0
+    # Build a friendly response with a go_to_meal_plan widget
+    widget = {
+        "type": "go_to_meal_plan",
+        "text": "Я сформирую для вас индивидуальный план питания с учётом ваших параметров, целей и предпочтений. Нажмите кнопку ниже, чтобы перейти в раздел создания рациона — там я подберу блюда специально для вас! 🥗"
+    }
+    
+    return json.dumps(widget, ensure_ascii=False), 0
 
 
 async def generate_meal_plan(message: str, db: AsyncSession, user_id: int) -> tuple[str, int]:

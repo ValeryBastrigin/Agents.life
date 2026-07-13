@@ -546,7 +546,7 @@ function getAgentAvatar(agentName) {
 function isWidgetContent(content) {
   try {
     const parsed = JSON.parse(content);
-    return parsed && typeof parsed === 'object' && ['schedule', 'event_created', 'note_created', 'food_log', 'meal_plan'].includes(parsed.type);
+    return parsed && typeof parsed === 'object' && ['schedule', 'event_created', 'note_created', 'food_log', 'meal_plan', 'go_to_meal_plan'].includes(parsed.type);
   } catch {
     return false;
   }
@@ -670,6 +670,11 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
       
       if (pathMatch) {
         const id = parseInt(pathMatch[1]);
+        
+        // Всегда очищаем сообщения ПЕРЕД любыми return, чтобы
+        // сообщения предыдущего чата не отображались в новом
+        setMessages([]);
+        
         setChatId(id);
         chatIdRef.current = id;
 
@@ -703,29 +708,15 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
       const response = await axios.get(`${API_URL}/api/chats/${id}/messages`);
       const dbMessages = response.data;
 
-      // Deduplicate: merge DB messages with existing state, keeping existing
-      // messages when they match by id (or by role+content for messages without id).
-      setMessages((prev) => {
-        if (prev.length === 0) return dbMessages;
+      // Защита от race condition: если ID чата изменился с момента запроса,
+      // игнорируем ответ — сообщения уже не актуальны
+      if (chatIdRef.current !== id) {
+        console.log(`Ignoring messages for chat ${id}, current chat is ${chatIdRef.current}`);
+        return;
+      }
 
-        const existingIds = new Set(prev.filter(m => m.id != null).map(m => m.id));
-        const existingSignatures = new Set(
-          prev.filter(m => m.id == null).map(m => `${m.role}::${m.content}`)
-        );
-
-        const merged = [...prev];
-        for (const dbMsg of dbMessages) {
-          const isDuplicate =
-            (dbMsg.id != null && existingIds.has(dbMsg.id)) ||
-            (dbMsg.id == null && existingSignatures.has(`${dbMsg.role}::${dbMsg.content}`));
-
-          if (!isDuplicate) {
-            merged.push(dbMsg);
-          }
-        }
-
-        return merged;
-      });
+      // Просто заменяем сообщения, так как мы уже очистили state перед вызовом
+      setMessages(dbMessages);
     } catch (error) {
       console.error('Failed to load messages:', error);
     }

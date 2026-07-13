@@ -4,6 +4,7 @@ import EventCreatedWidget from './EventCreatedWidget';
 import NoteCreatedWidget from './NoteCreatedWidget';
 import FoodLogWidget from './FoodLogWidget';
 import MealPlanWidget from './MealPlanWidget';
+import GoToMealPlanWidget from './GoToMealPlanWidget';
 
 const ChatWidgetRenderer = ({ content }) => {
   try {
@@ -25,6 +26,10 @@ const ChatWidgetRenderer = ({ content }) => {
     
     if (parsedData.type === 'food_log') {
       return <FoodLogWidget data={parsedData} />;
+    }
+    
+    if (parsedData.type === 'go_to_meal_plan') {
+      return <GoToMealPlanWidget data={parsedData} />;
     }
     
     if (parsedData.meals) {

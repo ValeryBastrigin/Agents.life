@@ -591,11 +591,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             # 3. Now process the agent (may take time)
             agent_process = AGENT_REGISTRY[agent_name]
             
-            if request.generate_meal_plan and agent_name == "dietitian":
-                print(f"DEBUG: Generating meal plan via generate_meal_plan for user {request.user_id}")
-                response_text, tokens_used = await dietitian_agent.generate_meal_plan(message_text, db, request.user_id)
-            else:
-                response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id, message_attachments)
+            response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id, message_attachments)
             
             if response_text is None:
                 response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
