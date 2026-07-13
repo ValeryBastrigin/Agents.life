@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X } from 'lucide-react';
+import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X, Trash2 } from 'lucide-react';
 import MentorBackground from '../components/MentorBackground';
 import DreamInputModal from '../components/DreamInputModal';
 import axios from 'axios';
@@ -44,9 +44,9 @@ const Mentor = () => {
   const [habitData, setHabitData] = useState({ habits: [], xp: 0, level: 1, unlockedAchievements: [] });
   const [dreamModalOpen, setDreamModalOpen] = useState(false);
   const [goals, setGoals] = useState([]);
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // { goal_id, goal_summary }
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [viewingGoal, setViewingGoal] = useState(null);
 
-  // Load dream goals from backend
   const loadDreamGoals = useCallback(async () => {
     try {
       const res = await axios.get(`${API_URL}/api/mentor/dream-goals?user_id=1`);
@@ -72,7 +72,6 @@ const Mentor = () => {
     setDeleteConfirm(null);
   };
 
-  // Reload goals when dream modal closes
   useEffect(() => {
     if (!dreamModalOpen) {
       loadDreamGoals();
@@ -144,7 +143,7 @@ const Mentor = () => {
       <div className="relative z-10 overflow-y-auto h-full px-6 pt-4 pb-8">
         <div className="max-w-2xl mx-auto">
 
-          {/* Dream button — replaces "Путь к успеху" widget */}
+          {/* Dream button */}
           <button
             onClick={() => setDreamModalOpen(true)}
             className="w-full bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3rem] p-5 mb-6 text-white hover:shadow-2xl hover:shadow-amber-500/30 transition-all active:scale-[0.98] text-left group"
@@ -207,7 +206,7 @@ const Mentor = () => {
             </button>
           </div>
 
-          {/* Active Goals — loaded from dream goals API */}
+          {/* Active Goals */}
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
               <Target size={18} className="text-red-500" />
@@ -234,7 +233,8 @@ const Mentor = () => {
                 {goals.map((goal) => (
                   <div
                     key={goal.goal_id}
-                    className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group backdrop-blur-lg border border-gray-200 dark:border-transparent"
+                    onClick={() => setViewingGoal(goal)}
+                    className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group backdrop-blur-lg border border-gray-200 dark:border-transparent cursor-pointer"
                   >
                     <div className="relative">
                       <button
@@ -242,7 +242,7 @@ const Mentor = () => {
                         className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-red-500 dark:hover:bg-red-500 text-gray-500 dark:text-gray-300 hover:text-white flex items-center justify-center transition-all z-10"
                         title="Удалить"
                       >
-                        <X size={14} />
+                        <Trash2 size={14} />
                       </button>
                       <div className="w-10 h-10 rounded-[3rem] bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-lg mb-2 shadow-md group-hover:shadow-xl transition-all">
                         {categoryEmojis[goal.category] || '🎯'}
@@ -269,7 +269,7 @@ const Mentor = () => {
             )}
           </div>
 
-          {/* Habits Tracker — add habit widget */}
+          {/* Habits Tracker */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
@@ -348,7 +348,7 @@ const Mentor = () => {
             )}
           </div>
 
-          {/* Recommended Materials — empty placeholder */}
+          {/* Recommended Materials */}
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
               <BookOpen size={18} className="text-indigo-500" />
@@ -403,6 +403,95 @@ const Mentor = () => {
                 >
                   Удалить
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dream Details Modal */}
+        {viewingGoal && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+            onClick={() => setViewingGoal(null)}
+          >
+            <div
+              className="bg-white dark:bg-gray-800 rounded-[2rem] p-6 max-w-lg w-full shadow-2xl max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                  {viewingGoal.goal_summary || 'Мечта'}
+                </h3>
+                <button
+                  onClick={() => setViewingGoal(null)}
+                  className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center transition-all text-gray-500 dark:text-gray-300"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Category badge */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xl">{categoryEmojis[viewingGoal.category] || '🎯'}</span>
+                <span className="text-xs px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium">
+                  {categoryLabels[viewingGoal.category] || viewingGoal.category}
+                </span>
+              </div>
+
+              {/* Dream text */}
+              {viewingGoal.dream_text && (
+                <div className="mb-4">
+                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    О чём мечта
+                  </h4>
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-[2rem] border border-amber-200/50 dark:border-amber-700/30">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                      {viewingGoal.dream_text}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Analysis */}
+              {viewingGoal.analysis && (
+                <div className="mb-4">
+                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Анализ ментора
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 italic bg-gray-50 dark:bg-gray-700/30 p-3 rounded-[2rem] leading-relaxed">
+                    {viewingGoal.analysis}
+                  </p>
+                </div>
+              )}
+
+              {/* Steps */}
+              {viewingGoal.steps && viewingGoal.steps.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Шаги ({viewingGoal.steps.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {viewingGoal.steps.map((step, idx) => (
+                      <div key={step.id || idx} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-[2rem]">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
+                          {step.id || idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 dark:text-white">{step.text}</p>
+                          {step.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{step.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Date info */}
+              <div className="flex items-center gap-1 text-xs text-gray-400 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                <Calendar size={12} />
+                <span>Создано: {viewingGoal.created_at ? new Date(viewingGoal.created_at).toLocaleDateString() : 'сегодня'}</span>
               </div>
             </div>
           </div>

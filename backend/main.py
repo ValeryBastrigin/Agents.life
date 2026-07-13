@@ -7,7 +7,7 @@ from src.mentor.router import router as mentor_router
 from src.dietplan.router import router as dietplan_router
 from src.psychologist.router import router as psychologist_router
 from src.database import engine, Base, get_db, async_session
-from src.models import User
+from src.models import User, Agent
 from src.config import client
 from sqlalchemy import select
 from pydantic import ValidationError
@@ -66,6 +66,18 @@ async def startup_event():
                 theme_preference="light"
             )
             session.add(default_user)
+            await session.commit()
+        
+        # Ensure mentor agent exists
+        result = await session.execute(select(Agent).where(Agent.name == "Ментор"))
+        mentor = result.scalar_one_or_none()
+        if not mentor:
+            mentor_agent = Agent(
+                name="Ментор",
+                description="Career mentor and dream strategist",
+                system_prompt="Ты — опытный ментор и стратег. Помогаешь пользователю достигать целей."
+            )
+            session.add(mentor_agent)
             await session.commit()
 
 @app.get("/")

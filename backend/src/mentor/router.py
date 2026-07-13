@@ -214,6 +214,7 @@ async def get_dream_goals_endpoint(user_id: int = 1, db: AsyncSession = Depends(
                     "category": g.category,
                     "goal_summary": g.goal_summary,
                     "analysis": g.analysis,
+                    "dream_text": g.dream_text,
                     "steps": json.loads(g.steps_data) if g.steps_data else [],
                     "status": g.status,
                     "created_at": g.created_at.isoformat() if g.created_at else None

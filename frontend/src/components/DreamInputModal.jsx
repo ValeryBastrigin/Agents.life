@@ -279,7 +279,7 @@ const DreamInputModal = ({ isOpen, onClose }) => {
       });
 
       if (res.data?.success) {
-        window.location.href = `/chat/${res.data.chat_id}`;
+        onClose();
       } else {
         setValidationError(res.data?.error || 'Не удалось сохранить выбор');
         setSaving(false);
@@ -693,27 +693,11 @@ const DreamInputModal = ({ isOpen, onClose }) => {
 
               {/* Confirm button */}
               <button
-                onClick={handleConfirmSteps}
-                disabled={saving || Object.values(selectedStepsByGoal).every(arr => arr.length === 0)}
-                className={`
-                  w-full py-3 mt-4 rounded-[2rem] font-medium text-sm transition-all flex items-center justify-center gap-2
-                  ${saving || Object.values(selectedStepsByGoal).every(arr => arr.length === 0)
-                    ? 'bg-surface-light dark:bg-surface-dark text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/25 hover:shadow-xl active:scale-[0.98]'
-                  }
-                `}
+                onClick={onClose}
+                className="w-full py-3 mt-4 rounded-[2rem] font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/25 hover:shadow-xl active:scale-[0.98]"
               >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Создаём путь...
-                  </>
-                ) : (
-                  <>
-                    <MessageSquare size={18} />
-                    Начать путь с ментором
-                  </>
-                )}
+                <MessageSquare size={18} />
+                Начать путь с ментором
               </button>
 
               <p className="text-center text-[10px] text-gray-400 mt-3">
