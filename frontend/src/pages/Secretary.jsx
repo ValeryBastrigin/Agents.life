@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, Clock, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Check, X, Bell, Sparkles, BookOpen, ListTodo, Zap, ArrowLeft, ArrowRight, Layers } from 'lucide-react';
@@ -35,6 +34,31 @@ const Secretary = ({ theme }) => {
   const [dayEvents, setDayEvents] = useState([]);
   const [reminders, setReminders] = useState([]);
   const [heroExpanded, setHeroExpanded] = useState(false);
+  const [isPlusAnimating, setIsPlusAnimating] = useState(false);
+  const [isPlusAnimating2, setIsPlusAnimating2] = useState(false);
+
+  // Handle plus button animation and redirect
+  useEffect(() => {
+    if (isPlusAnimating) {
+      const timer = setTimeout(() => {
+        setSelectedDate(new Date());
+        setHeroExpanded(false);
+        setIsPlusAnimating(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [isPlusAnimating]);
+
+  useEffect(() => {
+    if (isPlusAnimating2) {
+      const timer = setTimeout(() => {
+        setSelectedDate(new Date());
+        setHeroExpanded(false);
+        setIsPlusAnimating2(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [isPlusAnimating2]);
 
   const handleCreateScheduleChat = async () => {
     setCreatingChat(true);
@@ -680,7 +704,7 @@ const Secretary = ({ theme }) => {
           <div className={`overflow-hidden transition-all duration-300 ${heroExpanded ? 'max-h-[500px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Schedule Container */}
-              <div className="bg-white/10 rounded-[3rem] p-4">
+              <div className="bg-white/10 rounded-[3rem] p-4 relative">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="p-1.5 rounded-full bg-white/10">
                     <Clock size={16} className="text-white" />
@@ -691,10 +715,15 @@ const Secretary = ({ theme }) => {
                 </div>
                 <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
                   {events.filter(e => moment(e.start).isSame(moment(), 'day')).length === 0 ? (
-                    <div className="text-center py-6">
-                      <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-white/10 flex items-center justify-center">
-                        <Calendar size={18} className="text-white/50" />
-                      </div>
+                    <div className={`flex flex-col items-center justify-center py-8 gap-3 transition-all duration-300 ${
+                      isPlusAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'
+                    }`}>
+                      <button
+                        onClick={() => setIsPlusAnimating(true)}
+                        className="w-14 h-14 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/30 hover:scale-110 active:scale-95 transition-all duration-200"
+                      >
+                        <Plus size={28} className="text-white" />
+                      </button>
                       <p className="text-xs text-white/50">
                         {language === 'ru' ? 'Нет событий на сегодня' : 'No events today'}
                       </p>
@@ -731,7 +760,7 @@ const Secretary = ({ theme }) => {
               </div>
 
               {/* Events & Reminders Container */}
-              <div className="bg-white/10 rounded-[3rem] p-4">
+              <div className="bg-white/10 rounded-[3rem] p-4 relative">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="p-1.5 rounded-full bg-white/10">
                     <Bell size={16} className="text-white" />
@@ -745,10 +774,15 @@ const Secretary = ({ theme }) => {
                     const reminderDate = r.date ? moment(r.date) : moment(r.created_at);
                     return reminderDate.isSame(moment(), 'day');
                   }).length === 0 ? (
-                    <div className="text-center py-6">
-                      <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-white/10 flex items-center justify-center">
-                        <Bell size={18} className="text-white/50" />
-                      </div>
+                    <div className={`flex flex-col items-center justify-center py-8 gap-3 transition-all duration-300 ${
+                      isPlusAnimating2 ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'
+                    }`}>
+                      <button
+                        onClick={() => setIsPlusAnimating2(true)}
+                        className="w-14 h-14 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/30 hover:scale-110 active:scale-95 transition-all duration-200"
+                      >
+                        <Plus size={28} className="text-white" />
+                      </button>
                       <p className="text-xs text-white/50">
                         {language === 'ru' ? 'Нет напоминаний на сегодня' : 'No reminders today'}
                       </p>
