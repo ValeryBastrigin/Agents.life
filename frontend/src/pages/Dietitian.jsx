@@ -1376,7 +1376,7 @@ const Dietitian = () => {
 
         {/* ===== Calorie Counter (Center) ===== */}
         <div className="flex flex-col items-center mb-6">
-          <div className="relative w-48 h-48 mb-2">
+          <div className="relative w-48 h-48 mb-2 bg-white/80 dark:bg-surface-dark/80 backdrop-blur-xl rounded-full shadow-lg">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
               <circle cx="100" cy="100" r="90" fill="none" stroke="currentColor" strokeWidth="12" className="text-gray-200 dark:text-gray-700" />
               <circle cx="100" cy="100" r="90" fill="none" stroke="currentColor" strokeWidth="12" strokeLinecap="round" className="text-green-500" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} />
@@ -1398,7 +1398,7 @@ const Dietitian = () => {
             { label: 'Жиры', current: nutrition.fats.current, goal: nutrition.fats.goal, unit: 'г', color: 'bg-amber-500', icon: '🥑' },
             { label: 'Углеводы', current: nutrition.carbs.current, goal: nutrition.carbs.goal, unit: 'г', color: 'bg-orange-500', icon: '🍞' },
           ].map((item) => (
-            <div key={item.label} className="p-2.5 bg-surface-light/90 dark:bg-surface-dark/90 rounded-[1.5rem] text-center backdrop-blur-md">
+            <div key={item.label} className="p-2.5 bg-white/95 dark:bg-surface-dark rounded-[1.5rem] text-center shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg">
               <div className="text-sm font-bold text-gray-800 dark:text-white mb-0.5">
                 {item.current}<span className="text-[10px] font-normal text-gray-400">/{item.goal} {item.unit}</span>
               </div>
@@ -1441,7 +1441,7 @@ const Dietitian = () => {
         </button>
 
         {/* ===== Съедено сегодня ===== */}
-        <div className="bg-surface-light/90 dark:bg-surface-dark/90 rounded-[3rem] p-6 mb-6 backdrop-blur-lg">
+        <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-6 mb-6 shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
               🍽️ Съедено сегодня
@@ -1487,7 +1487,7 @@ const Dietitian = () => {
         </div>
 
         {/* ===== Рацион на день ===== */}
-        <div className="bg-surface-light/90 dark:bg-surface-dark/90 rounded-[3rem] p-6 mb-6 backdrop-blur-lg">
+        <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-6 mb-6 shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
               🥗 Рацион на день
@@ -1556,15 +1556,15 @@ const Dietitian = () => {
         </div>
 
         {/* ===== Анализ рациона за день ===== */}
-        <div className="bg-surface-light/90 dark:bg-surface-dark/90 rounded-[3rem] p-6 mb-6 backdrop-blur-lg">
+        <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-6 mb-6 shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">📊 Анализ рациона за день</h2>
           {todayMeals.length === 0 && nutrition.calories.current === 0 ? (
-            <div className="bg-background-light/90 dark:bg-background-dark/90 rounded-[1.5rem] p-4 backdrop-blur-md">
+            <div className="bg-gray-100/90 dark:bg-gray-700/50 rounded-[1.5rem] p-4">
               <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">Информации пока нет — добавьте приёмы пищи через чат, чтобы увидеть анализ рациона за сегодня.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="bg-background-light/90 dark:bg-background-dark/90 rounded-[1.5rem] p-4 backdrop-blur-md">
+              <div className="bg-gray-100/90 dark:bg-gray-700/50 rounded-[1.5rem] p-4">
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   Сегодня вы употребили <span className="font-bold text-gray-800 dark:text-white">{nutrition.calories.current}</span> из <span className="font-bold text-gray-800 dark:text-white">{nutrition.calories.goal}</span> ккал.
                   {nutrition.calories.current < nutrition.calories.goal
@@ -1574,7 +1574,7 @@ const Dietitian = () => {
                       : ` Норма выполнена точно!`}
                 </p>
               </div>
-              <div className="bg-background-light/90 dark:bg-background-dark/90 rounded-[1.5rem] p-4 backdrop-blur-md">
+              <div className="bg-gray-100/90 dark:bg-gray-700/50 rounded-[1.5rem] p-4">
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   Белки: <span className="font-bold text-gray-800 dark:text-white">{nutrition.protein.current}/{nutrition.protein.goal} г</span>
                   {nutrition.protein.current < nutrition.protein.goal ? ` (недобор ${nutrition.protein.goal - nutrition.protein.current} г)` : ` (норма)`}
