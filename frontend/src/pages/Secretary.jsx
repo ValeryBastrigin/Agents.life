@@ -701,7 +701,7 @@ const Secretary = ({ theme }) => {
             </div>
           </button>
 
-          <div className={`overflow-hidden transition-all duration-300 ${heroExpanded ? 'max-h-[500px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+          <div className={`overflow-hidden transition-all duration-300 ${heroExpanded ? 'max-h-[650px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Schedule Container */}
               <div className="bg-white/10 rounded-[3rem] p-4 relative">
