@@ -123,7 +123,7 @@ async def list_therapy_sessions(user_id: int, db: AsyncSession = Depends(get_db)
 @router.post("/user/{user_id}/therapy-sessions", response_model=TherapySessionResponse)
 async def create_therapy_session(user_id: int, data: TherapySessionCreate, db: AsyncSession = Depends(get_db)):
     """Create a new therapy session."""
-    # Deactivate any existing active sessions
+    # Deactivate any existing active sessions — with summary generation
     existing_result = await db.execute(
         select(TherapySession)
         .where(TherapySession.user_id == user_id)
@@ -131,6 +131,13 @@ async def create_therapy_session(user_id: int, data: TherapySessionCreate, db: A
     )
     active_sessions = existing_result.scalars().all()
     for s in active_sessions:
+        # Generate summary before closing the session
+        try:
+            summary = await generate_summary(s.chat_id, db)
+            s.summary = summary
+        except Exception as e:
+            print(f"Error generating summary for deactivated session {s.id}: {e}")
+            s.summary = "Сеанс был завершён."
         s.status = "completed"
         s.ended_at = datetime.utcnow()
 

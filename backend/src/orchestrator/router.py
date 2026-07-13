@@ -504,10 +504,19 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Route message to appropriate agent — use explicit agent if specified
+    # Route message to appropriate agent
     if request.agent:
         agent_name = request.agent
         print(f"DEBUG: Using explicit agent from request: {agent_name}")
+    elif request.chat_id:
+        # For existing chats, use the agent from the chat itself
+        chat_result = await db.execute(select(Chat).where(Chat.id == request.chat_id).options(selectinload(Chat.agent)))
+        existing_chat = chat_result.scalar_one_or_none()
+        if existing_chat and existing_chat.agent:
+            agent_name = existing_chat.agent.name
+            print(f"DEBUG: Using agent '{agent_name}' from existing chat {request.chat_id}")
+        else:
+            agent_name = await route_to_agent(request.message)
     else:
         agent_name = await route_to_agent(request.message)
 
