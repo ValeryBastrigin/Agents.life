@@ -159,7 +159,7 @@ const Mentor = () => {
 
           {/* 3 Horizontal Blocks */}
           <div className="grid grid-cols-3 gap-3 mb-6">
-            <button className="flex flex-col items-center justify-center gap-2 bg-surface-light dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-100 dark:border-transparent group">
+            <button className="flex flex-col items-center justify-center gap-2 bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-200 dark:border-transparent backdrop-blur-lg group">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
                 <BookOpen size={20} className="text-white" />
               </div>
@@ -180,7 +180,7 @@ const Mentor = () => {
               } catch (err) {
                 console.error('Failed to create mentor chat:', err);
               }
-            }} className="flex flex-col items-center justify-center gap-2 bg-surface-light dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-100 dark:border-transparent group">
+            }} className="flex flex-col items-center justify-center gap-2 bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-200 dark:border-transparent backdrop-blur-lg group">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
                 <MessageSquare size={20} className="text-white" />
               </div>
@@ -189,7 +189,7 @@ const Mentor = () => {
               </span>
             </button>
 
-            <button onClick={() => navigate('/mentor/tree')} className="flex flex-col items-center justify-center gap-2 bg-surface-light dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-100 dark:border-transparent group">
+            <button onClick={() => navigate('/mentor/tree')} className="flex flex-col items-center justify-center gap-2 bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-200 dark:border-transparent backdrop-blur-lg group">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
                 <GitBranch size={20} className="text-white" />
               </div>
@@ -206,7 +206,7 @@ const Mentor = () => {
               Активные цели
             </h2>
             {goals.length === 0 ? (
-              <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-6 text-center">
+              <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-6 text-center backdrop-blur-lg border border-gray-200 dark:border-transparent">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                   <Target size={20} className="text-red-400 dark:text-red-500" />
                 </div>
@@ -221,7 +221,7 @@ const Mentor = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {goals.map((goal, index) => (
-                  <div key={index} className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group">
+                  <div key={index} className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group backdrop-blur-lg">
                     <div className={`w-10 h-10 rounded-[3rem] bg-gradient-to-br ${goal.gradient} flex items-center justify-center text-xl mb-2 shadow-md group-hover:shadow-xl transition-all`}>
                       {goal.icon}
                     </div>
@@ -258,7 +258,7 @@ const Mentor = () => {
               </h2>
             </div>
             {/* BIG PLUS BUTTON — always visible, opens habit tracker */}
-            <button onClick={() => navigate('/mentor/habits')} className="w-full flex items-center justify-center gap-3 p-5 bg-surface-light dark:bg-surface-dark rounded-[3rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group border-2 border-dashed border-gray-300 dark:border-gray-600 mb-3">
+            <button onClick={() => navigate('/mentor/habits')} className="w-full flex items-center justify-center gap-3 p-5 bg-white/95 dark:bg-surface-dark rounded-[3rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all group border-2 border-dashed border-gray-300 dark:border-gray-600 backdrop-blur-lg mb-3">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
                 <Plus size={22} className="text-white" />
               </div>
@@ -271,15 +271,15 @@ const Mentor = () => {
               <>
                 {/* Stats summary */}
                 <div className="flex gap-2 mb-3">
-                  <div className="flex-1 bg-surface-light dark:bg-surface-dark rounded-[2rem] px-4 py-2.5 text-center">
+                  <div className="flex-1 bg-white/95 dark:bg-surface-dark rounded-[2rem] px-4 py-2.5 text-center backdrop-blur-lg">
                     <div className="text-lg font-bold text-green-600 dark:text-green-400">{habits.filter(h => h.doneToday).length}/{habits.length}</div>
                     <div className="text-[10px] text-gray-500 dark:text-gray-400">выполнено сегодня</div>
                   </div>
-                  <div className="flex-1 bg-surface-light dark:bg-surface-dark rounded-[2rem] px-4 py-2.5 text-center">
+                  <div className="flex-1 bg-white/95 dark:bg-surface-dark rounded-[2rem] px-4 py-2.5 text-center backdrop-blur-lg">
                     <div className="text-lg font-bold text-amber-600 dark:text-amber-400">{habitData.level}</div>
                     <div className="text-[10px] text-gray-500 dark:text-gray-400">уровень</div>
                   </div>
-                  <div className="flex-1 bg-surface-light dark:bg-surface-dark rounded-[2rem] px-4 py-2.5 text-center">
+                  <div className="flex-1 bg-white/95 dark:bg-surface-dark rounded-[2rem] px-4 py-2.5 text-center backdrop-blur-lg">
                     <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{habitData.xp} XP</div>
                     <div className="text-[10px] text-gray-500 dark:text-gray-400">опыт</div>
                   </div>
@@ -289,7 +289,7 @@ const Mentor = () => {
                   {habits.map((habit, index) => (
                     <label
                       key={index}
-                      className={`flex items-center gap-3 px-4 py-3 bg-surface-light dark:bg-surface-dark rounded-[2rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all cursor-pointer select-none ${habit.doneToday ? 'ring-2 ring-green-400 dark:ring-green-500' : ''}`}
+                      className={`flex items-center gap-3 px-4 py-3 bg-white/95 dark:bg-surface-dark rounded-[2rem] hover:bg-gray-200 dark:hover:bg-gray-800 transition-all cursor-pointer select-none backdrop-blur-lg ${habit.doneToday ? 'ring-2 ring-green-400 dark:ring-green-500' : ''}`}
                     >
                       {/* Checkbox */}
                       <div
@@ -340,7 +340,7 @@ const Mentor = () => {
               <BookOpen size={18} className="text-indigo-500" />
               Рекомендованные материалы
             </h2>
-            <div className="bg-surface-light dark:bg-surface-dark rounded-[3rem] p-6 text-center">
+            <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-6 text-center backdrop-blur-lg border border-gray-200 dark:border-transparent">
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
                 <BookOpen size={20} className="text-indigo-400 dark:text-indigo-500" />
               </div>
