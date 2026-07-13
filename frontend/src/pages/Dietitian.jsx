@@ -964,6 +964,35 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
 // ========== Main Dietitian Page ==========
 const FOOD_CHAT_STORAGE_KEY = 'dietitian_food_chat_id';
 
+// Синхронная инициализация профиля из localStorage (без задержки при переходе)
+const getInitialProfile = () => {
+  try {
+    const saved = localStorage.getItem('dietitian_profile');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { profile: parsed.profile, goal: parsed.goal, speed: parsed.speed, activity: parsed.activity };
+    }
+  } catch {}
+  return null;
+};
+
+const getInitialNutrition = () => {
+  try {
+    const saved = localStorage.getItem('dietitian_profile');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.nutrition) return parsed.nutrition;
+    }
+  } catch {}
+  return {
+    calories: { current: 0, goal: 2000 },
+    protein: { current: 0, goal: 120 },
+    fats: { current: 0, goal: 65 },
+    carbs: { current: 0, goal: 250 },
+    water: { current: 0, goal: 8 },
+  };
+};
+
 const Dietitian = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -972,18 +1001,12 @@ const Dietitian = () => {
   const [showProfile, setShowProfile] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [showDiary, setShowDiary] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
+  const [userProfile, setUserProfile] = useState(getInitialProfile());
   const [todayMeals, setTodayMeals] = useState([]);
   const [deleteState, setDeleteState] = useState(null); // 'confirming' | null
   const [dietPlan, setDietPlan] = useState(null); // today's diet plan
 
-  const [nutrition, setNutrition] = useState({
-    calories: { current: 0, goal: 2000 },
-    protein: { current: 0, goal: 120 },
-    fats: { current: 0, goal: 65 },
-    carbs: { current: 0, goal: 250 },
-    water: { current: 0, goal: 8 },
-  });
+  const [nutrition, setNutrition] = useState(getInitialNutrition());
 
   const DEMO_USER_ID = 1;
 

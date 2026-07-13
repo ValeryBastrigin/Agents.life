@@ -105,7 +105,9 @@ const DietPlanPage = () => {
 
   const handleBack = () => {
     setExiting(true);
-    setTimeout(() => navigate('/dietitian'), 350);
+    setTimeout(() => {
+      navigate('/dietitian');
+    }, 150);
   };
 
   // Load diet profile on mount using the same endpoint that Dietitian.jsx uses
