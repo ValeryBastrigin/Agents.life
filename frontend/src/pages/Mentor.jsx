@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, BookOpen, Star, Calendar, Zap, Flag, Brain, Rocket, ChevronDown, ChevronUp, Sparkles, Plus, Lightbulb, GitBranch, CheckCircle2 } from 'lucide-react';
+import { Target, BookOpen, Star, Calendar, Zap, Flag, Brain, Rocket, ChevronDown, ChevronUp, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import MentorBackground from '../components/MentorBackground';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
 const STORAGE_KEY = 'habit_tracker_data';
 
@@ -165,12 +168,24 @@ const Mentor = () => {
               </span>
             </button>
 
-            <button className="flex flex-col items-center justify-center gap-2 bg-surface-light dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-100 dark:border-transparent group">
+            <button onClick={async () => {
+              try {
+                const res = await axios.post(`${API_URL}/api/chats`, {
+                  user_id: 1,
+                  agent_type: 'mentor',
+                  welcome_message: 'Привет! 👋 Я — ваш ментор. Чем я могу помочь вам сегодня? Расскажите о своих целях, планах или задайте любой вопрос о развитии и самореализации.'
+                });
+                const chatId = res.data.chat_id || res.data.id;
+                navigate(`/chat/${chatId}`);
+              } catch (err) {
+                console.error('Failed to create mentor chat:', err);
+              }
+            }} className="flex flex-col items-center justify-center gap-2 bg-surface-light dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-100 dark:border-transparent group">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
-                <Lightbulb size={20} className="text-white" />
+                <MessageSquare size={20} className="text-white" />
               </div>
               <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
-                Центр инсайтов
+                Чат с ментором
               </span>
             </button>
 

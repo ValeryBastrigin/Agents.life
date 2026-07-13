@@ -104,10 +104,7 @@ const DietPlanPage = () => {
   const [cookingMealIndex, setCookingMealIndex] = useState(null);
 
   const handleBack = () => {
-    setExiting(true);
-    setTimeout(() => {
-      navigate('/dietitian');
-    }, 150);
+    navigate('/dietitian');
   };
 
   // Load diet profile on mount using the same endpoint that Dietitian.jsx uses
@@ -429,7 +426,7 @@ const DietPlanPage = () => {
     }, 0);
 
     return (
-      <div className={`flex-1 overflow-y-auto ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-left'} relative`}>
+      <div className={`flex-1 overflow-y-auto animate-slide-in-left relative`}>
         <div className="absolute inset-0 pointer-events-none z-0">
           <DietitianBackground />
         </div>
@@ -579,7 +576,7 @@ const DietPlanPage = () => {
 
   // ── Main page: intro card + generate button ──
   return (
-    <div className={`flex-1 overflow-y-auto ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-left'} relative`}>
+    <div className="flex-1 overflow-y-auto animate-slide-in-left relative">
       <div className="absolute inset-0 pointer-events-none z-0">
         <DietitianBackground />
       </div>
