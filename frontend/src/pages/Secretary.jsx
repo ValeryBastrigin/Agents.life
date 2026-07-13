@@ -344,7 +344,8 @@ const Secretary = ({ theme }) => {
   const todayEvents = events.filter(e => moment(e.start).isSame(moment(), 'day')).length;
 
   // Day Details View
-  if (selectedDate) {
+  const dayViewContent = (() => {
+    if (!selectedDate) return null;
     const formattedDate = moment(selectedDate).locale(language === 'ru' ? 'ru' : 'en').format('DD MMMM, dddd');
     const dayReminders = reminders.filter(reminder => {
       const reminderDate = reminder.date ? moment(reminder.date) : moment(reminder.created_at);
@@ -669,12 +670,11 @@ const Secretary = ({ theme }) => {
             </div>
           </div>
         )}
-      </>
+        </>
     );
-  }
+  })()
 
-  // Month Overview View
-  return (
+  const monthView = (
     <>
       <div className="absolute inset-0 pointer-events-none z-0">
         <SecretaryBackground theme={theme} />
@@ -1057,6 +1057,17 @@ const Secretary = ({ theme }) => {
         </button>
 
       </div>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      <div style={{ display: selectedDate ? 'flex' : 'none', flexDirection: 'column', height: '100%', flex: 1, minHeight: 0 }}>
+        {dayViewContent}
+      </div>
+      <div style={{ display: selectedDate ? 'none' : 'flex', flexDirection: 'column', height: '100%', flex: 1, minHeight: 0 }}>
+        {monthView}
       </div>
     </>
   );

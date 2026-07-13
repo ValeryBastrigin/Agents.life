@@ -22,6 +22,15 @@ html {
   height: 100vh;
 }
 
+/* Fade-in animation for hero section to prevent black flash */
+@keyframes heroFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-heroFadeIn {
+  animation: heroFadeIn 0.15s ease-in-out;
+}
+
 /* Bounce animation for CTA icon */
 @keyframes gentle-bounce {
   0%, 100% { transform: translateY(0) scale(1.5); }
