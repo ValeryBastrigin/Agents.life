@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X, Trash2 } from 'lucide-react';
+import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X, Trash2, ChevronDown } from 'lucide-react';
 import MentorBackground from '../components/MentorBackground';
 import DreamInputModal from '../components/DreamInputModal';
 import axios from 'axios';
@@ -46,6 +46,7 @@ const Mentor = () => {
   const [goals, setGoals] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewingGoal, setViewingGoal] = useState(null);
+  const [dreamExpanded, setDreamExpanded] = useState(false);
 
   const loadDreamGoals = useCallback(async () => {
     try {
@@ -373,33 +374,37 @@ const Mentor = () => {
         {/* Delete Confirmation Modal */}
         {deleteConfirm && (
           <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4"
             onClick={() => setDeleteConfirm(null)}
           >
             <div
-              className="bg-white dark:bg-gray-800 rounded-[2rem] p-6 max-w-sm w-full shadow-2xl"
+              className="bg-white/95 dark:bg-surface-dark backdrop-blur-lg rounded-[3rem] p-8 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-transparent"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                <X size={24} className="text-red-500" />
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-16 h-16 mb-4 rounded-[3rem] bg-gradient-to-br from-red-400 to-rose-500 flex items-center justify-center shadow-lg shadow-red-500/20">
+                  <X size={28} className="text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
+                  Удалить цель?
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed max-w-[240px]">
+                  Вы уверены, что хотите удалить цель
+                </p>
+                <span className="text-sm font-semibold text-amber-600 dark:text-amber-400 mt-1">
+                  «{deleteConfirm.goal_summary}»?
+                </span>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white text-center mb-2">
-                Удалить цель?
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">
-                Вы уверены, что хотите удалить цель<br />
-                <span className="font-medium text-gray-700 dark:text-gray-300">«{deleteConfirm.goal_summary}»</span>?
-              </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setDeleteConfirm(null)}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-[2rem] text-sm font-medium transition-all"
+                  className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-[3rem] text-sm font-medium transition-all active:scale-[0.98]"
                 >
                   Отмена
                 </button>
                 <button
                   onClick={() => handleDeleteGoal(deleteConfirm.goal_id)}
-                  className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-[2rem] text-sm font-medium transition-all"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-[3rem] text-sm font-medium transition-all shadow-md hover:shadow-xl shadow-red-500/20 active:scale-[0.98]"
                 >
                   Удалить
                 </button>
@@ -415,7 +420,7 @@ const Mentor = () => {
             onClick={() => setViewingGoal(null)}
           >
             <div
-              className="bg-white dark:bg-gray-800 rounded-[2rem] p-6 max-w-lg w-full shadow-2xl max-h-[80vh] overflow-y-auto"
+              className="bg-white/95 dark:bg-surface-dark backdrop-blur-lg rounded-[3rem] p-6 max-w-lg w-full shadow-2xl max-h-[80vh] overflow-y-auto border border-gray-200 dark:border-transparent"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
@@ -424,7 +429,7 @@ const Mentor = () => {
                 </h3>
                 <button
                   onClick={() => setViewingGoal(null)}
-                  className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center transition-all text-gray-500 dark:text-gray-300"
+                  className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center justify-center transition-all text-gray-500 dark:text-gray-300"
                 >
                   <X size={18} />
                 </button>
@@ -438,16 +443,36 @@ const Mentor = () => {
                 </span>
               </div>
 
-              {/* Dream text */}
+              {/* Dream text - collapsible */}
               {viewingGoal.dream_text && (
                 <div className="mb-4">
-                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                    О чём мечта
-                  </h4>
-                  <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-[2rem] border border-amber-200/50 dark:border-amber-700/30">
-                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-                      {viewingGoal.dream_text}
-                    </p>
+                  <button
+                    onClick={() => setDreamExpanded(!dreamExpanded)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-amber-50/60 dark:bg-amber-900/15 rounded-[2rem] border border-amber-200/40 dark:border-amber-700/25 hover:bg-amber-100/60 dark:hover:bg-amber-900/30 hover:border-amber-300/60 dark:hover:border-amber-600/40 transition-all group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-base">💭</span>
+                      <div className="text-left min-w-0">
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                          О чём мечта
+                        </span>
+                        {!dreamExpanded && (
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5 opacity-70">
+                            {viewingGoal.dream_text.slice(0, 60)}{viewingGoal.dream_text.length > 60 ? '...' : ''}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <span className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-amber-200/50 dark:bg-amber-700/30 text-amber-600 dark:text-amber-300 transition-transform duration-200 ${dreamExpanded ? 'rotate-180' : ''}`}>
+                      <ChevronDown size={14} />
+                    </span>
+                  </button>
+                  <div className={`overflow-hidden transition-all duration-300 ${dreamExpanded ? 'max-h-[1000px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+                    <div className="p-4 bg-amber-50/80 dark:bg-amber-900/10 rounded-[2rem] border border-amber-200/50 dark:border-amber-700/30">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                        {viewingGoal.dream_text}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -496,9 +521,9 @@ const Mentor = () => {
             </div>
           </div>
         )}
-        </div>
       </div>
     </div>
+  </div>
   );
 };
 
