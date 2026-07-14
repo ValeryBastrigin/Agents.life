@@ -313,3 +313,90 @@ async def update_goal_status_endpoint(
     if not result.get("success"):
         raise HTTPException(status_code=404, detail=result.get("error", "Goal not found"))
     return result
+
+
+@router.get("/recommended-materials")
+async def get_recommended_materials_endpoint(
+    user_id: int = 1,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get recommended educational materials based on user's active dream goals and their steps.
+    Returns materials matched to each step (1-2 per step) across all active goals.
+    """
+    from sqlalchemy import select
+    from src.models import DreamGoal
+    
+    try:
+        # Get all active/saved goals
+        result = await db.execute(
+            select(DreamGoal).where(
+                DreamGoal.user_id == user_id,
+                DreamGoal.status.in_(["active", "saved"])
+            )
+        )
+        goals = result.scalars().all()
+        
+        if not goals:
+            return {
+                "materials": [],
+                "goals_analyzed": 0,
+                "message": "Нет активных целей. Сначала расскажите ментору о своей мечте."
+            }
+        
+        from src.materials_data import get_materials_for_step
+        
+        all_materials = []
+        seen_titles = set()
+        
+        for goal in goals:
+            category = goal.category or "ABSTRACT_AMBITION"
+            steps = json.loads(goal.steps_data) if goal.steps_data else []
+            selected_ids = json.loads(goal.selected_step_ids) if goal.selected_step_ids else []
+            
+            # Get selected steps (or all steps if none selected)
+            relevant_steps = []
+            if selected_ids:
+                relevant_steps = [s for s in steps if s.get("id") in selected_ids]
+            else:
+                relevant_steps = steps[:3]  # Show for first 3 steps if nothing selected
+            
+            for step in relevant_steps:
+                step_text = step.get("text", "")
+                step_desc = step.get("description", "")
+                
+                # Get 1-2 materials per step
+                step_materials = get_materials_for_step(
+                    step_text=step_text,
+                    step_description=step_desc,
+                    category=category,
+                    count=2
+                )
+                
+                for mat in step_materials:
+                    if mat["title"] not in seen_titles:
+                        seen_titles.add(mat["title"])
+                        all_materials.append({
+                            **mat,
+                            "goal_summary": goal.goal_summary,
+                            "goal_id": goal.id,
+                            "category": category,
+                            "step_text": step_text
+                        })
+        
+        return {
+            "materials": all_materials,
+            "goals_analyzed": len(goals),
+            "total_steps": sum(
+                len(json.loads(g.steps_data) if g.steps_data else []) 
+                for g in goals
+            )
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get recommended materials: {e}")
+        return {
+            "materials": [],
+            "goals_analyzed": 0,
+            "error": "Не удалось загрузить рекомендованные материалы"
+        }

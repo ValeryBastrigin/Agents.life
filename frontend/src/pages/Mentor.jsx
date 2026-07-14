@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X, Trash2, ChevronDown } from 'lucide-react';
+import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X, Trash2, ChevronDown, Search, Loader2 } from 'lucide-react';
 import MentorBackground from '../components/MentorBackground';
 import DreamInputModal from '../components/DreamInputModal';
 import axios from 'axios';
@@ -47,6 +47,41 @@ const Mentor = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewingGoal, setViewingGoal] = useState(null);
   const [dreamExpanded, setDreamExpanded] = useState(false);
+  const [recommendedMaterials, setRecommendedMaterials] = useState([]);
+  const [materialsLoading, setMaterialsLoading] = useState(false);
+  const [materialsError, setMaterialsError] = useState(null);
+  const [materialsExpanded, setMaterialsExpanded] = useState({});
+  const [materialsCollapsed, setMaterialsCollapsed] = useState(true);
+  const MATERIALS_PREVIEW_COUNT = 3;
+
+  const loadRecommendedMaterials = useCallback(async () => {
+    try {
+      setMaterialsLoading(true);
+      setMaterialsError(null);
+      const res = await axios.get(`${API_URL}/api/mentor/recommended-materials?user_id=1`);
+      if (res.data?.materials) {
+        setRecommendedMaterials(res.data.materials);
+      } else {
+        setRecommendedMaterials([]);
+      }
+    } catch (err) {
+      console.error('Failed to load recommended materials:', err);
+      setMaterialsError('Не удалось загрузить рекомендации');
+    } finally {
+      setMaterialsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRecommendedMaterials();
+  }, [loadRecommendedMaterials]);
+  
+  // Reload materials when goals change
+  useEffect(() => {
+    if (goals.length > 0) {
+      loadRecommendedMaterials();
+    }
+  }, [goals.length, loadRecommendedMaterials]);
 
   const loadDreamGoals = useCallback(async () => {
     try {
@@ -355,175 +390,309 @@ const Mentor = () => {
               <BookOpen size={18} className="text-indigo-500" />
               Рекомендованные материалы
             </h2>
-            <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-6 text-center backdrop-blur-lg border border-gray-200 dark:border-transparent">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-                <BookOpen size={20} className="text-indigo-400 dark:text-indigo-500" />
+            {materialsLoading ? (
+              <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-8 text-center backdrop-blur-lg border border-gray-200 dark:border-transparent">
+                <Loader2 size={24} className="mx-auto mb-3 text-indigo-400 animate-spin" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">Загрузка материалов...</p>
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Подбор материалов будет происходить умным образом
-              </p>
-            </div>
-          </div>
-
-        {/* Dream Input Modal */}
-        <DreamInputModal
-          isOpen={dreamModalOpen}
-          onClose={() => setDreamModalOpen(false)}
-        />
-
-        {/* Delete Confirmation Modal */}
-        {deleteConfirm && (
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4"
-            onClick={() => setDeleteConfirm(null)}
-          >
-            <div
-              className="bg-white/95 dark:bg-surface-dark backdrop-blur-lg rounded-[3rem] p-8 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-transparent"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex flex-col items-center text-center mb-6">
-                <div className="w-16 h-16 mb-4 rounded-[3rem] bg-gradient-to-br from-red-400 to-rose-500 flex items-center justify-center shadow-lg shadow-red-500/20">
-                  <X size={28} className="text-white" />
+            ) : materialsError ? (
+              <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-6 text-center backdrop-blur-lg border border-gray-200 dark:border-transparent">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <X size={20} className="text-red-400 dark:text-red-500" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
-                  Удалить цель?
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed max-w-[240px]">
-                  Вы уверены, что хотите удалить цель
+                <p className="text-sm text-red-500 dark:text-red-400 mb-2">{materialsError}</p>
+                <button
+                  onClick={loadRecommendedMaterials}
+                  className="text-xs text-indigo-500 hover:text-indigo-600 underline"
+                >
+                  Попробовать снова
+                </button>
+              </div>
+            ) : recommendedMaterials.length === 0 ? (
+              <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-6 text-center backdrop-blur-lg border border-gray-200 dark:border-transparent">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                  <BookOpen size={20} className="text-indigo-400 dark:text-indigo-500" />
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  Нет активных целей для подбора материалов
                 </p>
-                <span className="text-sm font-semibold text-amber-600 dark:text-amber-400 mt-1">
-                  «{deleteConfirm.goal_summary}»?
-                </span>
-              </div>
-              <div className="flex gap-3">
                 <button
-                  onClick={() => setDeleteConfirm(null)}
-                  className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-[3rem] text-sm font-medium transition-all active:scale-[0.98]"
+                  onClick={() => setDreamModalOpen(true)}
+                  className="text-xs text-amber-500 hover:text-amber-600 underline"
                 >
-                  Отмена
-                </button>
-                <button
-                  onClick={() => handleDeleteGoal(deleteConfirm.goal_id)}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-[3rem] text-sm font-medium transition-all shadow-md hover:shadow-xl shadow-red-500/20 active:scale-[0.98]"
-                >
-                  Удалить
+                  Рассказать ментору о мечте
                 </button>
               </div>
+            ) : (
+              <div className="space-y-3 overflow-hidden">
+                {recommendedMaterials.map((mat, idx) => {
+                  const isHidden = materialsCollapsed && idx >= MATERIALS_PREVIEW_COUNT;
+                  const typeIcons = {
+                    book: '📖',
+                    course: '🎓',
+                    article: '📝',
+                    video: '🎥',
+                    practice: '🔧'
+                  };
+                  const typeLabels = {
+                    book: 'Книга',
+                    course: 'Курс',
+                    article: 'Статья',
+                    video: 'Видео',
+                    practice: 'Практика'
+                  };
+                  const isExpanded = materialsExpanded[idx] || false;
+                  
+                  return (
+                    <div
+                      key={`${mat.title}-${idx}`}
+                      className={`overflow-hidden transition-all duration-500 ease-in-out ${
+                        isHidden
+                          ? 'max-h-0 opacity-0 pointer-events-none my-0 scale-95'
+                          : 'max-h-[500px] opacity-100 my-3 scale-100'
+                      }`}
+                    >
+                      <div className="bg-white/95 dark:bg-surface-dark rounded-[2rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all backdrop-blur-lg border border-gray-200 dark:border-transparent">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-lg shrink-0 shadow-md">
+                            {mat.icon || '📚'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h3 className="text-sm font-semibold text-gray-800 dark:text-white leading-tight">
+                                {mat.title}
+                              </h3>
+                              <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-medium whitespace-nowrap">
+                                {typeLabels[mat.type] || mat.type}
+                              </span>
+                            </div>
+                            <p className={`text-xs text-gray-500 dark:text-gray-400 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
+                              {mat.description}
+                            </p>
+                            {mat.goal_summary && (
+                              <p className="text-[10px] text-amber-500 dark:text-amber-400 mt-1.5 flex items-center gap-1">
+                                <Target size={10} />
+                                {mat.goal_summary}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-2">
+                              <a
+                                href={`https://www.google.com/search?q=${encodeURIComponent(mat.title + ' — ' + mat.description)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 rounded-[2rem] transition-all shadow-sm hover:shadow-md"
+                              >
+                                <Search size={12} />
+                                Найти в Google
+                              </a>
+                              <span className="text-[9px] text-gray-400 dark:text-gray-500 italic">
+                                ссылка может устареть
+                              </span>
+                              {mat.description.length > 100 && (
+                                <button
+                                  onClick={() => setMaterialsExpanded(prev => ({...prev, [idx]: !prev[idx]}))}
+                                  className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 underline"
+                                >
+                                  {isExpanded ? 'Свернуть' : 'Подробнее'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {recommendedMaterials.length > 0 && (
+                  <div className="flex flex-col items-center gap-2 pt-2">
+                    {materialsCollapsed && recommendedMaterials.length > MATERIALS_PREVIEW_COUNT && (
+                      <button
+                        onClick={() => setMaterialsCollapsed(false)}
+                        className="w-full py-3 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-[2rem] text-xs font-medium text-indigo-500 dark:text-indigo-400 transition-all border border-dashed border-indigo-200 dark:border-indigo-800/50"
+                      >
+                        Показать ещё {recommendedMaterials.length - MATERIALS_PREVIEW_COUNT} материалов ↓
+                      </button>
+                    )}
+                    {!materialsCollapsed && (
+                      <button
+                        onClick={() => setMaterialsCollapsed(true)}
+                        className="w-full py-3 bg-gray-50 dark:bg-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800/50 rounded-[2rem] text-xs font-medium text-gray-500 dark:text-gray-400 transition-all border border-dashed border-gray-200 dark:border-gray-700/50"
+                      >
+                        Свернуть ↑
+                      </button>
+                    )}
+                    <button
+                      onClick={loadRecommendedMaterials}
+                      className="text-xs text-indigo-400 hover:text-indigo-500 transition-colors mt-1"
+                    >
+                      Обновить рекомендации ↻
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+
+      {/* Dream Input Modal */}
+      <DreamInputModal
+        isOpen={dreamModalOpen}
+        onClose={() => setDreamModalOpen(false)}
+      />
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+          onClick={() => setDeleteConfirm(null)}
+        >
+          <div
+            className="bg-white/95 dark:bg-surface-dark backdrop-blur-lg rounded-[3rem] p-8 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-transparent"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 mb-4 rounded-[3rem] bg-gradient-to-br from-red-400 to-rose-500 flex items-center justify-center shadow-lg shadow-red-500/20">
+                <X size={28} className="text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
+                Удалить цель?
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed max-w-[240px]">
+                Вы уверены, что хотите удалить цель
+              </p>
+              <span className="text-sm font-semibold text-amber-600 dark:text-amber-400 mt-1">
+                «{deleteConfirm.goal_summary}»?
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-[3rem] text-sm font-medium transition-all active:scale-[0.98]"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => handleDeleteGoal(deleteConfirm.goal_id)}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-[3rem] text-sm font-medium transition-all shadow-md hover:shadow-xl shadow-red-500/20 active:scale-[0.98]"
+              >
+                Удалить
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Dream Details Modal */}
-        {viewingGoal && (
+      {/* Dream Details Modal */}
+      {viewingGoal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+          onClick={() => setViewingGoal(null)}
+        >
           <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
-            onClick={() => setViewingGoal(null)}
+            className="bg-white/95 dark:bg-surface-dark backdrop-blur-lg rounded-[3rem] p-6 max-w-lg w-full shadow-2xl max-h-[80vh] overflow-y-auto border border-gray-200 dark:border-transparent"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="bg-white/95 dark:bg-surface-dark backdrop-blur-lg rounded-[3rem] p-6 max-w-lg w-full shadow-2xl max-h-[80vh] overflow-y-auto border border-gray-200 dark:border-transparent"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                  {viewingGoal.goal_summary || 'Мечта'}
-                </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                {viewingGoal.goal_summary || 'Мечта'}
+              </h3>
+              <button
+                onClick={() => setViewingGoal(null)}
+                className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center justify-center transition-all text-gray-500 dark:text-gray-300"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Category badge */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xl">{categoryEmojis[viewingGoal.category] || '🎯'}</span>
+              <span className="text-xs px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium">
+                {categoryLabels[viewingGoal.category] || viewingGoal.category}
+              </span>
+            </div>
+
+            {/* Dream text - collapsible */}
+            {viewingGoal.dream_text && (
+              <div className="mb-4">
                 <button
-                  onClick={() => setViewingGoal(null)}
-                  className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center justify-center transition-all text-gray-500 dark:text-gray-300"
+                  onClick={() => setDreamExpanded(!dreamExpanded)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-amber-50/60 dark:bg-amber-900/15 rounded-[2rem] border border-amber-200/40 dark:border-amber-700/25 hover:bg-amber-100/60 dark:hover:bg-amber-900/30 hover:border-amber-300/60 dark:hover:border-amber-600/40 transition-all group"
                 >
-                  <X size={18} />
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-base">💭</span>
+                    <div className="text-left min-w-0">
+                      <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                        О чём мечта
+                      </span>
+                      {!dreamExpanded && (
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5 opacity-70">
+                          {viewingGoal.dream_text.slice(0, 60)}{viewingGoal.dream_text.length > 60 ? '...' : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-amber-200/50 dark:bg-amber-700/30 text-amber-600 dark:text-amber-300 transition-transform duration-200 ${dreamExpanded ? 'rotate-180' : ''}`}>
+                    <ChevronDown size={14} />
+                  </span>
                 </button>
+                <div className={`overflow-hidden transition-all duration-300 ${dreamExpanded ? 'max-h-[1000px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+                  <div className="p-4 bg-amber-50/80 dark:bg-amber-900/10 rounded-[2rem] border border-amber-200/50 dark:border-amber-700/30">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                      {viewingGoal.dream_text}
+                    </p>
+                  </div>
+                </div>
               </div>
+            )}
 
-              {/* Category badge */}
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-xl">{categoryEmojis[viewingGoal.category] || '🎯'}</span>
-                <span className="text-xs px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium">
-                  {categoryLabels[viewingGoal.category] || viewingGoal.category}
-                </span>
+            {/* Analysis */}
+            {viewingGoal.analysis && (
+              <div className="mb-4">
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Анализ ментора
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400 italic bg-gray-50 dark:bg-gray-700/30 p-3 rounded-[2rem] leading-relaxed">
+                  {viewingGoal.analysis}
+                </p>
               </div>
+            )}
 
-              {/* Dream text - collapsible */}
-              {viewingGoal.dream_text && (
-                <div className="mb-4">
-                  <button
-                    onClick={() => setDreamExpanded(!dreamExpanded)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-amber-50/60 dark:bg-amber-900/15 rounded-[2rem] border border-amber-200/40 dark:border-amber-700/25 hover:bg-amber-100/60 dark:hover:bg-amber-900/30 hover:border-amber-300/60 dark:hover:border-amber-600/40 transition-all group"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-base">💭</span>
-                      <div className="text-left min-w-0">
-                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
-                          О чём мечта
-                        </span>
-                        {!dreamExpanded && (
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5 opacity-70">
-                            {viewingGoal.dream_text.slice(0, 60)}{viewingGoal.dream_text.length > 60 ? '...' : ''}
-                          </p>
+            {/* Steps */}
+            {viewingGoal.steps && viewingGoal.steps.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Шаги ({viewingGoal.steps.length})
+                </h4>
+                <div className="space-y-2">
+                  {viewingGoal.steps.map((step, idx) => (
+                    <div key={step.id || idx} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-[2rem]">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
+                        {step.id || idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 dark:text-white">{step.text}</p>
+                        {step.description && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{step.description}</p>
                         )}
                       </div>
                     </div>
-                    <span className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-amber-200/50 dark:bg-amber-700/30 text-amber-600 dark:text-amber-300 transition-transform duration-200 ${dreamExpanded ? 'rotate-180' : ''}`}>
-                      <ChevronDown size={14} />
-                    </span>
-                  </button>
-                  <div className={`overflow-hidden transition-all duration-300 ${dreamExpanded ? 'max-h-[1000px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-                    <div className="p-4 bg-amber-50/80 dark:bg-amber-900/10 rounded-[2rem] border border-amber-200/50 dark:border-amber-700/30">
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-                        {viewingGoal.dream_text}
-                      </p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              )}
-
-              {/* Analysis */}
-              {viewingGoal.analysis && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                    Анализ ментора
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 italic bg-gray-50 dark:bg-gray-700/30 p-3 rounded-[2rem] leading-relaxed">
-                    {viewingGoal.analysis}
-                  </p>
-                </div>
-              )}
-
-              {/* Steps */}
-              {viewingGoal.steps && viewingGoal.steps.length > 0 && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                    Шаги ({viewingGoal.steps.length})
-                  </h4>
-                  <div className="space-y-2">
-                    {viewingGoal.steps.map((step, idx) => (
-                      <div key={step.id || idx} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-[2rem]">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
-                          {step.id || idx + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 dark:text-white">{step.text}</p>
-                          {step.description && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{step.description}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Date info */}
-              <div className="flex items-center gap-1 text-xs text-gray-400 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                <Calendar size={12} />
-                <span>Создано: {viewingGoal.created_at ? new Date(viewingGoal.created_at).toLocaleDateString() : 'сегодня'}</span>
               </div>
+            )}
+
+            {/* Date info */}
+            <div className="flex items-center gap-1 text-xs text-gray-400 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+              <Calendar size={12} />
+              <span>Создано: {viewingGoal.created_at ? new Date(viewingGoal.created_at).toLocaleDateString() : 'сегодня'}</span>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
-  </div>
   );
 };
 
