@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Paperclip, Mic, StopCircle, X, Loader2, Square } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 import AttachMenu from './AttachMenu';
@@ -561,7 +561,10 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
           <button
             ref={attachButtonRef}
             type="button"
-            onClick={() => setAttachMenuOpen((prev) => !prev)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setAttachMenuOpen((prev) => !prev);
+            }}
             className="p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-200/50 dark:hover:bg-white/20 flex-shrink-0"
             title="Прикрепить файл"
           >

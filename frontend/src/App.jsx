@@ -134,6 +134,16 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
     return match ? parseInt(match[1]) : null;
   })();
 
+  // Save current chat location when user leaves chat page (for "back" navigation)
+  useEffect(() => {
+    if (currentChatId) {
+      sessionStorage.setItem('lastChatId', String(currentChatId));
+    } else if (location.pathname === '/chat') {
+      // Also save when on new chat page (no ID) to return to the same state
+      sessionStorage.setItem('lastChatId', '');
+    }
+  }, [currentChatId, location.pathname]);
+
   // Periodically check session status
   useEffect(() => {
     const interval = setInterval(() => {
@@ -262,6 +272,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   };
 
   const handleNewChat = () => {
+    sessionStorage.removeItem('lastChatId');
     navigate('/chat');
   };
 
@@ -346,7 +357,10 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
             </button>
           ) : (location.pathname === '/secretary' || location.pathname === '/accountant' || location.pathname === '/dietitian' || location.pathname === '/psychologist' || location.pathname === '/mentor') ? (
             <button
-              onClick={() => navigate('/chat')}
+              onClick={() => {
+                const lastChatId = sessionStorage.getItem('lastChatId');
+                navigate(lastChatId ? `/chat/${lastChatId}` : '/chat');
+              }}
               className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
             >
               <ArrowLeft size={20} className={`${location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'text-gray-800 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`} />
@@ -520,7 +534,10 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/mentor/tree" element={<DevelopmentTree />} />
         <Route path="/mentor/habits" element={<HabitTracker />} />
         <Route path="/financial-analyst" element={<FinancialAnalyst />} />
-        <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => navigate('/chat')} />} />
+        <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => {
+          const lastChatId = sessionStorage.getItem('lastChatId');
+          navigate(lastChatId ? `/chat/${lastChatId}` : '/chat');
+        }} />} />
       </Routes>
     </div>
   );
