@@ -345,12 +345,21 @@ const buildTreeFromGoals = (goals) => {
 };
 
 // ── Main Component ──
+const STORAGE_KEY = 'development-tree-positions';
+
 const DevelopmentTreeContent = () => {
   const navigate = useNavigate();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const onNodeDragStop = useCallback((event, node) => {
+    // Сохраняем позицию узла после перетаскивания
+    const savedPositions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    savedPositions[node.id] = { x: Math.round(node.position.x), y: Math.round(node.position.y) };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedPositions));
+  }, []);
 
   const loadGoals = useCallback(async () => {
     try {
@@ -359,6 +368,21 @@ const DevelopmentTreeContent = () => {
       const fetchedGoals = (res.data?.goals || []).filter(g => g.status === 'active' || g.status === 'saved');
       setGoals(fetchedGoals);
       const { nodes: treeNodes, edges: treeEdges } = buildTreeFromGoals(fetchedGoals);
+
+      // Восстанавливаем сохранённые позиции из localStorage
+      try {
+        const savedPositions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        if (Object.keys(savedPositions).length > 0) {
+          treeNodes.forEach((node) => {
+            if (savedPositions[node.id]) {
+              node.position = { ...savedPositions[node.id] };
+            }
+          });
+        }
+      } catch (e) {
+        // ignore
+      }
+
       setNodes(treeNodes);
       setEdges(treeEdges);
     } catch (err) {
@@ -372,6 +396,15 @@ const DevelopmentTreeContent = () => {
     }
   }, []);
 
+  // Очищаем сохранённые позиции при загрузке новых целей (кнопка "заново")
+  useEffect(() => {
+    const handleClearPositions = () => {
+      localStorage.removeItem(STORAGE_KEY);
+    };
+    window.addEventListener('clear-tree-positions', handleClearPositions);
+    return () => window.removeEventListener('clear-tree-positions', handleClearPositions);
+  }, []);
+
   useEffect(() => {
     loadGoals();
   }, [loadGoals]);
@@ -380,13 +413,18 @@ const DevelopmentTreeContent = () => {
     <div className="flex-1 flex flex-col h-full relative">
       <MentorBackground />
 
-      {/* Back arrow to mentor */}
-      <button
-        onClick={() => navigate('/mentor')}
-        className="absolute top-4 left-4 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-lg hover:bg-white dark:hover:bg-gray-700 transition-all active:scale-90"
-      >
-        <ArrowLeft size={20} className="text-gray-700 dark:text-gray-200" />
-      </button>
+      {/* Back arrow to mentor with title */}
+      <div className="absolute top-4 left-4 z-20 flex items-center gap-3">
+        <button
+          onClick={() => navigate('/mentor')}
+          className="w-10 h-10 flex items-center justify-center rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-lg hover:bg-white dark:hover:bg-gray-700 transition-all active:scale-90"
+        >
+          <ArrowLeft size={20} className="text-gray-700 dark:text-gray-200" />
+        </button>
+        <span className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white drop-shadow-sm">
+          Ваше дерево развития
+        </span>
+      </div>
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center z-10">
@@ -400,6 +438,7 @@ const DevelopmentTreeContent = () => {
               nodes={nodes}
               edges={edges}
               onNodesChange={onNodesChange}
+              onNodeDragStop={onNodeDragStop}
               onEdgesChange={onEdgesChange}
               nodeTypes={nodeTypes}
               fitView
