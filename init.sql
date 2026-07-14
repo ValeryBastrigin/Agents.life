@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     avatar_url VARCHAR(255),
     token_balance INTEGER DEFAULT 1000,
+    plan VARCHAR(20) DEFAULT 'FREE',             -- FREE, PRO, UNLIMITED
+    credits_used INTEGER DEFAULT 0,              -- сколько кредитов потрачено сегодня
+    last_credit_reset DATE,                      -- дата последнего дневного сброса credits_used
     theme_preference VARCHAR(10) DEFAULT 'light', -- 'light' or 'dark'
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -148,6 +151,23 @@ CREATE TABLE IF NOT EXISTS user_diet_profiles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add last_credit_reset column if missing (migration for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='last_credit_reset'
+    ) THEN
+        ALTER TABLE users ADD COLUMN last_credit_reset DATE;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='credits_used'
+    ) THEN
+        ALTER TABLE users ADD COLUMN credits_used INTEGER DEFAULT 0;
+    END IF;
+END $$;
 
 -- Insert default user
 INSERT INTO users (username, email, password_hash, token_balance, theme_preference) VALUES

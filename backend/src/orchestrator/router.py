@@ -10,6 +10,7 @@ from src.config import client
 from pydantic import BaseModel, ValidationError
 from typing import Optional, List, Union, Any
 from src.agents import dietitian_agent
+from src.billing.calculator import calculate_cost
 import importlib
 import os
 import json
@@ -276,6 +277,8 @@ class UserProfile(BaseModel):
     email: Optional[str]
     avatar_url: Optional[str]
     token_balance: int
+    plan: str = "FREE"
+    credits_used: int = 0
     theme_preference: str
     calorie_target: Optional[int] = None
     protein_target: Optional[int] = None
@@ -492,6 +495,15 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
     db.add(assistant_message)
 
+    # Deduct credits based on tokens used
+    credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=0, output_tokens=tokens_used)
+    if credits_cost == 0 and tokens_used > 0:
+        credits_cost = 1  # minimum cost for non-zero response
+    elif credits_cost == 0:
+        credits_cost = 1  # minimum cost for any AI interaction
+    user.credits_used = (user.credits_used or 0) + credits_cost
+    user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+
     await db.commit()
     await db.refresh(user)
 
@@ -600,6 +612,12 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
             db.add(assistant_message)
 
+            # Deduct credits for specialized agent call
+            credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=0, output_tokens=tokens_used)
+            if credits_cost == 0:
+                credits_cost = 1
+            user.credits_used = (user.credits_used or 0) + credits_cost
+            user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
             await db.commit()
 
             async for event in _stream_final_response(response_text, chat.id, is_new_chat, agent_name):
@@ -666,6 +684,16 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         assistant_message = Message(chat_id=chat.id, role="assistant", content=full_response, tokens_used=0)
         db.add(assistant_message)
 
+        # Calculate credits: estimate input tokens from message length + output tokens
+        input_token_est = len(request.message) // 4  # rough estimate: ~4 chars per token
+        output_token_est = len(full_response) // 4
+        credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_token_est, output_tokens=output_token_est)
+        if credits_cost == 0 and (input_token_est > 0 or output_token_est > 0):
+            credits_cost = 1
+        elif credits_cost == 0:
+            credits_cost = 1
+        user.credits_used = (user.credits_used or 0) + credits_cost
+        user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
         await db.commit()
 
         metadata = {
@@ -821,6 +849,8 @@ async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):
         email=user.email,
         avatar_url=user.avatar_url,
         token_balance=user.token_balance,
+        plan=user.plan or "FREE",
+        credits_used=user.credits_used or 0,
         theme_preference=user.theme_preference
     )
 

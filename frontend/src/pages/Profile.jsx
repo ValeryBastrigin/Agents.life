@@ -1,7 +1,9 @@
-import React, { useRef } from 'react';
-import { User, Moon, Sun, CreditCard, Bell, LogOut, ArrowLeft, Globe } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { User, Moon, Sun, Bell, LogOut, ArrowLeft, Globe } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient } from '../utils/apiClient';
+import BillingPlans from '../components/BillingPlans';
+import PaywallModal from '../components/PaywallModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
@@ -16,6 +18,12 @@ function resolveUploadUrl(url) {
 const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
   const { t, language, changeLanguage } = useLanguage();
   const fileInputRef = useRef(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+
+  const handleUpgrade = (planId) => {
+    setPaywallOpen(false);
+    console.log('Upgrade to', planId);
+  };
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -90,27 +98,17 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
           </div>
         </div>
 
-        {/* Tariff Card */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-[3.5rem] p-6 mb-6 text-white shadow-lg">
-          <div className="flex items-center gap-3 mb-4">
-            <CreditCard size={24} />
-            <h3 className="text-lg font-semibold">{t('currentPlan')}</h3>
-          </div>
-          <div className="mb-2">
-            <span className="text-sm opacity-90">{t('freeTier')}</span>
-          </div>
-          <div className="flex items-end justify-between">
-            <div>
-              <div className="text-sm opacity-90 mb-1">{t('tokenBalance')}</div>
-              <div className="text-3xl font-bold">
-                {userProfile?.token_balance || 0}
-              </div>
-            </div>
-            <button className="bg-white text-blue-600 px-4 py-2 rounded-[3rem] font-medium hover:bg-blue-50 transition-colors">
-              {t('upgradePlan')}
-            </button>
-          </div>
-        </div>
+        {/* Billing Plans — Usage Bar + Tariff Cards */}
+        <BillingPlans
+          userProfile={userProfile}
+          onUpgrade={(planId) => setPaywallOpen(true)}
+        />
+
+        <PaywallModal
+          isOpen={paywallOpen}
+          onClose={() => setPaywallOpen(false)}
+          onSelectPlan={handleUpgrade}
+        />
 
         {/* Settings Section */}
         <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">

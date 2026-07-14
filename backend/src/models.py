@@ -13,6 +13,9 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     avatar_url = Column(String(255))
     token_balance = Column(Integer, default=1000)
+    plan = Column(String(20), default="FREE")           # FREE, PRO, UNLIMITED
+    credits_used = Column(Integer, default=0)            # сколько кредитов потрачено сегодня
+    last_credit_reset = Column(Date, nullable=True)      # дата последнего дневного сброса credits_used
     theme_preference = Column(String(10), default="light")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

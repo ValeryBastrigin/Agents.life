@@ -39,7 +39,6 @@ services:
     env_file:
       - backend/.env
     ports:
-      - "3000:3000"
       - "8001:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://lifeagent:lifeagent_password@db:5432/lifeagent
@@ -51,6 +50,7 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./backend/src:/app/src
+      - ./backend/main.py:/app/backend/main.py
     depends_on:
       db:
         condition: service_healthy

@@ -6,6 +6,7 @@ from src.accountant.router import router as accountant_router
 from src.mentor.router import router as mentor_router
 from src.dietplan.router import router as dietplan_router
 from src.psychologist.router import router as psychologist_router
+from src.billing.router import router as billing_router
 from src.database import engine, Base, get_db, async_session
 from src.models import User, Agent
 from src.config import client
@@ -30,6 +31,7 @@ app.include_router(accountant_router)
 app.include_router(mentor_router)
 app.include_router(dietplan_router)
 app.include_router(psychologist_router)
+app.include_router(billing_router)
 
 # Exception handler for validation errors
 @app.exception_handler(ValidationError)
