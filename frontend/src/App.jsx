@@ -778,6 +778,28 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
     }
   };
 
+  // ── Stop streaming (like Gemini/ChatGPT stop button) ──
+  const handleStopStreaming = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    // Reset streaming state immediately
+    setIsLoading(false);
+    setIsStreaming(false);
+    setStreamingContent('');
+    setStreamAgentName('');
+  }, []);
+
+  // ── Clear streaming state when navigating away from chat ──
+  // (prevents loader dots from appearing in other chats)
+  useEffect(() => {
+    if (location.pathname.startsWith('/chat')) return; // still on chat page
+    if (isStreamingRef.current) {
+      handleStopStreaming();
+    }
+  }, [location.pathname]);
+
   // ── Core AI streaming (does NOT add user message — assumes it's already in messages) ──
   const startAIStreaming = useCallback((message, currentMessages) => {
     setIsLoading(true);
@@ -786,6 +808,10 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
     pendingWidgetRef.current = null;
 
     const currentChatId = chatIdRef.current;
+
+    // Create a new AbortController for this stream
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     sendMessageStream(
       {
@@ -802,6 +828,10 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
           setStreamingContent(widgetContent);
         },
         onDone: (metadata) => {
+          // Don't update state if stream was cancelled
+          if (abortControllerRef.current === null) return;
+          abortControllerRef.current = null;
+
           setIsLoading(false);
           setIsStreaming(false);
 
@@ -838,14 +868,25 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
           }
         },
         onError: (error) => {
+          // If cancelled, don't show error — just clean up
+          if (error?.message === 'cancelled') {
+            setIsLoading(false);
+            setIsStreaming(false);
+            setStreamingContent('');
+            setStreamAgentName('');
+            abortControllerRef.current = null;
+            return;
+          }
           console.error('Failed to stream message:', error);
           setIsLoading(false);
           setIsStreaming(false);
           setStreamingContent('');
           setStreamAgentName('');
+          abortControllerRef.current = null;
           setMessages((prev) => [...prev, { role: 'assistant', content: 'Извините, произошла ошибка. Попробуйте ещё раз.' }]);
         },
-      }
+      },
+      abortControllerRef.current.signal
     );
   }, [userId, navigate, onChatCreated]);
 
@@ -1214,6 +1255,8 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
             setStreamAgentName(streamAgentRef.current);
             handleFinalSend(msg);
           }}
+          isStreaming={isStreaming}
+          onStopStreaming={handleStopStreaming}
           disabled={isLoading || isStreaming}
           theme={theme}
         />

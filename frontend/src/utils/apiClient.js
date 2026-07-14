@@ -47,9 +47,10 @@ export async function sendMessage(payload) {
  * @param {Function} callbacks.onWidget - Called with (widgetData: object) for widget JSON
  * @param {Function} callbacks.onDone - Called with (metadata: { chat_id, is_new_chat, full_content })
  * @param {Function} callbacks.onError - Called with (error: Error)
+ * @param {AbortSignal} [signal] - Optional AbortSignal to cancel the fetch
  * @returns {Promise<void>}
  */
-export async function sendMessageStream(payload, callbacks) {
+export async function sendMessageStream(payload, callbacks, signal) {
   const { onToken, onWidget, onDone, onError } = callbacks;
 
   try {
@@ -59,6 +60,7 @@ export async function sendMessageStream(payload, callbacks) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      signal, // Pass signal to fetch
     });
 
     if (!response.ok) {
@@ -116,6 +118,12 @@ export async function sendMessageStream(payload, callbacks) {
       }
     }
   } catch (error) {
+    // Check if the request was aborted — silently ignore
+    if (error.name === 'AbortError') {
+      console.log('Streaming request was cancelled');
+      if (onError) onError(new Error('cancelled'));
+      return;
+    }
     console.error('Streaming error:', error);
     if (onError) onError(error);
   }

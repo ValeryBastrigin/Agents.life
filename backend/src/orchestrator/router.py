@@ -1340,8 +1340,67 @@ from src.rag.agent_bridge import AgentBridge
 from src.rag.extractor import KnowledgeExtractor
 
 
+# ---- RAG personalization guard ----
+PERSONAL_KEYWORDS = {
+    "мой", "моя", "моё", "мои", "моего", "моей", "моему", "моим",
+    "моём", "моем", "мои", "моих", "моими",
+    "мне", "меня", "у меня", "для меня", "я", "меня",
+    "свои", "свой", "своя", "своё", "свое",
+    "моему", "моим",
+}
+
+# Agent-specific personal keywords (когда вопрос касается профиля этого агента)
+AGENT_PROFILE_KEYWORDS = {
+    "dietitian": {"рацион", "диета", "питание", "еда", "меню", "вес", "цель", "бжу", "калории", "продукты"},
+    "secretary": {"заметк", "напоминани", "событи", "план", "расписани", "задач", "дел"},
+    "psychologist": {"настроени", "эмоци", "состоян", "чувств", "тревог", "стресс", "сон", "дневник"},
+    "mentor": {"проект", "обучени", "курс", "навык", "карьер", "цел", "развити", "направлени"},
+    "accountant": {"финанс", "доход", "расход", "бюджет", "капитал", "портфел", "инвестици", "счет", "трат"},
+}
+
+
+def _needs_rag_personalization(user_id: int, agent_name: str, message: str, db: AsyncSession) -> bool:
+    """
+    Определяет, нужно ли обогащать системный промпт RAG-контекстом пользователя.
+    Возвращает False для общих вопросов, не требующих персонализации.
+    """
+    message_lower = message.strip().lower()
+
+    # 1. Если сообщение слишком короткое (простое приветствие) — RAG не нужен
+    if len(message_lower.split()) <= 3:
+        return False
+
+    # 2. Проверка наличия личных/притяжательных местоимений
+    words = set(message_lower.split())
+    has_personal_ref = bool(words & PERSONAL_KEYWORDS) or any(p in message_lower for p in ["у меня", "для меня", "мне "])
+
+    # 3. Для специализированных агентов — проверяем, касается ли вопрос профиля
+    if agent_name in AGENT_PROFILE_KEYWORDS:
+        profile_keywords = AGENT_PROFILE_KEYWORDS[agent_name]
+        has_profile_relevance = any(kw in message_lower for kw in profile_keywords)
+        # Если есть и личная отсылка, и релевантность профилю — нужна персонализация
+        if has_personal_ref and has_profile_relevance:
+            return True
+        # Если вопрос явно про профиль агента ("составь рацион", "запиши заметку") — нужна персонализация
+        if has_profile_relevance and (has_personal_ref or len(message_lower.split()) > 5):
+            return True
+        # Если вопрос общий в рамках агента, но без личной отсылки — не нужно
+        return False
+
+    # 4. Для default/общего агента — персонализация нужна только при личных отсылках
+    if agent_name == "default":
+        return has_personal_ref
+
+    # 5. Для неизвестных агентов — по умолчанию без персонализации
+    return False
+
+
 async def _enrich_system_prompt_with_rag(user_id: int, agent_name: str, message: str, system_prompt: str, db: AsyncSession) -> str:
     """Fetch RAG context for the user and prepend it to the agent's system prompt."""
+
+    # Проверяем, нужна ли персонализация
+    if not _needs_rag_personalization(user_id, agent_name, message, db):
+        return system_prompt
     try:
         builder = ContextBuilder(db, client)
         rag_context = await builder.build_context(user_id, agent_name, message)

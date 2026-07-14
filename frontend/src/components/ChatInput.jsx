@@ -1,10 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Send, Paperclip, Mic, StopCircle, X, Loader2 } from 'lucide-react';
+import { Send, Paperclip, Mic, StopCircle, X, Loader2, Square } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 import AttachMenu from './AttachMenu';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light', onOptimisticMessage, onAttachmentsUploaded, onFinalSend }) => {
+const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light', onOptimisticMessage, onAttachmentsUploaded, onFinalSend, isStreaming = false, onStopStreaming }) => {
   const { language } = useLanguage();
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -618,6 +618,16 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
               <Send size={24} className="md:size-5" />
             </button>
           </>
+        ) : isStreaming ? (
+          /* ═══ Stop button — appears when AI is streaming (like Gemini/ChatGPT) ═══ */
+          <button
+            type="button"
+            onClick={onStopStreaming}
+            className="p-4 md:p-3 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-800/30 transition-colors rounded-full flex-shrink-0"
+            title="Остановить генерацию"
+          >
+            <Square size={20} className="md:size-[18px]" fill="currentColor" />
+          </button>
         ) : (
           <>
             {/* Voice Input Button */}
