@@ -44,7 +44,7 @@ _PLAN_LIMITS: Dict[UserPlan, int] = {
 
 _PLAN_PRICES: Dict[UserPlan, float] = {
     UserPlan.FREE: 0.0,
-    UserPlan.PRO: 9.0,
+    UserPlan.PRO: 10.0,
     UserPlan.UNLIMITED: 25.0,
 }
 

@@ -1,9 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { User, Moon, Sun, Bell, LogOut, ArrowLeft, Globe } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient } from '../utils/apiClient';
 import BillingPlans from '../components/BillingPlans';
 import PaywallModal from '../components/PaywallModal';
+import UpgradePlanModal from '../components/UpgradePlanModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
@@ -18,11 +19,25 @@ function resolveUploadUrl(url) {
 const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
   const { t, language, changeLanguage } = useLanguage();
   const fileInputRef = useRef(null);
+  const scrollRef = useRef(null);
+  const [upgradePlanOpen, setUpgradePlanOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const blocked = upgradePlanOpen || paywallOpen;
+    scrollRef.current.style.overflow = blocked ? 'hidden' : '';
+    scrollRef.current.style.position = blocked ? 'relative' : '';
+  }, [upgradePlanOpen, paywallOpen]);
+
   const handleUpgrade = (planId) => {
-    setPaywallOpen(false);
+    setUpgradePlanOpen(false);
     console.log('Upgrade to', planId);
+  };
+
+  const handlePaywallSelect = (planId) => {
+    setPaywallOpen(false);
+    console.log('Paywall select', planId);
   };
 
   const handleAvatarUpload = async (e) => {
@@ -40,7 +55,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-8 animate-slide-in-right">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-8 animate-slide-in-right">
       <div className="max-w-3xl mx-auto">
         {/* Header with Back Button */}
         <div className="flex items-center gap-3 mb-8">
@@ -101,13 +116,20 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         {/* Billing Plans — Usage Bar + Tariff Cards */}
         <BillingPlans
           userProfile={userProfile}
-          onUpgrade={(planId) => setPaywallOpen(true)}
+          onUpgrade={() => setUpgradePlanOpen(true)}
+          onPaywall={() => setPaywallOpen(true)}
+        />
+
+        <UpgradePlanModal
+          isOpen={upgradePlanOpen}
+          onClose={() => setUpgradePlanOpen(false)}
+          onSelectPlan={handleUpgrade}
         />
 
         <PaywallModal
           isOpen={paywallOpen}
           onClose={() => setPaywallOpen(false)}
-          onSelectPlan={handleUpgrade}
+          onSelectPlan={handlePaywallSelect}
         />
 
         {/* Settings Section */}

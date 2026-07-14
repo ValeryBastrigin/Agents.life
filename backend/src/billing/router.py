@@ -22,7 +22,7 @@ PLANS_LIST = [
         "plan_id": "free",
         "name": "Бесплатный",
         "credits": 200,
-        "price_rub": 0,
+        "price_usd": 0,
         "is_infinite": False,
         "recommended": False,
         "features": [
@@ -35,7 +35,7 @@ PLANS_LIST = [
         "plan_id": "pro",
         "name": "Pro",
         "credits": 1000,
-        "price_rub": 990,
+        "price_usd": 10,
         "is_infinite": False,
         "recommended": True,
         "features": [
@@ -50,7 +50,7 @@ PLANS_LIST = [
         "plan_id": "unlimited",
         "name": "Безлимит",
         "credits": 3000,
-        "price_rub": 2490,
+        "price_usd": 25,
         "is_infinite": True,
         "recommended": False,
         "features": [

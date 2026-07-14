@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
-import { Zap, Crown, Infinity, X, ArrowRight } from 'lucide-react';
+import { Crown, Infinity, X, ArrowRight } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const PaywallModal = ({ isOpen, onClose, onSelectPlan }) => {
+const UpgradePlanModal = ({ isOpen, onClose, onSelectPlan }) => {
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -68,14 +68,14 @@ const PaywallModal = ({ isOpen, onClose, onSelectPlan }) => {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full mb-4 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mb-4 shadow-lg">
             <Crown size={32} className="text-white" />
           </div>
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
-            {t('paywallTitle')}
+            Выберите тариф
           </h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
-            {t('paywallSubtitle')}
+            Откройте больше возможностей с премиум-тарифом
           </p>
         </div>
 
@@ -133,4 +133,4 @@ const PaywallModal = ({ isOpen, onClose, onSelectPlan }) => {
   );
 };
 
-export default PaywallModal;
+export default UpgradePlanModal;
