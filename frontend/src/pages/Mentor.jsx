@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X, Trash2, ChevronDown, Search, Loader2 } from 'lucide-react';
 import MentorBackground from '../components/MentorBackground';
 import DreamInputModal from '../components/DreamInputModal';
-import MentorGuideModal from '../components/MentorGuideModal';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
@@ -43,12 +42,13 @@ const categoryLabels = {
 const Mentor = () => {
   const navigate = useNavigate();
   const [habitData, setHabitData] = useState({ habits: [], xp: 0, level: 1, unlockedAchievements: [] });
+  const [loading, setLoading] = useState(false);
   const [dreamModalOpen, setDreamModalOpen] = useState(false);
   const [goals, setGoals] = useState([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewingGoal, setViewingGoal] = useState(null);
   const [dreamExpanded, setDreamExpanded] = useState(false);
-  const [guideModalOpen, setGuideModalOpen] = useState(false);
   const [recommendedMaterials, setRecommendedMaterials] = useState([]);
   const [materialsLoading, setMaterialsLoading] = useState(false);
   const [materialsError, setMaterialsError] = useState(null);
@@ -93,6 +93,8 @@ const Mentor = () => {
       }
     } catch (err) {
       console.error('Failed to load dream goals:', err);
+    } finally {
+      setGoalsLoading(false);
     }
   }, []);
 
@@ -181,8 +183,8 @@ const Mentor = () => {
       <div className="relative z-10 overflow-y-auto h-full px-6 pt-4 pb-8">
         <div className="max-w-2xl mx-auto">
 
-          {/* Dream button — only show when no goals exist */}
-          {goals.length === 0 && (
+          {/* Dream button — only show if no goals exist */}
+          {!goalsLoading && goals.length === 0 && (
             <button
               onClick={() => setDreamModalOpen(true)}
               className="w-full bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3rem] p-5 mb-6 text-white hover:shadow-2xl hover:shadow-amber-500/30 transition-all active:scale-[0.98] text-left group"
@@ -206,7 +208,7 @@ const Mentor = () => {
 
           {/* 3 Horizontal Blocks */}
           <div className="grid grid-cols-3 gap-3 mb-6">
-            <button onClick={() => setGuideModalOpen(true)} className="flex flex-col items-center justify-center gap-2 bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-200 dark:border-transparent backdrop-blur-lg group">
+            <button className="flex flex-col items-center justify-center gap-2 bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-200 dark:border-transparent backdrop-blur-lg group">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
                 <BookOpen size={20} className="text-white" />
               </div>
@@ -223,7 +225,7 @@ const Mentor = () => {
                   welcome_message: 'Привет! 👋 Я — ваш ментор. Чем я могу помочь вам сегодня? Расскажите о своих целях, планах или задайте любой вопрос о развитии и самореализации.'
                 });
                 const chatId = res.data.chat_id || res.data.id;
-                navigate(`/chat/${chatId}`);
+                                navigate(`/chat/${chatId}`, { state: { scrollToTop: true } });
               } catch (err) {
                 console.error('Failed to create mentor chat:', err);
               }
@@ -252,7 +254,25 @@ const Mentor = () => {
               <Target size={18} className="text-red-500" />
               Активные цели
             </h2>
-            {goals.length === 0 ? (
+            {goalsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[1, 2, 3].map((s) => (
+                  <div
+                    key={s}
+                    className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 backdrop-blur-lg border border-gray-200 dark:border-transparent animate-pulse"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-[3rem] bg-gray-200 dark:bg-gray-700 shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full w-3/4" />
+                        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full w-1/2" />
+                        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full w-full" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : goals.length === 0 ? (
               <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-6 text-center backdrop-blur-lg border border-gray-200 dark:border-transparent">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                   <Target size={20} className="text-red-400 dark:text-red-500" />
@@ -428,7 +448,7 @@ const Mentor = () => {
                 </button>
               </div>
             ) : (
-              <div className="space-y-1 overflow-hidden">
+              <div className="space-y-3 overflow-hidden">
                 {recommendedMaterials.map((mat, idx) => {
                   const isHidden = materialsCollapsed && idx >= MATERIALS_PREVIEW_COUNT;
                   const typeIcons = {
@@ -453,7 +473,7 @@ const Mentor = () => {
                       className={`overflow-hidden transition-all duration-500 ease-in-out ${
                         isHidden
                           ? 'max-h-0 opacity-0 pointer-events-none my-0 scale-95'
-                          : 'max-h-[500px] opacity-100 my-0 scale-100'
+                          : 'max-h-[500px] opacity-100 my-3 scale-100'
                       }`}
                     >
                       <div className="bg-white/95 dark:bg-surface-dark rounded-[2rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all backdrop-blur-lg border border-gray-200 dark:border-transparent">
@@ -508,7 +528,7 @@ const Mentor = () => {
                   );
                 })}
                 {recommendedMaterials.length > 0 && (
-                  <div className="flex flex-col items-center gap-2 pt-0">
+                  <div className="flex flex-col items-center gap-2 pt-2">
                     {materialsCollapsed && recommendedMaterials.length > MATERIALS_PREVIEW_COUNT && (
                       <button
                         onClick={() => setMaterialsCollapsed(false)}
@@ -544,12 +564,6 @@ const Mentor = () => {
       <DreamInputModal
         isOpen={dreamModalOpen}
         onClose={() => setDreamModalOpen(false)}
-      />
-
-      {/* Guide Modal */}
-      <MentorGuideModal
-        isOpen={guideModalOpen}
-        onClose={() => setGuideModalOpen(false)}
       />
 
       {/* Delete Confirmation Modal */}
@@ -590,6 +604,18 @@ const Mentor = () => {
                 Удалить
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-xl shadow-purple-500/30 animate-pulse">
+              <Loader2 size={32} className="text-white animate-spin" />
+            </div>
+            <p className="text-white text-sm font-medium">Создаём чат с ментором...</p>
           </div>
         </div>
       )}
@@ -677,18 +703,49 @@ const Mentor = () => {
                   Шаги ({viewingGoal.steps.length})
                 </h4>
                 <div className="space-y-2">
-                  {viewingGoal.steps.map((step, idx) => (
-                    <div key={step.id || idx} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-[2rem]">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
-                        {step.id || idx + 1}
+                    {viewingGoal.steps.map((step, idx) => (
+                      <div key={step.id || idx} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-[2rem]">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
+                          {step.id || idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 dark:text-white">{step.text}</p>
+                          {step.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{step.description}</p>
+                          )}
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setLoading(true);
+                              try {
+                                // 1. Create a mentor chat
+                                const createRes = await axios.post(`${API_URL}/api/chats`, {
+                                  user_id: 1,
+                                  agent_type: 'mentor',
+                                });
+                                const chatId = createRes.data.chat_id || createRes.data.id;
+                                
+                                // 2. Send user message to the chat
+                                await axios.post(`${API_URL}/api/chat`, {
+                                  user_id: 1,
+                                  chat_id: chatId,
+                                  agent: 'mentor',
+                                message: `Привет, хочу обсудить с тобой ${step.text}${step.description ? `\n${step.description}` : ''}`
+                                });
+                                
+                                navigate(`/chat/${chatId}`, { state: { scrollToTop: true } });
+                              } catch (err) {
+                                console.error('Failed to create mentor chat:', err);
+                                setLoading(false);
+                              }
+                            }}
+                            className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 rounded-[2rem] transition-all shadow-sm hover:shadow-md"
+                          >
+                            <MessageSquare size={12} />
+                            Обсудить с ментором
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 dark:text-white">{step.text}</p>
-                        {step.description && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{step.description}</p>
-                        )}
-                      </div>
-                    </div>
                   ))}
                 </div>
               </div>

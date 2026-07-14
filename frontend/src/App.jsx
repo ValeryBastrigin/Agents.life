@@ -336,7 +336,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       {location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
-          <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+          <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           {location.pathname.startsWith('/secretary/notes') ? (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -360,7 +360,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
             </button>
           )}
           </span>
-          <span className={`px-3 py-1.5 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+          <span className={`px-3 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             {location.pathname.startsWith('/secretary/notes') ? (
               <>
@@ -489,7 +489,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
               </div>
             </div>
           )}
-          <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+          <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <button
             onClick={() => navigate('/profile')}
             className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
@@ -684,6 +684,16 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
 
   // Auto-scroll to bottom when messages or streaming content change
   useEffect(() => {
+    // Check if we should scroll to top instead (e.g. navigation from Mentor)
+    if (location.state?.scrollToTop) {
+      const container = messagesContainerRef.current;
+      if (container) {
+        container.scrollTop = 0;
+      }
+      // Clear the state so subsequent auto-scrolls go to bottom
+      window.history.replaceState({}, document.title);
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
 
@@ -1104,9 +1114,9 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
   };
 
   return (
-    <div className="flex flex-col h-full relative animate-slide-in-left">
-      {/* Messages Container */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 relative z-10 pt-10 pb-6">
+    <div className="flex flex-col h-full min-h-0 animate-slide-in-left">
+      {/* Messages Container — flex-1 + min-h-0 чтобы контент не выталкивал чат-инпут */}
+      <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto px-4 z-10 pt-10 pb-4">
         {messages.length === 0 && !isStreaming ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 select-none gap-0">
             <div className="relative w-24 h-24 sm:w-28 sm:h-28">
@@ -1189,8 +1199,8 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
         )}
       </div>
 
-      {/* Chat Input Footer - Fixed at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 px-4 py-4 relative z-20 bg-transparent">
+      {/* Chat Input Footer - fixed/sticky снизу как в ChatGPT / Gemini */}
+      <div className="sticky bottom-0 px-4 py-4 flex-shrink-0 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/95 dark:via-background-dark/95 to-transparent">
         <ChatInput
           onSendMessage={(msg) => {
             // Set agent name based on last assistant message in history
