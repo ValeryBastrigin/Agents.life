@@ -11,6 +11,10 @@ from src.agents.mentor_agent import (
     analyze_dream, add_active_goal, get_active_goals, update_goal_status,
     analyze_dream_steps, save_dream_goal, select_dream_steps
 )
+from src.config import client
+from src.rag.extractor import KnowledgeExtractor
+from src.rag.context_builder import ContextBuilder
+from src.rag.agent_bridge import AgentBridge
 
 router = APIRouter(prefix="/api/mentor", tags=["mentor"])
 
@@ -452,3 +456,84 @@ async def get_recommended_materials_endpoint(
             "goals_analyzed": 0,
             "error": "Не удалось загрузить рекомендованные материалы"
         }
+
+
+# ============================================================
+# RAG Endpoints — контекстное знание и меж-агентская коммуникация
+# ============================================================
+
+class RAGContextRequest(BaseModel):
+    user_id: int = Field(default=1)
+    message: str = Field(default="", description="Текущее сообщение пользователя для семантического поиска")
+
+
+class AgentAskRequest(BaseModel):
+    user_id: int = Field(default=1)
+    target_agent: str = Field(..., description="Целевой агент: dietitian, psychologist, secretary, accountant")
+    query: str = Field(..., min_length=1, max_length=1000)
+
+
+@router.post("/rag/context")
+async def get_mentor_context(request: RAGContextRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Получить контекст пользователя для ментора.
+    Включает профиль, семантически релевантные факты, историю взаимодействий.
+    """
+    try:
+        builder = ContextBuilder(db, client)
+        context_str = await builder.build_context(
+            user_id=request.user_id,
+            agent_name="mentor",
+            user_message=request.message,
+        )
+        return {"success": True, "context": context_str}
+    except Exception as e:
+        logger.error(f"Failed to build mentor context: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/rag/profile")
+async def get_user_profile(user_id: int = 1, db: AsyncSession = Depends(get_db)):
+    """
+    Получить агрегированный профиль пользователя (JSON).
+    """
+    try:
+        builder = ContextBuilder(db, client)
+        profile = await builder.get_profile_json(user_id)
+        return {"success": True, "profile": profile}
+    except Exception as e:
+        logger.error(f"Failed to get profile: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/rag/agent-ask")
+async def mentor_ask_agent(request: AgentAskRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Ментор запрашивает информацию у другого агента.
+    """
+    try:
+        bridge = AgentBridge(db, client)
+        result = await bridge.agent_ask(
+            user_id=request.user_id,
+            requester="mentor",
+            target=request.target_agent,
+            query=request.query,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Agent ask failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/rag/knowledge")
+async def get_mentor_knowledge(user_id: int = 1, limit: int = 50, db: AsyncSession = Depends(get_db)):
+    """
+    Получить все знания ментора о пользователе.
+    """
+    try:
+        bridge = AgentBridge(db)
+        knowledge = await bridge.get_agent_knowledge(user_id, agent_name="mentor", limit=limit)
+        return {"success": True, "knowledge": knowledge}
+    except Exception as e:
+        logger.error(f"Failed to get knowledge: {e}")
+        return {"success": False, "error": str(e)}

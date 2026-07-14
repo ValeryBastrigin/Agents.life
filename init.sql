@@ -1,5 +1,8 @@
 -- LifeAgent Database Initialization Script
 
+-- Enable pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
@@ -249,4 +252,86 @@ CREATE TRIGGER update_calendar_events_updated_at BEFORE UPDATE ON calendar_event
 
 CREATE TRIGGER update_reminders_updated_at BEFORE UPDATE ON reminders
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================
+-- RAG (Retrieval-Augmented Generation) Tables
+-- ============================================================
+
+-- User knowledge facts (векторное хранилище)
+CREATE TABLE IF NOT EXISTS user_knowledge_facts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    embedding vector(384),
+    source_type VARCHAR(50) NOT NULL DEFAULT 'chat',
+    agent_name VARCHAR(50) NOT NULL DEFAULT 'system',
+    memory_tier VARCHAR(20) NOT NULL DEFAULT 'episodic',
+    importance FLOAT DEFAULT 0.5,
+    access_count INTEGER DEFAULT 0,
+    graph_links TEXT DEFAULT '[]',
+    source_timestamp TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE
+);
+
+-- User context profiles (агрегированный профиль пользователя)
+CREATE TABLE IF NOT EXISTS user_context_profiles (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    profile_text TEXT NOT NULL DEFAULT '',
+    key_goals TEXT DEFAULT '[]',
+    health_snapshot TEXT DEFAULT '{}',
+    finance_snapshot TEXT DEFAULT '{}',
+    schedule_snapshot TEXT DEFAULT '{}',
+    personality_traits TEXT DEFAULT '[]',
+    profile_embedding vector(384),
+    version INTEGER DEFAULT 1,
+    last_generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Agent communications (меж-агентская коммуникация)
+CREATE TABLE IF NOT EXISTS agent_communications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    requester_agent VARCHAR(50) NOT NULL,
+    target_agent VARCHAR(50) NOT NULL,
+    query_text TEXT NOT NULL,
+    response_text TEXT,
+    response_embedding vector(384),
+    status VARCHAR(20) DEFAULT 'pending',
+    tokens_used INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    responded_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Knowledge events (event log для асинхронного обновления)
+CREATE TABLE IF NOT EXISTS knowledge_events (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_type VARCHAR(50) NOT NULL,
+    agent_name VARCHAR(50) NOT NULL,
+    payload TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'new',
+    processed_at TIMESTAMP WITH TIME ZONE,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RAG Indexes
+CREATE INDEX IF NOT EXISTS idx_knowledge_user_id ON user_knowledge_facts(user_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_source ON user_knowledge_facts(source_type);
+CREATE INDEX IF NOT EXISTS idx_knowledge_agent ON user_knowledge_facts(agent_name);
+CREATE INDEX IF NOT EXISTS idx_knowledge_tier ON user_knowledge_facts(memory_tier);
+CREATE INDEX IF NOT EXISTS idx_events_user_status ON knowledge_events(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_events_type ON knowledge_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_agent_comms_user_id ON agent_communications(user_id);
+CREATE INDEX IF NOT EXISTS idx_agent_comms_requester ON agent_communications(requester_agent);
+CREATE INDEX IF NOT EXISTS idx_agent_comms_target ON agent_communications(target_agent);
+CREATE INDEX IF NOT EXISTS idx_context_profiles_user_id ON user_context_profiles(user_id);
+
+-- IVFFlat index для pgvector (для быстрого ANN-поиска)
+-- Создаётся отдельно, так как требует наличия данных для обучения
+-- Будет активирован позже через CREATE INDEX CONCURRENTLY
 

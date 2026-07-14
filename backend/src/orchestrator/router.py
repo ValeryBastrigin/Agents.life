@@ -19,7 +19,10 @@ import asyncio
 import re
 import mimetypes
 import traceback
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
 
@@ -441,7 +444,8 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     # Process with agent if available (including new dietitian chats)
     if agent_name in AGENT_REGISTRY:
         agent_process = AGENT_REGISTRY[agent_name]
-        response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id, message_attachments)
+        enriched_prompt = await _enrich_system_prompt_with_rag(request.user_id, agent_name, message_text, agent.system_prompt, db)
+        response_text, tokens_used = await agent_process(message_text, enriched_prompt, db, request.user_id, message_attachments)
         
         # If it's a new dietitian chat and not a plan request, send the greeting
         if (not request.chat_id) and (agent_name == "dietitian") and (response_text is None or "рацион" not in message_text.lower()):
@@ -453,8 +457,9 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
             tokens_used = 0
     else:
         # Use default LLM mode
+        enriched_prompt = await _enrich_system_prompt_with_rag(request.user_id, agent_name, message_text, agent.system_prompt, db)
         messages = []
-        messages.append({"role": "system", "content": agent.system_prompt})
+        messages.append({"role": "system", "content": enriched_prompt})
         messages.extend(_history_to_llm_messages(request.history))
         _append_user_message(messages, message_text, message_attachments)
 
@@ -590,8 +595,9 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             
             # 3. Now process the agent (may take time)
             agent_process = AGENT_REGISTRY[agent_name]
+            enriched_prompt = await _enrich_system_prompt_with_rag(request.user_id, agent_name, message_text, agent.system_prompt, db)
             
-            response_text, tokens_used = await agent_process(message_text, agent.system_prompt, db, request.user_id, message_attachments)
+            response_text, tokens_used = await agent_process(message_text, enriched_prompt, db, request.user_id, message_attachments)
             
             if response_text is None:
                 response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
@@ -620,8 +626,9 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
     # For default LLM, stream tokens
     async def generate():
         full_response = ""
+        enriched_prompt = await _enrich_system_prompt_with_rag(request.user_id, agent_name, message_text, agent.system_prompt, db)
         messages = []
-        messages.append({"role": "system", "content": agent.system_prompt})
+        messages.append({"role": "system", "content": enriched_prompt})
         messages.extend(_history_to_llm_messages(request.history))
         _append_user_message(messages, message_text, message_attachments)
 
@@ -1334,3 +1341,116 @@ async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):
 
     await db.commit()
     return {"response": response_text, "chat_id": chat.id}
+
+
+# ============================================================
+# RAG & Inter-Agent Communication Endpoints (global)
+# ============================================================
+
+from src.rag.context_builder import ContextBuilder
+from src.rag.agent_bridge import AgentBridge
+from src.rag.extractor import KnowledgeExtractor
+
+
+# ============================================================
+# RAG Context Enrichment (used in chat processing)
+# ============================================================
+
+async def _enrich_system_prompt_with_rag(user_id: int, agent_name: str, message: str, system_prompt: str, db: AsyncSession) -> str:
+    """Fetch RAG context for the user and prepend it to the agent's system prompt."""
+    try:
+        builder = ContextBuilder(db, client)
+        rag_context = await builder.build_context(user_id, agent_name, message)
+        if rag_context and rag_context.get("context"):
+            context_text = rag_context["context"]
+            # Prepend RAG context before the system prompt
+            enriched = f"[КОНТЕКСТ ПОЛЬЗОВАТЕЛЯ (ИСПОЛЬЗУЙ ЭТИ ДАННЫЕ ПРИ ОТВЕТЕ)]\n{context_text}\n\n[СИСТЕМНЫЙ ПРОМПТ]\n{system_prompt}"
+            return enriched
+    except Exception as e:
+        logger.error(f"RAG enrichment failed for agent {agent_name}: {e}")
+    return system_prompt
+
+
+class RAGContextRequest(BaseModel):
+    user_id: int = 1
+    agent: str = "ixteria"
+    message: str = ""
+
+
+class AgentAskRequest(BaseModel):
+    user_id: int = 1
+    requester_agent: str = "ixteria"
+    target_agent: str = ""
+    query: str = ""
+
+
+@router.post("/rag/context")
+async def get_rag_context(request: RAGContextRequest, db: AsyncSession = Depends(get_db)):
+    """Get RAG-augmented context for any agent."""
+    try:
+        builder = ContextBuilder(db, client)
+        ctx = await builder.build_context(request.user_id, request.agent or "ixteria", request.message)
+        return {"success": True, "context": ctx}
+    except Exception as e:
+        logger.error(f"RAG context error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/rag/profile")
+async def get_rag_profile(user_id: int = 1, db: AsyncSession = Depends(get_db)):
+    """Get aggregated user profile."""
+    try:
+        builder = ContextBuilder(db, client)
+        profile = await builder.get_profile_json(user_id)
+        return {"success": True, "profile": profile}
+    except Exception as e:
+        logger.error(f"RAG profile error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/rag/agent-ask")
+async def agent_ask(request: AgentAskRequest, db: AsyncSession = Depends(get_db)):
+    """Inter-agent communication: one agent asks another."""
+    try:
+        bridge = AgentBridge(db, client)
+        result = await bridge.agent_ask(
+            request.user_id, request.requester_agent,
+            request.target_agent, request.query,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Agent ask error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/rag/knowledge")
+async def get_rag_knowledge(user_id: int = 1, agent_name: str = "ixteria", limit: int = 50, db: AsyncSession = Depends(get_db)):
+    """Get knowledge facts stored by an agent about a user."""
+    try:
+        bridge = AgentBridge(db)
+        knowledge = await bridge.get_agent_knowledge(user_id, agent_name, limit)
+        return {"success": True, "knowledge": knowledge}
+    except Exception as e:
+        logger.error(f"RAG knowledge error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/rag/extract")
+async def trigger_extraction(
+    user_id: int = 1,
+    agent_name: str = "ixteria",
+    message: str = "",
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually trigger knowledge extraction from a message."""
+    try:
+        extractor = KnowledgeExtractor(db, client)
+        facts = await extractor.extract_and_store(
+            user_id=user_id,
+            agent_name=agent_name,
+            content=message,
+        )
+        return {"success": True, "facts_extracted": len(facts), "facts": facts}
+    except Exception as e:
+        logger.error(f"Knowledge extraction error: {e}")
+        return {"success": False, "error": str(e)}
