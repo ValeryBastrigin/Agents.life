@@ -15,7 +15,6 @@ import logging
 from typing import List, Optional, Dict, Any
 from sqlalchemy import select, update, delete, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from pgvector.sqlalchemy import cosine_distance
 
 from .models import UserKnowledgeFact, EMBEDDING_DIM
 
@@ -106,9 +105,11 @@ class KnowledgeBase:
             Список фактов, отсортированных по релевантности
         """
         # Базовый запрос
-        distance = cosine_distance(UserKnowledgeFact.embedding, query_embedding)
         stmt = (
-            select(UserKnowledgeFact, distance.label("distance"))
+            select(
+                UserKnowledgeFact,
+                UserKnowledgeFact.embedding.cosine_distance(query_embedding).label("distance")
+            )
             .where(
                 UserKnowledgeFact.user_id == user_id,
                 UserKnowledgeFact.embedding.isnot(None),
@@ -125,7 +126,7 @@ class KnowledgeBase:
             stmt = stmt.where(UserKnowledgeFact.memory_tier == memory_tier)
 
         # Сортировка по расстоянию (чем меньше, тем ближе) + бонус за важность
-        stmt = stmt.order_by(distance - UserKnowledgeFact.importance * 0.2).limit(top_k)
+        stmt = stmt.order_by(UserKnowledgeFact.embedding.cosine_distance(query_embedding) - UserKnowledgeFact.importance * 0.2).limit(top_k)
 
         result = await self.db.execute(stmt)
         rows = result.all()

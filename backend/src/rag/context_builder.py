@@ -5,6 +5,7 @@ Context Builder — построение контекста для агенто�
 1. UserContextProfile (агрегированный профиль) — всегда подаётся
 2. UserKnowledgeFact (векторный поиск) — по семантической близости к запросу
 3. Данные из специализированных таблиц (dreams, diet_profiles, finances, ...)
+4. DreamGoal — активные цели пользователя (мечты)
 
 Формирует итоговый контекст, который вставляется в system prompt агента.
 """
@@ -13,7 +14,7 @@ import json
 import logging
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from .models import UserContextProfile, UserKnowledgeFact, EMBEDDING_DIM
 from .knowledge_base import KnowledgeBase
@@ -88,6 +89,11 @@ class ContextBuilder:
             if cross_context:
                 parts.append(cross_context)
 
+        # 5. Мечты и цели пользователя (DreamGoal)
+        dream_context = await self._get_dream_goals_context(user_id)
+        if dream_context:
+            parts.append(dream_context)
+
         context = "\n\n".join(parts)
         logger.debug(f"Built context for agent {agent_name}, user {user_id}: {len(context)} chars")
         return context
@@ -130,7 +136,7 @@ class ContextBuilder:
         try:
             # Получить эмбеддинг запроса
             response = await self.client.embeddings.create(
-                model="text-embedding-3-small",
+                model="openai/text-embedding-3-small",
                 input=query[:8000],
             )
             query_embedding = response.data[0].embedding
@@ -216,6 +222,63 @@ class ContextBuilder:
             lines.append(f"  • [{fact.agent_name}] {fact.content}")
 
         return "\n".join(lines)
+
+    async def _get_dream_goals_context(self, user_id: int) -> Optional[str]:
+        """
+        Получить контекст из таблицы DreamGoal — мечты и активные цели пользователя.
+        
+        Добавляет информацию о мечте пользователя и его целях,
+        чтобы любой агент (включая Ixteria) мог на них ссылаться.
+        """
+        try:
+            from src.models import DreamGoal as DreamGoalModel
+
+            stmt = (
+                select(DreamGoalModel)
+                .where(
+                    DreamGoalModel.user_id == user_id,
+                    DreamGoalModel.status.in_(["active", "saved", "in_progress"]),
+                )
+                .order_by(DreamGoalModel.created_at.desc())
+                .limit(10)
+            )
+            result = await self.db.execute(stmt)
+            goals = result.scalars().all()
+
+            if not goals:
+                return None
+
+            lines = ["[МЕЧТЫ И ЦЕЛИ ПОЛЬЗОВАТЕЛЯ]"]
+
+            for g in goals:
+                lines.append(f"\n📌 {g.goal_summary}")
+                lines.append(f"   Категория: {g.category}")
+                lines.append(f"   Статус: {g.status}")
+                if g.analysis:
+                    lines.append(f"   Анализ: {g.analysis[:200]}")
+
+                # Шаги
+                try:
+                    steps = json.loads(g.steps_data) if g.steps_data else []
+                    if steps:
+                        selected_ids = json.loads(g.selected_step_ids) if g.selected_step_ids else []
+                        lines.append("   Шаги:")
+                        for s in steps:
+                            prefix = "✅" if s.get("id") in selected_ids else "  "
+                            status_tag = f"[{s.get('status', 'available')}]"
+                            lines.append(f"   {prefix} {status_tag} {s.get('text', s.get('description', ''))[:150]}")
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+                # Исходная мечта
+                if g.dream_text:
+                    lines.append(f"   Исходная мечта: {g.dream_text[:200]}")
+
+            return "\n".join(lines)
+
+        except Exception as e:
+            logger.error(f"Failed to get dream goals context: {e}")
+            return None
 
     async def get_profile_json(self, user_id: int) -> Optional[Dict[str, Any]]:
         """

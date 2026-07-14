@@ -729,28 +729,25 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
       
       if (pathMatch) {
         const id = parseInt(pathMatch[1]);
-        
-        // Всегда очищаем сообщения ПЕРЕД любыми return, чтобы
-        // сообщения предыдущего чата не отображались в новом
-        setMessages([]);
-        
+
+        // Если мы только что навигировались из onDone
+        // (новый чат создан через стрим), НЕ очищаем сообщения,
+        // потому что onDone уже вызвал setMessages.
+        // НО всё равно перезагружаем из БД, чтобы гарантировать
+        // что сообщения отобразятся (setMessages асинхронный,
+        // может не успеть до вызова navigate).
+        const skipClear = navigatedFromStreamRef.current;
+        navigatedFromStreamRef.current = false;
+
+        // Если стриминг ещё активен — не очищаем,
+        // onDone добавит сообщение сам
+        const skipClearStreaming = isStreamingRef.current;
+
+        if (!skipClear && !skipClearStreaming) {
+          setMessages([]);
+        }
         setChatId(id);
         chatIdRef.current = id;
-
-        // Skip DB load if we just navigated here from a stream completion —
-        // messages were already added by onDone, and loading from DB would
-        // race with the state update and cause duplicates.
-        if (navigatedFromStreamRef.current) {
-          navigatedFromStreamRef.current = false;
-          return;
-        }
-
-        // Skip DB load if streaming is still active — onDone will add the
-        // assistant message, and the navigate may fire before the stream ends.
-        if (isStreamingRef.current) {
-          return;
-        }
-
         await loadChatMessages(id);
       } else {
         setMessages([]);
@@ -832,7 +829,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
             setChatId(metadata.chat_id);
             chatIdRef.current = metadata.chat_id;
             // Signal that this navigation originated from a stream completion
-            // so the pathname useEffect skips loadChatMessages.
+            // so the pathname useEffect skips loadChatMessages and does NOT clear messages.
             navigatedFromStreamRef.current = true;
             navigate(`/chat/${metadata.chat_id}`, { replace: true });
             if (onChatCreated) {
@@ -994,7 +991,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
             const type = (a.type || a.content_type || '').toLowerCase();
             const filename = (a.filename || a.name || '');
             const ext = filename.split('.').pop()?.toLowerCase();
-            return type.startsWith('image/') || ['jpg','jpeg','png','webp','gif','bmp','heic','heif'].includes(ext);
+            return type.startsWith('image/') || ['jpg','jpeg','png','webg','gif','bmp','heic','heif'].includes(ext);
           });
         }
       } catch {}

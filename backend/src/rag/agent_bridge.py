@@ -1,4 +1,3 @@
-"""
 Agent Bridge — система меж-агентской коммуникации.
 
 Позволяет агентам запрашивать информацию друг у друга:
@@ -48,7 +47,7 @@ class AgentBridge:
 
 Отвечай на русском языке."""
 
-    def __init__(self, db: AsyncSession, openai_client: Optional[AsyncOpenAI] = None, model: str = "openai/gpt-4o-mini"):
+    def __init__(self, db: AsyncSession, openai_client: Optional[AsyncOpenAI] = None, model: str = "google/gemini-3.1-flash-lite"):
         self.db = db
         self.kb = KnowledgeBase(db)
         self.client = openai_client
@@ -153,7 +152,7 @@ class AgentBridge:
             if self.client:
                 try:
                     emb_response = await self.client.embeddings.create(
-                        model="text-embedding-3-small",
+                        model="openai/text-embedding-3-small",
                         input=response_text[:8000],
                     )
                     emb = emb_response.data[0].embedding
