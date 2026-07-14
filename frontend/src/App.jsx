@@ -522,6 +522,20 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
               </div>
             </div>
           )}
+          {/* Plan Capsule */}
+          <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+            {userProfile && (
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                userProfile.plan === 'PRO' 
+                  ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30' 
+                  : userProfile.plan === 'UNLIMITED'
+                  ? 'bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-500/30'
+                  : 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30'
+              }`}>
+                {userProfile.plan === 'PRO' ? 'PRO' : userProfile.plan === 'UNLIMITED' ? 'Ultimate' : 'Free'}
+              </span>
+            )}
+          </span>
           <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <button
             onClick={() => navigate('/profile')}
