@@ -46,6 +46,21 @@ const BillingPlans = ({ userProfile, onUpgrade, onPaywall }) => {
 
   const isProOrUnlimited = status.plan_id === 'pro' || status.plan_id === 'unlimited';
 
+  // Цвет полоски прогресса в зависимости от процента использования
+  const getBarColor = (pct) => {
+    if (pct >= 85) return 'bg-red-400';
+    if (pct >= 60) return 'bg-orange-400';
+    if (pct >= 35) return 'bg-yellow-400';
+    return 'bg-green-400';
+  };
+
+  // Цвет фона трека тоже меняем для наглядности
+  const getTrackBg = (pct) => {
+    if (pct >= 85) return 'bg-red-500/40';
+    if (pct >= 60) return 'bg-orange-500/30';
+    return 'bg-white/30';
+  };
+
   return (
     <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-[3.5rem] p-6 mb-6 text-white">
       <div className="flex items-center gap-3 mb-4">
@@ -69,14 +84,21 @@ const BillingPlans = ({ userProfile, onUpgrade, onPaywall }) => {
 
       {!isInfinite && (
         <>
-          <div className="text-sm text-white/70 mb-2">
-            Дневной лимит
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-white/70">Дневной лимит</span>
+            <span className={`text-sm font-medium ${
+              usagePercent >= 85 ? 'text-red-300' :
+              usagePercent >= 60 ? 'text-orange-300' :
+              'text-white/80'
+            }`}>
+              {usedCredits} / {creditsTotal}
+            </span>
           </div>
 
-          {/* Progress Bar (white track / blue fill) */}
-          <div className="w-full h-3 rounded-full bg-white/30 overflow-hidden">
+          {/* Progress Bar — краснеет по мере истраты */}
+          <div className={`w-full h-3 rounded-full ${getTrackBg(usagePercent)} overflow-hidden transition-colors duration-500`}>
             <div
-              className="h-full rounded-full bg-white transition-all duration-500 ease-out"
+              className={`h-full rounded-full ${getBarColor(usagePercent)} transition-all duration-500 ease-out`}
               style={{ width: `${usagePercent}%` }}
             />
           </div>
@@ -85,7 +107,7 @@ const BillingPlans = ({ userProfile, onUpgrade, onPaywall }) => {
 
       {!isInfinite && creditsRemaining <= 0 && (
         <div className="mt-4 flex items-center gap-2 bg-red-500/20 backdrop-blur px-4 py-3 rounded-[2rem]">
-          <AlertTriangle size={18} className="shrink-0 text-amber-300" />
+          <AlertTriangle size={18} className="shrink-0 text-red-300" />
           <span className="text-sm font-medium flex-1">{t('limitExceeded') || 'Кредиты закончились'}</span>
           <button
             onClick={() => onPaywall && onPaywall()}
