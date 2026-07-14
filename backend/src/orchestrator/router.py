@@ -11,6 +11,7 @@ from pydantic import BaseModel, ValidationError
 from typing import Optional, List, Union, Any
 from src.agents import dietitian_agent
 from src.billing.calculator import calculate_cost
+from src.billing.dependency import check_billing_limit
 import importlib
 import os
 import json
@@ -387,6 +388,9 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Проверка дневного лимита кредитов перед обработкой запроса
+    await check_billing_limit(user, estimated_cost=1, db=db)
+
     if request.agent:
         agent_name = request.agent
         print(f"DEBUG: Using explicit agent from request: {agent_name}")
@@ -525,6 +529,9 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Проверка дневного лимита кредитов перед обработкой запроса
+    await check_billing_limit(user, estimated_cost=1, db=db)
 
     if request.agent:
         agent_name = request.agent
@@ -952,6 +959,19 @@ async def transcribe_audio(
 ):
     if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="File must be an audio file")
+
+    # Проверка кредитов перед транскрибацией
+    audio_minutes = duration_seconds / 60.0
+    credits_cost = calculate_cost("mistral_audio", audio_minutes=audio_minutes)
+    if credits_cost == 0 and audio_minutes > 0:
+        credits_cost = 1  # minimum cost
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await check_billing_limit(user, estimated_cost=credits_cost, db=db)
 
     try:
         content = await file.read()

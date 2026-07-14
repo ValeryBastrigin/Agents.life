@@ -23,6 +23,13 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // ❗ Paywall: show upgrade modal on 402 Payment Required
+    if (error.response?.status === 402) {
+      console.warn('Paywall triggered:', error.response?.data?.detail || 'Billing limit exceeded');
+      window.dispatchEvent(new CustomEvent('paywall:show'));
+      // Return a rejected promise that the caller can handle gracefully
+      return Promise.reject(error);
+    }
     console.error('API Error:', error.response?.data || error.message);
     return Promise.reject(error);
   }
@@ -65,6 +72,17 @@ export async function sendMessageStream(payload, callbacks, signal) {
 
     if (!response.ok) {
       const errorText = await response.text();
+
+      // ❗ Paywall: show upgrade modal on 402 Payment Required
+      if (response.status === 402) {
+        console.warn('Paywall triggered (stream):', errorText);
+        window.dispatchEvent(new CustomEvent('paywall:show'));
+        // Don't throw — caller's onError won't show misleading "извините, ошибка"
+        // Instead, just stop processing
+        if (onError) onError(new Error('paywall'));
+        return;
+      }
+
       throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 

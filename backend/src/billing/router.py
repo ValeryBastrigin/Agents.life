@@ -15,6 +15,55 @@ from .plans import UserPlan
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 
 
+class CreditLimitExceeded(HTTPException):
+    """Исключение для превышения лимита кредитов"""
+    def __init__(self, detail="Credit limit exceeded. Please upgrade your plan."):
+        super().__init__(status_code=402, detail=detail)
+
+
+async def check_user_credits(user_id: int, db: AsyncSession, required_credits: int = 1) -> User:
+    """
+    Проверяет, имеет ли пользователь достаточно кредитов для выполнения действия.
+    Если кредиты превышены, выбрасывает CreditLimitExceeded (402).
+    Возвращает объект пользователя.
+    """
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Определяем план
+    plan_str = (user.plan or "FREE").strip().lower()
+    try:
+        plan: UserPlan = UserPlan(plan_str)
+    except ValueError:
+        plan = UserPlan.FREE
+    
+    # Если безлимитный план - пропускаем проверку
+    if plan == UserPlan.UNLIMITED:
+        return user
+    
+    # Сброс дневного счётчика если наступил новый день
+    today = date.today()
+    if user.last_credit_reset is None or user.last_credit_reset < today:
+        user.credits_used = 0
+        user.last_credit_reset = today
+        await db.commit()
+        await db.refresh(user)
+    
+    # Проверяем дневной лимит
+    daily_limit = plan.daily_limit
+    credits_used_today = user.credits_used or 0
+    
+    if credits_used_today + required_credits > daily_limit:
+        raise CreditLimitExceeded(
+            f"Daily credit limit exceeded. Used: {credits_used_today}/{daily_limit}, Required: {required_credits}"
+        )
+    
+    return user
+
+
 # ---------- Все планы (статический список) ----------
 
 PLANS_LIST = [

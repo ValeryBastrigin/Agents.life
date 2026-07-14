@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
+from src.models import User
+from src.billing.dependency import check_billing_limit
 from src.agents.mentor_agent import (
     analyze_dream, add_active_goal, get_active_goals, update_goal_status,
     analyze_dream_steps, save_dream_goal, select_dream_steps
@@ -75,6 +77,14 @@ async def analyze_dream_endpoint(request: DreamRequest, db: AsyncSession = Depen
     """
     Analyze user's dream and generate a development tree plan.
     """
+    # Проверка кредитов перед анализом мечты
+    result = await db.execute(select(User).where(User.id == request.user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await check_billing_limit(user, estimated_cost=5, db=db)  # Анализ мечты стоит 5 кредитов
+    
     result = await analyze_dream(
         dream=request.dream,
         user_id=request.user_id,
@@ -89,6 +99,14 @@ async def analyze_dream_steps_endpoint(request: DreamRequest, db: AsyncSession =
     Analyze user's dream and generate categorized steps (Мультидрим-режим).
     Returns array of goals with category, goal_summary, analysis, and steps.
     """
+    # Проверка кредитов перед анализом мечты
+    result = await db.execute(select(User).where(User.id == request.user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await check_billing_limit(user, estimated_cost=5, db=db)  # Анализ мечты стоит 5 кредитов
+    
     # First analyze via AI
     result = await analyze_dream_steps(
         dream=request.dream,

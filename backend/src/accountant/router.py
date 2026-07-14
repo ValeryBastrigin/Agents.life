@@ -13,6 +13,7 @@ from src.database import get_db
 from src.models import FinancialObligation, BankStatement, Transaction, User
 from src.agents.statement_agent import process_statement_chunk
 from src.billing.calculator import calculate_cost
+from src.billing.dependency import check_billing_limit
 
 router = APIRouter(prefix="/api/accountant", tags=["accountant"])
 
@@ -193,6 +194,14 @@ async def upload_statement(
     db: AsyncSession = Depends(get_db)
 ):
     """Upload a bank statement file, process with LLM, and store results."""
+    # Проверка кредитов перед обработкой
+    result_user = await db.execute(select(User).where(User.id == user_id))
+    user = result_user.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await check_billing_limit(user, estimated_cost=2, db=db)  # Обработка выписки стоит минимум 2 кредита
+    
     # Read file content
     content_bytes = await file.read()
     
@@ -224,8 +233,6 @@ async def upload_statement(
         tokens_out = 0
     
     # Deduct credits for LLM processing — считаем по реальным токенам из ответа LLM
-    result_user = await db.execute(select(User).where(User.id == user_id))
-    user = result_user.scalar_one_or_none()
     if user and tokens_in > 0:
         credits_cost = calculate_cost("gemini_2_5_flash", input_tokens=tokens_in, output_tokens=tokens_out)
         if credits_cost == 0:
@@ -458,6 +465,14 @@ async def analyze_portfolio(
     """Upload screenshots of investment portfolio and analyze with LLM."""
     from src.models import PortfolioAnalysis
     from src.agents.accountant_agent import analyze_portfolio
+
+    # Проверка кредитов перед анализом портфеля
+    portfolio_user_result = await db.execute(select(User).where(User.id == user_id))
+    portfolio_user = portfolio_user_result.scalar_one_or_none()
+    if not portfolio_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await check_billing_limit(portfolio_user, estimated_cost=5, db=db)  # Анализ портфеля стоит 5 кредитов
 
     if not screenshots:
         raise HTTPException(status_code=400, detail="No files uploaded")

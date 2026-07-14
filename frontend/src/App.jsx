@@ -27,6 +27,8 @@ import SecretaryGuide from './pages/SecretaryGuide';
 import NotesList from './pages/NotesList';
 import NoteEditor from './pages/NoteEditor';
 import FinancialAnalyst from './pages/FinancialAnalyst';
+import PaywallModal from './components/PaywallModal';
+import UpgradePlanModal from './components/UpgradePlanModal';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import axios from 'axios';
 import { sendMessageStream, apiClient } from './utils/apiClient';
@@ -119,6 +121,23 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   const [chats, setChats] = useState([]);
   const [userId] = useState(1);
   const [headerSolid, setHeaderSolid] = useState(false);
+
+  // ── Paywall state ──
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  // Listen for paywall events from apiClient
+  useEffect(() => {
+    const handler = () => setShowPaywall(true);
+    window.addEventListener('paywall:show', handler);
+    return () => window.removeEventListener('paywall:show', handler);
+  }, []);
+
+  const handleSelectPlan = (planId) => {
+    setShowPaywall(false);
+    // Navigate to profile with upgrade modal open
+    sessionStorage.setItem('upgradePlan', planId);
+    navigate('/profile');
+  };
 
   // ── Session state (shared with header capsule) ──
   const [activeSession, setActiveSession] = useState(null);
@@ -539,6 +558,13 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
           navigate(lastChatId ? `/chat/${lastChatId}` : '/chat');
         }} />} />
       </Routes>
+
+      {/* ═══ Global Paywall Modal ═══ */}
+      <PaywallModal
+        isOpen={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onSelectPlan={handleSelectPlan}
+      />
     </div>
   );
 }
@@ -887,6 +913,15 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
         onError: (error) => {
           // If cancelled, don't show error — just clean up
           if (error?.message === 'cancelled') {
+            setIsLoading(false);
+            setIsStreaming(false);
+            setStreamingContent('');
+            setStreamAgentName('');
+            abortControllerRef.current = null;
+            return;
+          }
+          // If paywall triggered, don't show error message — paywall modal will show automatically
+          if (error?.message === 'paywall') {
             setIsLoading(false);
             setIsStreaming(false);
             setStreamingContent('');
