@@ -315,6 +315,58 @@ async def update_goal_status_endpoint(
     return result
 
 
+class StepStatusRequest(BaseModel):
+    user_id: int = Field(default=1)
+    status: str = Field(..., pattern="^(completed|in_progress|available|locked)$")
+
+
+@router.patch("/dream-goals/{goal_id}/steps/{step_index}/status")
+async def update_step_status_endpoint(
+    goal_id: int,
+    step_index: int,
+    request: StepStatusRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update a specific step's status within a dream goal.
+    """
+    from sqlalchemy import select
+    from src.models import DreamGoal
+    
+    try:
+        result = await db.execute(
+            select(DreamGoal).where(
+                DreamGoal.id == goal_id,
+                DreamGoal.user_id == request.user_id
+            )
+        )
+        goal = result.scalar_one_or_none()
+        if not goal:
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        steps = json.loads(goal.steps_data) if goal.steps_data else []
+        if step_index < 0 or step_index >= len(steps):
+            raise HTTPException(status_code=400, detail="Step index out of range")
+        
+        steps[step_index]["status"] = request.status
+        goal.steps_data = json.dumps(steps, ensure_ascii=False)
+        
+        await db.commit()
+        
+        return {
+            "success": True,
+            "step": steps[step_index],
+            "total_steps": len(steps),
+            "completed_steps": sum(1 for s in steps if s.get("status") == "completed")
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to update step status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update step status")
+
+
 @router.get("/recommended-materials")
 async def get_recommended_materials_endpoint(
     user_id: int = 1,

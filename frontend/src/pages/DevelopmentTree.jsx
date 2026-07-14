@@ -11,7 +11,7 @@ import ReactFlow, {
   MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { TreePine, Target, BookOpen, ChevronRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { TreePine, Target, BookOpen, ChevronRight, ArrowLeft, Loader2, MessageSquare, CheckCircle2, X } from 'lucide-react';
 import MentorBackground from '../components/MentorBackground';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -34,6 +34,15 @@ const categoryGradients = {
   LIFE_EXPERIENCE: 'from-green-500 to-emerald-600',
   EXISTENTIAL_WELLBEING: 'from-violet-500 to-purple-600',
   ABSTRACT_AMBITION: 'from-orange-500 to-red-600',
+};
+
+const categoryLabels = {
+  MATERIAL_ASSET: 'Материальная цель',
+  SKILL_DEVELOPMENT: 'Развитие навыков',
+  CAREER_GROWTH: 'Карьерный рост',
+  LIFE_EXPERIENCE: 'Жизненный опыт',
+  EXISTENTIAL_WELLBEING: 'Благополучие',
+  ABSTRACT_AMBITION: 'Амбиция',
 };
 
 const defaultGradient = 'from-emerald-500 to-teal-600';
@@ -59,7 +68,6 @@ const BranchNode = ({ data, selected }) => {
           hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]
           ${data.isCompleted ? 'opacity-80' : ''}
         `}
-        onClick={() => data.onClick?.(data)}
       >
         {!data.isRoot && (
           <div className={`absolute -top-2.5 -right-2.5 w-7 h-7 rounded-full bg-gradient-to-br ${getGradient()} flex items-center justify-center text-xs shadow-md`}>
@@ -129,7 +137,6 @@ const TaskNode = ({ data, selected }) => {
         bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2.5 sm:px-3 py-2 sm:py-2.5 min-w-[100px] sm:min-w-[140px] max-w-[160px] sm:max-w-[200px]
         hover:shadow-lg hover:scale-[1.03] active:scale-[0.97]
       `}
-      onClick={() => data.onClick?.(data)}
     >
       <div className="flex items-center gap-2">
         <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${getStatusColor()} flex items-center justify-center shadow-sm`}>
@@ -298,6 +305,8 @@ const buildTreeFromGoals = (goals) => {
         progress,
         itemsCount: steps.length,
         isCompleted: goal.status === 'completed',
+        goalId: goal.goal_id,
+        goalData: goal, // pass full goal for modal
       },
     });
 
@@ -312,7 +321,6 @@ const buildTreeFromGoals = (goals) => {
     });
 
     // Task nodes for steps
-    const taskSpacingY = 130;
     const taskStartX = branchX - ((steps.length - 1) * 100) / 2;
 
     steps.forEach((step, stepIdx) => {
@@ -324,7 +332,7 @@ const buildTreeFromGoals = (goals) => {
         type: 'task',
         position: { x: taskStartX + stepIdx * 100, y: 430 },
         data: {
-          label: step.title || step.summary || step.description || `Шаг ${stepIdx + 1}`,
+          label: step.title || step.summary || step.text || step.description || `Шаг ${stepIdx + 1}`,
           status: stepStatus,
           resourceCount: step.resources?.length || 0,
         },
@@ -344,6 +352,44 @@ const buildTreeFromGoals = (goals) => {
   return { nodes, edges };
 };
 
+// ── Rebuild progress for a single goal branch in the nodes array ──
+const updateGoalProgressInNodes = (nodes, goalId, steps) => {
+  const branchId = `goal-${goalId}`;
+  const completedSteps = steps.filter(s => s.status === 'completed').length;
+  const progress = steps.length > 0 ? Math.round((completedSteps / steps.length) * 100) : 0;
+
+  return nodes.map(node => {
+    if (node.id === branchId) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          progress,
+          itemsCount: steps.length,
+          goalData: {
+            ...node.data.goalData,
+            steps,
+          },
+        },
+      };
+    }
+    // Also update task nodes
+    if (node.id.startsWith(`task-${branchId}-`)) {
+      const stepIdx = parseInt(node.id.split('-').pop(), 10);
+      if (stepIdx >= 0 && stepIdx < steps.length) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            status: steps[stepIdx].status || 'available',
+          },
+        };
+      }
+    }
+    return node;
+  });
+};
+
 // ── Main Component ──
 const STORAGE_KEY = 'development-tree-positions';
 
@@ -353,12 +399,21 @@ const DevelopmentTreeContent = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewingGoal, setViewingGoal] = useState(null);
+  const [chatLoading, setChatLoading] = useState(false);
 
   const onNodeDragStop = useCallback((event, node) => {
     // Сохраняем позицию узла после перетаскивания
     const savedPositions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     savedPositions[node.id] = { x: Math.round(node.position.x), y: Math.round(node.position.y) };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(savedPositions));
+  }, []);
+
+  // Handle click on a goal branch node → open modal
+  const onNodeClick = useCallback((event, node) => {
+    if (node.type === 'branch' && node.data?.goalId) {
+      setViewingGoal(node.data.goalData);
+    }
   }, []);
 
   const loadGoals = useCallback(async () => {
@@ -409,6 +464,65 @@ const DevelopmentTreeContent = () => {
     loadGoals();
   }, [loadGoals]);
 
+  // Toggle step completed status
+  const handleStepToggle = async (goalId, stepIndex, currentStatus) => {
+    const newStatus = currentStatus === 'completed' ? 'available' : 'completed';
+    
+    // Optimistic UI update — apply immediately for instant response
+    setNodes(nds => {
+      const goal = viewingGoal;
+      if (!goal || goal.goal_id !== goalId) return nds;
+      const steps = [...(goal.steps || [])];
+      if (stepIndex >= 0 && stepIndex < steps.length) {
+        steps[stepIndex] = { ...steps[stepIndex], status: newStatus };
+      }
+      return updateGoalProgressInNodes(nds, goalId, steps);
+    });
+
+    // Update the viewingGoal state too
+    setViewingGoal(prev => {
+      if (!prev) return prev;
+      const steps = [...(prev.steps || [])];
+      if (stepIndex >= 0 && stepIndex < steps.length) {
+        steps[stepIndex] = { ...steps[stepIndex], status: newStatus };
+      }
+      return { ...prev, steps };
+    });
+
+    // Persist to backend (fire-and-forget — optimistic UI already applied)
+    if (goalId != null) {
+      axios.patch(
+        `${API_URL}/api/mentor/dream-goals/${goalId}/steps/${stepIndex}/status`,
+        { user_id: 1, status: newStatus }
+      ).catch(err => {
+        console.error('Failed to persist step status:', err);
+      });
+    }
+  };
+
+  // Discuss step with mentor
+  const handleDiscussStep = async (step, goal) => {
+    setChatLoading(true);
+    try {
+      const stepText = step.title || step.summary || step.text || step.description || '';
+      const createRes = await axios.post(`${API_URL}/api/chats`, {
+        user_id: 1,
+        agent_type: 'mentor',
+      });
+      const chatId = createRes.data.chat_id || createRes.data.id;
+      await axios.post(`${API_URL}/api/chat`, {
+        user_id: 1,
+        chat_id: chatId,
+        agent: 'mentor',
+        message: `Привет, хочу обсудить с тобой шаг в рамках цели «${goal.goal_summary}»: ${stepText}${step.description ? `\n${step.description}` : ''}`,
+      });
+      navigate(`/chat/${chatId}`, { state: { scrollToTop: true } });
+    } catch (err) {
+      console.error('Failed to create mentor chat:', err);
+      setChatLoading(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full relative">
       <MentorBackground />
@@ -440,6 +554,7 @@ const DevelopmentTreeContent = () => {
               onNodesChange={onNodesChange}
               onNodeDragStop={onNodeDragStop}
               onEdgesChange={onEdgesChange}
+              onNodeClick={onNodeClick}
               nodeTypes={nodeTypes}
               fitView
               fitViewOptions={{ padding: 0.3 }}
@@ -501,6 +616,168 @@ const DevelopmentTreeContent = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Goal Detail Modal */}
+      {viewingGoal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setViewingGoal(null); }}
+        >
+          <div
+            className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-[3rem] p-6 max-w-lg w-full shadow-2xl max-h-[85vh] overflow-y-auto border border-gray-200 dark:border-gray-700"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-2xl">{categoryEmojis[viewingGoal.category] || '🎯'}</span>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white truncate">
+                  {viewingGoal.goal_summary || 'Цель'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setViewingGoal(null)}
+                className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center justify-center transition-all text-gray-500 dark:text-gray-300 shrink-0 ml-2"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Category badge */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xs px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium">
+                {categoryLabels[viewingGoal.category] || viewingGoal.category}
+              </span>
+            </div>
+
+            {/* AI Analysis / Summary */}
+            {viewingGoal.analysis && (
+              <div className="mb-5">
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  🧠 AI-резюме ментора
+                </h4>
+                <div className="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-[2rem] border border-indigo-100 dark:border-indigo-800/30">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed italic">
+                    {viewingGoal.analysis}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Progress bar */}
+            {viewingGoal.steps && viewingGoal.steps.length > 0 && (
+              <div className="mb-5">
+                <div className="flex justify-between text-xs mb-2">
+                  <span className="text-gray-500 dark:text-gray-400">
+                    Прогресс: {viewingGoal.steps.filter(s => s.status === 'completed').length}/{viewingGoal.steps.length} шагов
+                  </span>
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                    {Math.round((viewingGoal.steps.filter(s => s.status === 'completed').length / viewingGoal.steps.length) * 100)}%
+                  </span>
+                </div>
+                <div className="h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.round((viewingGoal.steps.filter(s => s.status === 'completed').length / viewingGoal.steps.length) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Steps list */}
+            {viewingGoal.steps && viewingGoal.steps.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                  Шаги ({viewingGoal.steps.length})
+                </h4>
+                <div className="space-y-2">
+                  {viewingGoal.steps.map((step, idx) => {
+                    const stepText = step.title || step.summary || step.text || step.description || `Шаг ${idx + 1}`;
+                    const isCompleted = step.status === 'completed';
+                    return (
+                      <div
+                        key={step.id || idx}
+                        className={`flex items-center gap-3 p-3 rounded-[2rem] transition-all ${
+                          isCompleted
+                            ? 'bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30'
+                            : 'bg-gray-50 dark:bg-gray-700/30 border border-transparent'
+                        }`}
+                      >
+                        {/* Checkbox */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleStepToggle(viewingGoal.goal_id, idx, step.status || 'available'); }}
+                          className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all shrink-0 ${
+                            isCompleted
+                              ? 'bg-green-500 border-green-500 text-white'
+                              : 'border-gray-300 dark:border-gray-500 hover:border-green-400'
+                          }`}
+                        >
+                          {isCompleted && <CheckCircle2 size={14} />}
+                        </button>
+
+                        {/* Step content */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium leading-tight ${isCompleted ? 'text-green-700 dark:text-green-300 line-through opacity-70' : 'text-gray-800 dark:text-white'}`}>
+                            {stepText}
+                          </p>
+                          {step.description && step.description !== stepText && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+                              {step.description}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Discuss button */}
+                        <button
+                          onMouseDown={(e) => { e.stopPropagation(); handleDiscussStep(step, viewingGoal); }}
+                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 rounded-[2rem] transition-all shadow-sm hover:shadow-md active:scale-95"
+                        >
+                          <MessageSquare size={12} />
+                          <span className="hidden sm:inline">Обсудить</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Dream text if available */}
+            {viewingGoal.dream_text && (
+              <div className="mb-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  💭 О чём мечта
+                </h4>
+                <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed italic">
+                  {viewingGoal.dream_text}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Chat Loading Overlay */}
+      {chatLoading && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-xl shadow-purple-500/30 animate-pulse">
+              <Loader2 size={32} className="text-white animate-spin" />
+            </div>
+            <p className="text-white text-sm font-medium">Создаём чат с ментором...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Legacy Modal Trigger Fallback — click on branch nodes */}
+      {false && (
+        <button
+          className="hidden"
+          onClick={() => {
+            const branchNode = nodes.find(n => n.type === 'branch' && n.data?.goalId);
+            if (branchNode) setViewingGoal(branchNode.data.goalData);
+          }}
+        />
       )}
     </div>
   );
