@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Body, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Body, UploadFile, File, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func
@@ -944,7 +944,12 @@ async def upload_file(file: UploadFile = File(...)):
     return {"url": f"/uploads/{filename}", "filename": filename}
 
 @router.post("/transcribe")
-async def transcribe_audio(file: UploadFile = File(...)):
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    user_id: int = Form(...),
+    duration_seconds: float = Form(0),
+    db: AsyncSession = Depends(get_db),
+):
     if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="File must be an audio file")
 
@@ -1004,6 +1009,19 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
         if not transcribed_text:
             raise HTTPException(status_code=400, detail="Transcription result is empty")
+
+        # --- Deduct credits for transcription ---
+        audio_minutes = duration_seconds / 60.0
+        credits_cost = calculate_cost("mistral_audio", audio_minutes=audio_minutes)
+        if credits_cost == 0 and audio_minutes > 0:
+            credits_cost = 1  # minimum cost
+
+        user = await db.execute(select(User).where(User.id == user_id))
+        user = user.scalar_one_or_none()
+        if user:
+            user.credits_used = (user.credits_used or 0) + credits_cost
+            user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+            await db.commit()
 
         return {"text": transcribed_text}
 

@@ -10,8 +10,9 @@ import os
 from datetime import datetime, date
 
 from src.database import get_db
-from src.models import FinancialObligation, BankStatement, Transaction
+from src.models import FinancialObligation, BankStatement, Transaction, User
 from src.agents.statement_agent import process_statement_chunk
+from src.billing.calculator import calculate_cost
 
 router = APIRouter(prefix="/api/accountant", tags=["accountant"])
 
@@ -215,11 +216,23 @@ async def upload_statement(
     
     # Process with LLM
     try:
-        result = await process_statement_chunk(raw_text)
+        result, tokens_in, tokens_out = await process_statement_chunk(raw_text)
     except Exception as e:
         print(f"LLM processing error: {e}")
         result = None
+        tokens_in = 0
+        tokens_out = 0
     
+    # Deduct credits for LLM processing — считаем по реальным токенам из ответа LLM
+    result_user = await db.execute(select(User).where(User.id == user_id))
+    user = result_user.scalar_one_or_none()
+    if user and tokens_in > 0:
+        credits_cost = calculate_cost("gemini_2_5_flash", input_tokens=tokens_in, output_tokens=tokens_out)
+        if credits_cost == 0:
+            credits_cost = 1
+        user.credits_used = (user.credits_used or 0) + credits_cost
+        user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+
     if result is None:
         # Create failed statement record
         statement = BankStatement(
@@ -463,6 +476,24 @@ async def analyze_portfolio(
 
     # Analyze with LLM
     result = await analyze_portfolio(image_urls)
+
+    # Deduct credits for LLM processing (gemini_3_1_flash with images)
+    portfolio_user_result = await db.execute(select(User).where(User.id == user_id))
+    portfolio_user = portfolio_user_result.scalar_one_or_none()
+    if portfolio_user:
+        input_token_est = len(str(result)) // 4  # rough estimate of analysis text
+        output_token_est = 2000  # approximate output size
+        image_count = len(screenshots)
+        credits_cost = calculate_cost(
+            "gemini_3_1_flash",
+            input_tokens=input_token_est,
+            output_tokens=output_token_est,
+            image_count=image_count,
+        )
+        if credits_cost == 0:
+            credits_cost = 1
+        portfolio_user.credits_used = (portfolio_user.credits_used or 0) + credits_cost
+        portfolio_user.token_balance = max((portfolio_user.token_balance or 0) - credits_cost, 0)
 
     # Save to database
     portfolio = PortfolioAnalysis(

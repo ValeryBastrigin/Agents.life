@@ -78,8 +78,8 @@ def _split_into_chunks(text: str, chunk_size: int = CHUNK_SIZE) -> list[str]:
     return chunks
 
 
-async def _call_llm(chunk_text: str, is_summary: bool = False) -> dict:
-    """Call LLM with a chunk of text and return parsed JSON."""
+async def _call_llm(chunk_text: str, is_summary: bool = False) -> tuple[dict, int, int]:
+    """Call LLM with a chunk of text and return (parsed_json, input_tokens, output_tokens)."""
     if is_summary:
         prompt = f"""Вот итоговый фрагмент банковской выписки. Извлеки все финансовые транзакции из этого фрагмента:
 
@@ -106,6 +106,10 @@ async def _call_llm(chunk_text: str, is_summary: bool = False) -> dict:
         timeout=180.0
     )
 
+    # Get actual token usage from response
+    tokens_in = response.usage.prompt_tokens if response.usage else 0
+    tokens_out = response.usage.completion_tokens if response.usage else 0
+
     response_text = response.choices[0].message.content.strip()
     
     # Clean markdown code blocks if present
@@ -114,7 +118,7 @@ async def _call_llm(chunk_text: str, is_summary: bool = False) -> dict:
     response_text = response_text.strip()
     
     result = json.loads(response_text)
-    return result
+    return result, tokens_in, tokens_out
 
 
 def _extract_json(text: str) -> dict | None:
@@ -141,10 +145,13 @@ def _empty_result() -> dict:
     }
 
 
-async def process_statement_chunk(chunk_text: str, previous_result: dict = None) -> dict:
+async def process_statement_chunk(chunk_text: str, previous_result: dict = None) -> tuple[dict, int, int]:
     """
     Process a bank statement text with LLM.
     For large texts, automatically splits into chunks and merges results.
+    
+    Returns:
+        Tuple of (merged_result, total_input_tokens, total_output_tokens)
     """
     try:
         # Split into chunks if text is too large
@@ -152,29 +159,33 @@ async def process_statement_chunk(chunk_text: str, previous_result: dict = None)
         
         if len(chunks) == 1:
             # Single chunk - process directly
-            result = await _call_llm(chunks[0])
-            return result
+            result, tokens_in, tokens_out = await _call_llm(chunks[0])
+            return result, tokens_in, tokens_out
         
         # Multiple chunks - process each and merge
         print(f"Splitting statement into {len(chunks)} chunks")
         chunk_results = []
+        total_tokens_in = 0
+        total_tokens_out = 0
         
         for i, chunk in enumerate(chunks):
             print(f"Processing chunk {i+1}/{len(chunks)} ({len(chunk)} chars)")
             try:
-                result = await _call_llm(chunk)
+                result, tokens_in, tokens_out = await _call_llm(chunk)
                 chunk_results.append(result)
+                total_tokens_in += tokens_in
+                total_tokens_out += tokens_out
             except Exception as e:
                 print(f"Error processing chunk {i+1}: {e}")
                 # Continue with other chunks even if one fails
                 continue
         
         if not chunk_results:
-            return _empty_result()
+            return _empty_result(), 0, 0
         
         # Merge results
         merged = merge_results(chunk_results)
-        return merged
+        return merged, total_tokens_in, total_tokens_out
         
     except json.JSONDecodeError as e:
         print(f"JSON parse error in statement agent: {e}")
@@ -182,13 +193,13 @@ async def process_statement_chunk(chunk_text: str, previous_result: dict = None)
         try:
             result = _extract_json(locals().get('response_text', ''))
             if result:
-                return result
+                return result, 0, 0
         except:
             pass
-        return _empty_result()
+        return _empty_result(), 0, 0
     except Exception as e:
         print(f"Error in statement agent: {e}")
-        return _empty_result()
+        return _empty_result(), 0, 0
 
 
 def merge_results(results: list[dict]) -> dict:

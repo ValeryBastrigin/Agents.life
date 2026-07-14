@@ -4,7 +4,7 @@ import { apiClient } from '../utils/apiClient';
 import AttachMenu from './AttachMenu';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light', onOptimisticMessage, onAttachmentsUploaded, onFinalSend, isStreaming = false, onStopStreaming }) => {
+const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light', onOptimisticMessage, onAttachmentsUploaded, onFinalSend, isStreaming = false, onStopStreaming, userId = 1 }) => {
   const { language } = useLanguage();
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -23,6 +23,7 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
   const chunksRef = useRef([]);
   const analyserRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const startTimeRef = useRef(null);
   const finishModeRef = useRef('send'); // 'send' or 'edit'
   const attachButtonRef = useRef(null);
 
@@ -94,6 +95,7 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
         await transcribeAudio(blob, finishModeRef.current);
       };
 
+      startTimeRef.current = Date.now();
       mediaRecorder.start(250); // Collect data every 250ms
       setIsRecording(true);
       setAudioLevels(new Array(40).fill(0));
@@ -165,8 +167,15 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
   const transcribeAudio = async (blob, mode) => {
     setIsTranscribing(true);
     try {
+      const durationSeconds = startTimeRef.current
+        ? Math.round((Date.now() - startTimeRef.current) / 1000)
+        : 0;
+      startTimeRef.current = null;
+
       const formData = new FormData();
       formData.append('file', blob, 'recording.webm');
+      formData.append('user_id', String(userId));
+      formData.append('duration_seconds', String(durationSeconds));
 
       const result = await apiClient.post('/api/transcribe', formData);
 
