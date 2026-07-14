@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X, Trash2, ChevronDown, Search, Loader2 } from 'lucide-react';
 import MentorBackground from '../components/MentorBackground';
 import DreamInputModal from '../components/DreamInputModal';
+import MentorGuideModal from '../components/MentorGuideModal';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
@@ -47,6 +48,7 @@ const Mentor = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewingGoal, setViewingGoal] = useState(null);
   const [dreamExpanded, setDreamExpanded] = useState(false);
+  const [guideModalOpen, setGuideModalOpen] = useState(false);
   const [recommendedMaterials, setRecommendedMaterials] = useState([]);
   const [materialsLoading, setMaterialsLoading] = useState(false);
   const [materialsError, setMaterialsError] = useState(null);
@@ -179,30 +181,32 @@ const Mentor = () => {
       <div className="relative z-10 overflow-y-auto h-full px-6 pt-4 pb-8">
         <div className="max-w-2xl mx-auto">
 
-          {/* Dream button */}
-          <button
-            onClick={() => setDreamModalOpen(true)}
-            className="w-full bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3rem] p-5 mb-6 text-white hover:shadow-2xl hover:shadow-amber-500/30 transition-all active:scale-[0.98] text-left group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-all group-hover:scale-110 duration-300">
-                <Wand2 size={28} className="text-white" />
+          {/* Dream button — only show when no goals exist */}
+          {goals.length === 0 && (
+            <button
+              onClick={() => setDreamModalOpen(true)}
+              className="w-full bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-[3rem] p-5 mb-6 text-white hover:shadow-2xl hover:shadow-amber-500/30 transition-all active:scale-[0.98] text-left group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/15 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-all group-hover:scale-110 duration-300">
+                  <Wand2 size={28} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl font-bold mb-1">На пути к мечте</h2>
+                  <p className="text-white/80 text-xs leading-relaxed">
+                    Расскажите ментору о своей мечте и он проложит понятный путь к ней и будет поддерживать вас на всем пути.
+                  </p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-all group-hover:scale-110 duration-300">
+                  <Sparkles size={20} className="text-white" />
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-bold mb-1">На пути к мечте</h2>
-                <p className="text-white/80 text-xs leading-relaxed">
-                  Расскажите ментору о своей мечте и он проложит понятный путь к ней и будет поддерживать вас на всем пути.
-                </p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-all group-hover:scale-110 duration-300">
-                <Sparkles size={20} className="text-white" />
-              </div>
-            </div>
-          </button>
+            </button>
+          )}
 
           {/* 3 Horizontal Blocks */}
           <div className="grid grid-cols-3 gap-3 mb-6">
-            <button className="flex flex-col items-center justify-center gap-2 bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-200 dark:border-transparent backdrop-blur-lg group">
+            <button onClick={() => setGuideModalOpen(true)} className="flex flex-col items-center justify-center gap-2 bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-200 dark:border-transparent backdrop-blur-lg group">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
                 <BookOpen size={20} className="text-white" />
               </div>
@@ -424,7 +428,7 @@ const Mentor = () => {
                 </button>
               </div>
             ) : (
-              <div className="space-y-3 overflow-hidden">
+              <div className="space-y-1 overflow-hidden">
                 {recommendedMaterials.map((mat, idx) => {
                   const isHidden = materialsCollapsed && idx >= MATERIALS_PREVIEW_COUNT;
                   const typeIcons = {
@@ -449,7 +453,7 @@ const Mentor = () => {
                       className={`overflow-hidden transition-all duration-500 ease-in-out ${
                         isHidden
                           ? 'max-h-0 opacity-0 pointer-events-none my-0 scale-95'
-                          : 'max-h-[500px] opacity-100 my-3 scale-100'
+                          : 'max-h-[500px] opacity-100 my-0 scale-100'
                       }`}
                     >
                       <div className="bg-white/95 dark:bg-surface-dark rounded-[2rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all backdrop-blur-lg border border-gray-200 dark:border-transparent">
@@ -504,7 +508,7 @@ const Mentor = () => {
                   );
                 })}
                 {recommendedMaterials.length > 0 && (
-                  <div className="flex flex-col items-center gap-2 pt-2">
+                  <div className="flex flex-col items-center gap-2 pt-0">
                     {materialsCollapsed && recommendedMaterials.length > MATERIALS_PREVIEW_COUNT && (
                       <button
                         onClick={() => setMaterialsCollapsed(false)}
@@ -540,6 +544,12 @@ const Mentor = () => {
       <DreamInputModal
         isOpen={dreamModalOpen}
         onClose={() => setDreamModalOpen(false)}
+      />
+
+      {/* Guide Modal */}
+      <MentorGuideModal
+        isOpen={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
       />
 
       {/* Delete Confirmation Modal */}
