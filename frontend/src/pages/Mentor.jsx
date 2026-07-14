@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X, Trash2, ChevronDown, Search, Loader2 } from 'lucide-react';
 import MentorBackground from '../components/MentorBackground';
 import DreamInputModal from '../components/DreamInputModal';
+import MentorGuideModal from '../components/MentorGuideModal';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
@@ -54,6 +55,7 @@ const Mentor = () => {
   const [materialsError, setMaterialsError] = useState(null);
   const [materialsExpanded, setMaterialsExpanded] = useState({});
   const [materialsCollapsed, setMaterialsCollapsed] = useState(true);
+  const [guideModalOpen, setGuideModalOpen] = useState(false);
   const MATERIALS_PREVIEW_COUNT = 3;
 
   const loadRecommendedMaterials = useCallback(async () => {
@@ -208,7 +210,7 @@ const Mentor = () => {
 
           {/* 3 Horizontal Blocks */}
           <div className="grid grid-cols-3 gap-3 mb-6">
-            <button className="flex flex-col items-center justify-center gap-2 bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-200 dark:border-transparent backdrop-blur-lg group">
+            <button onClick={() => setGuideModalOpen(true)} className="flex flex-col items-center justify-center gap-2 bg-white/95 dark:bg-surface-dark rounded-[3rem] p-4 hover:bg-gray-200 dark:hover:bg-gray-800 transition-all aspect-square shadow-sm border border-gray-200 dark:border-transparent backdrop-blur-lg group">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-md group-hover:shadow-xl transition-all">
                 <BookOpen size={20} className="text-white" />
               </div>
@@ -559,6 +561,12 @@ const Mentor = () => {
 
         </div>
       </div>
+
+      {/* Mentor Guide Modal */}
+      <MentorGuideModal
+        isOpen={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
+      />
 
       {/* Dream Input Modal */}
       <DreamInputModal
