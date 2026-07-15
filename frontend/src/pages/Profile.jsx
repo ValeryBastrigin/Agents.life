@@ -268,11 +268,12 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         </div>
 
         {/* Agent Manager Modal */}
-        <AgentManagerModal
-          isOpen={agentManagerOpen}
-          onClose={() => setAgentManagerOpen(false)}
-          userId={userProfile?.id || 1}
-        />
+        {agentManagerOpen && (
+          <AgentManagerModal
+            onClose={() => setAgentManagerOpen(false)}
+            userId={userProfile?.id || 1}
+          />
+        )}
 
         {/* Logout Button */}
         <button className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-[3.5rem] transition-colors font-medium">
