@@ -5,6 +5,7 @@ import { apiClient } from '../utils/apiClient';
 import BillingPlans from '../components/BillingPlans';
 import PaywallModal from '../components/PaywallModal';
 import UpgradePlanModal from '../components/UpgradePlanModal';
+import AnimatedBackground from '../components/AnimatedBackground';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
@@ -55,8 +56,9 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
   };
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-8 animate-slide-in-right">
-      <div className="max-w-3xl mx-auto">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-8 animate-slide-in-right relative">
+      <AnimatedBackground theme={theme} />
+      <div className="max-w-3xl mx-auto relative z-10">
         {/* Header with Back Button */}
         <div className="flex items-center gap-3 mb-8">
           <button
