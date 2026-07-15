@@ -330,6 +330,20 @@ class PortfolioAnalysis(Base):
     user = relationship("User")
 
 
+class UserAgentSettings(Base):
+    """Хранит состояние включённых/выключенных агентов для пользователя."""
+    __tablename__ = "user_agent_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    agent_name = Column(String(50), nullable=False)
+    is_enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
 class DreamGoal(Base):
     """Хранит структурированную мечту пользователя с категорией и шагами."""
     __tablename__ = "dream_goals"

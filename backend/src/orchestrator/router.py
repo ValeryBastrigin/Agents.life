@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func
 from sqlalchemy.orm import selectinload
 from src.database import get_db
-from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, DietPlan
+from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, DietPlan, UserAgentSettings
 from datetime import datetime, timedelta, timezone
 from src.config import client
 from pydantic import BaseModel, ValidationError
@@ -306,6 +306,56 @@ def load_agents():
 
 load_agents()
 
+
+# Agent display names for user-facing messages
+AGENT_DISPLAY_NAMES = {
+    "dietitian": "Диетолог",
+    "secretary": "Секретарь",
+    "psychologist": "Психолог",
+    "mentor": "Ментор",
+    "accountant": "Бухгалтер",
+}
+
+
+async def is_agent_enabled_for_user(user_id: int, agent_name: str, db: AsyncSession) -> bool:
+    """Check if the given agent is enabled for the user.
+    If no settings exist, the agent is considered enabled by default."""
+    result = await db.execute(
+        select(UserAgentSettings).where(
+            UserAgentSettings.user_id == user_id,
+            UserAgentSettings.agent_name == agent_name,
+        )
+    )
+    setting = result.scalar_one_or_none()
+    if setting is None:
+        return True  # enabled by default
+    return setting.is_enabled
+
+
+def _make_agent_disabled_response(agent_name: str) -> str:
+    """Generate a response suggesting the user enable the disabled agent."""
+    display_name = AGENT_DISPLAY_NAMES.get(agent_name, agent_name.capitalize())
+    return (
+        f"❗ **{display_name}** сейчас отключён в ваших настройках.\n\n"
+        f"Хотите включить **{display_name}**, чтобы я мог обработать этот запрос?"
+    )
+
+
+async def route_to_agent_with_check(message: Any, user_id: int, db: AsyncSession) -> tuple[str, bool]:
+    """
+    Route message to appropriate agent, checking if the agent is enabled for the user.
+    Returns (agent_name, is_blocked) where is_blocked=True means the agent is disabled.
+    """
+    agent_name = await route_to_agent(message)
+    
+    # Only check for specialist agents (not default)
+    if agent_name != "default" and agent_name in AGENT_REGISTRY:
+        is_enabled = await is_agent_enabled_for_user(user_id, agent_name, db)
+        if not is_enabled:
+            return agent_name, True
+    
+    return agent_name, False
+
 async def route_to_agent(message: Any) -> str:
     """Route message to appropriate agent using LLM with keyword fallback."""
     text, _ = _normalize_user_message_content(message)
@@ -401,9 +451,19 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
             agent_name = existing_chat.agent.name
             print(f"DEBUG: Using agent '{agent_name}' from existing chat {request.chat_id}")
         else:
-            agent_name = await route_to_agent(request.message)
+            agent_name, is_blocked = await route_to_agent_with_check(request.message, request.user_id, db)
+            if is_blocked:
+                return ChatResponse(
+                    response=_make_agent_disabled_response(agent_name),
+                    chat_id=0
+                )
     else:
-        agent_name = await route_to_agent(request.message)
+        agent_name, is_blocked = await route_to_agent_with_check(request.message, request.user_id, db)
+        if is_blocked:
+            return ChatResponse(
+                response=_make_agent_disabled_response(agent_name),
+                chat_id=0
+            )
 
     if agent_name == "default":
         result = await db.execute(select(Agent).where(Agent.name == "agents"))
@@ -543,9 +603,47 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             agent_name = existing_chat.agent.name
             print(f"DEBUG: Using agent '{agent_name}' from existing chat {request.chat_id}")
         else:
-            agent_name = await route_to_agent(request.message)
+            agent_name, is_blocked = await route_to_agent_with_check(request.message, request.user_id, db)
+            if is_blocked:
+                async def stream_blocked():
+                    early_meta = {
+                        'type': 'chat_created',
+                        'chat_id': 0,
+                        'is_new_chat': True,
+                    }
+                    yield f"data: {json.dumps(early_meta)}\n\n"
+                    yield f"data: {json.dumps({'type': 'token', 'content': _make_agent_disabled_response(agent_name)})}\n\n"
+                    yield f"data: {json.dumps({'type': 'done', 'chat_id': 0, 'is_new_chat': True, 'full_content': _make_agent_disabled_response(agent_name)})}\n\n"
+                return StreamingResponse(
+                    stream_blocked(),
+                    media_type="text/event-stream",
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive",
+                        "X-Accel-Buffering": "no",
+                    }
+                )
     else:
-        agent_name = await route_to_agent(request.message)
+        agent_name, is_blocked = await route_to_agent_with_check(request.message, request.user_id, db)
+        if is_blocked:
+            async def stream_blocked():
+                early_meta = {
+                    'type': 'chat_created',
+                    'chat_id': 0,
+                    'is_new_chat': True,
+                }
+                yield f"data: {json.dumps(early_meta)}\n\n"
+                yield f"data: {json.dumps({'type': 'token', 'content': _make_agent_disabled_response(agent_name)})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'chat_id': 0, 'is_new_chat': True, 'full_content': _make_agent_disabled_response(agent_name)})}\n\n"
+            return StreamingResponse(
+                stream_blocked(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                }
+            )
 
     if agent_name == "default":
         result = await db.execute(select(Agent).where(Agent.name == "agents"))

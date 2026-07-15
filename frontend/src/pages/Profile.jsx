@@ -1,11 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { User, Moon, Sun, Bell, LogOut, ArrowLeft, Globe } from 'lucide-react';
+import { User, Moon, Sun, Bell, LogOut, ArrowLeft, Globe, Bot } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient } from '../utils/apiClient';
 import BillingPlans from '../components/BillingPlans';
 import PaywallModal from '../components/PaywallModal';
 import UpgradePlanModal from '../components/UpgradePlanModal';
 import AnimatedBackground from '../components/AnimatedBackground';
+import AgentManagerModal from '../components/AgentManagerModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
@@ -23,6 +24,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
   const scrollRef = useRef(null);
   const [upgradePlanOpen, setUpgradePlanOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [agentManagerOpen, setAgentManagerOpen] = useState(false);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -191,6 +193,28 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
             </div>
           </div>
 
+          {/* Agent Settings */}
+          <div className="mb-6">
+            <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4 uppercase tracking-wider">
+              Агенты
+            </h4>
+
+            <button
+              onClick={() => setAgentManagerOpen(true)}
+              className="w-full flex items-center justify-between py-3 px-4 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <Bot size={20} className="text-gray-600 dark:text-gray-400" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  Настроить агентов
+                </span>
+              </div>
+              <span className="text-sm text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                Кто доступен в чатах →
+              </span>
+            </button>
+          </div>
+
           {/* Notifications Settings */}
           <div className="mb-6">
             <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4 uppercase tracking-wider">
@@ -242,6 +266,13 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
             </div>
           </div>
         </div>
+
+        {/* Agent Manager Modal */}
+        <AgentManagerModal
+          isOpen={agentManagerOpen}
+          onClose={() => setAgentManagerOpen(false)}
+          userId={userProfile?.id || 1}
+        />
 
         {/* Logout Button */}
         <button className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-[3.5rem] transition-colors font-medium">

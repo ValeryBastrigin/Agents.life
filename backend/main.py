@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from src.orchestrator.router import router as orchestrator_router
+from src.orchestrator.agent_settings import router as agent_settings_router
 from src.secretary.router import router as secretary_router
 from src.accountant.router import router as accountant_router
 from src.mentor.router import router as mentor_router
@@ -32,6 +33,7 @@ app.include_router(mentor_router)
 app.include_router(dietplan_router)
 app.include_router(psychologist_router)
 app.include_router(billing_router)
+app.include_router(agent_settings_router)
 
 # Exception handler for validation errors
 @app.exception_handler(ValidationError)

@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import { HelpCircle, ArrowLeft, Check, Sparkles, Users, Brain, Target, Heart, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { HelpCircle, ArrowLeft, Check, Sparkles, Users, Brain, Target, Heart, TrendingUp, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { apiClient } from '../utils/apiClient';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
 const AGENT_CATEGORIES = {
   personal: {
@@ -31,16 +34,42 @@ const AGENT_CATEGORIES = {
   },
 };
 
-export default function AgentManagerModal({ onClose, onAgentsChange }) {
+export default function AgentManagerModal({ userId, onClose, onAgentsChange }) {
   const { language } = useLanguage();
   const [showGuide, setShowGuide] = useState(false);
-  const [activeAgents, setActiveAgents] = useState(() => {
-    const all = [];
-    Object.values(AGENT_CATEGORIES).forEach(cat => {
-      cat.agents.forEach(a => all.push(a.id));
-    });
-    return new Set(all);
-  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [activeAgents, setActiveAgents] = useState(new Set());
+
+  // Load agent settings from backend on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const uid = userId || 1;
+        const res = await apiClient.get(`/api/user/${uid}/agent-settings`);
+        const settings = res.data;
+        const enabled = new Set(
+          settings.filter(s => s.is_enabled).map(s => s.agent_name)
+        );
+        setActiveAgents(enabled);
+      } catch (err) {
+        console.error('Failed to load agent settings:', err);
+        setError('Failed to load settings');
+        // Fallback: enable all by default
+        const all = [];
+        Object.values(AGENT_CATEGORIES).forEach(cat => {
+          cat.agents.forEach(a => all.push(a.id));
+        });
+        setActiveAgents(new Set(all));
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSettings();
+  }, [userId]);
 
   const toggleAgent = (id) => {
     setActiveAgents(prev => {
@@ -50,9 +79,21 @@ export default function AgentManagerModal({ onClose, onAgentsChange }) {
     });
   };
 
-  const handleSave = () => {
-    if (onAgentsChange) onAgentsChange([...activeAgents]);
-    onClose();
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const uid = userId || 1;
+      await apiClient.put(`/api/user/${uid}/agent-settings`, {
+        enabled_agents: [...activeAgents],
+      });
+      if (onAgentsChange) onAgentsChange([...activeAgents]);
+      onClose();
+    } catch (err) {
+      console.error('Failed to save agent settings:', err);
+      setError('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const isRu = language === 'ru';
