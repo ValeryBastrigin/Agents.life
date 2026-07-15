@@ -121,7 +121,7 @@ export const translations = {
     planUnlimitedLabel: 'Безлимит',
     selectPlan: 'Выбрать план',
     paywallTitle: 'Доступ закончился 🙁',
-    paywallSubtitle: 'Вы исчерпали дневной лимит. Выберите подходящий план для продолжения работы.',
+    paywallSubtitle: 'Вы исчерпали дневной лимит. Вы можете продолжить завтра после 00:00 либо оформить подписку.',
     paywallFooter: 'Оплата безопасна. Отмена в любой момент.',
 
     // Accountant
@@ -256,7 +256,7 @@ export const translations = {
     planUnlimitedLabel: 'Unlimited',
     selectPlan: 'Select Plan',
     paywallTitle: 'Access Expired 🙁',
-    paywallSubtitle: 'You\'ve reached your daily limit. Choose a plan to continue.',
+    paywallSubtitle: 'You\'ve reached your daily limit. You can continue tomorrow after 00:00 or subscribe.',
     paywallFooter: 'Secure payment. Cancel anytime.',
 
     // Accountant
