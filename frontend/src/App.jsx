@@ -27,6 +27,7 @@ import SecretaryGuide from './pages/SecretaryGuide';
 import NotesList from './pages/NotesList';
 import NoteEditor from './pages/NoteEditor';
 import FinancialAnalyst from './pages/FinancialAnalyst';
+import LoginPage from './pages/LoginPage';
 import PaywallModal from './components/PaywallModal';
 import UpgradePlanModal from './components/UpgradePlanModal';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
@@ -336,7 +337,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
   return (
     <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark ${theme} relative overflow-hidden`}>
       {/* Animated Background - Only visible on chat pages */}
-      {!location.pathname.startsWith('/profile') && !location.pathname.startsWith('/secretary') && !location.pathname.startsWith('/accountant') && !location.pathname.startsWith('/dietitian') && !location.pathname.startsWith('/psychologist') && !location.pathname.startsWith('/mentor') && (
+      {!location.pathname.startsWith('/profile') && !location.pathname.startsWith('/secretary') && !location.pathname.startsWith('/accountant') && !location.pathname.startsWith('/dietitian') && !location.pathname.startsWith('/psychologist') && !location.pathname.startsWith('/mentor') && location.pathname !== '/login' && (
         <div className="absolute inset-0 pointer-events-none z-0">
           <AnimatedBackground theme={theme} isLoading={false} />
         </div>
@@ -363,7 +364,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
       />
 
       {/* Header */}
-      {location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
+      {location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && location.pathname !== '/login' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
           <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
@@ -550,6 +551,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Routes */}
       <Routes>
+        <Route path="/login" element={<LoginPage theme={theme} onLogin={(provider) => console.log('Login with', provider)} />} />
         <Route path="/" element={<Navigate to="/chat" replace />} />
         <Route path="/chat/:chatId?" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} userProfile={userProfile} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
