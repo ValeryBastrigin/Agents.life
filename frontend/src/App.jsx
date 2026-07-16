@@ -1236,7 +1236,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
       <div key={index} className="flex justify-end my-2 group">
         <div className="max-w-[85%] sm:max-w-[75%] flex items-end gap-3">
           <div className="min-w-0 flex-1">
-            <div className="user-bubble bg-blue-500 dark:bg-blue-600 text-white px-4 py-3 rounded-2xl rounded-br-md shadow-sm">
+            <div className="user-bubble bg-blue-500/30 dark:bg-blue-600/30 backdrop-blur-xl border border-white/20 text-gray-900 dark:text-white px-4 py-3 rounded-[28px] rounded-br-[6px] shadow-lg">
               <div className="leading-relaxed space-y-2">
                 {/* Text content — скрываем Markdown картинку, если показываем attachments отдельно */}
                 {userDisplayContent && !isOnlyImageMarkdown && (

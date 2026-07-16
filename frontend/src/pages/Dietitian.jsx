@@ -964,26 +964,15 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal, userId }) => {
 // ========== Main Dietitian Page ==========
 const FOOD_CHAT_STORAGE_KEY = 'dietitian_food_chat_id';
 
+// Изолированный ключ localStorage, привязанный к userId
+const getDietitianProfileKey = (userId) => userId ? `dietitian_profile_${userId}` : null;
+
 // Синхронная инициализация профиля из localStorage (без задержки при переходе)
 const getInitialProfile = () => {
-  try {
-    const saved = localStorage.getItem('dietitian_profile');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return { profile: parsed.profile, goal: parsed.goal, speed: parsed.speed, activity: parsed.activity };
-    }
-  } catch {}
   return null;
 };
 
 const getInitialNutrition = () => {
-  try {
-    const saved = localStorage.getItem('dietitian_profile');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.nutrition) return parsed.nutrition;
-    }
-  } catch {}
   return {
     calories: { current: 0, goal: 2000 },
     protein: { current: 0, goal: 120 },
@@ -1027,18 +1016,21 @@ const Dietitian = () => {
             carbs:    { ...prev.carbs, goal: data.carbs_target },
             water:    { ...prev.water, goal: data.water_target },
           }));
-          // Also sync to localStorage
+          // Also sync to localStorage (isolated per user)
           try {
-            localStorage.setItem('dietitian_profile', JSON.stringify({
-              profile, goal, speed: 'medium', activity,
-              nutrition: {
-                calories: { current: 0, goal: data.calorie_target },
-                protein:  { current: 0, goal: data.protein_target },
-                fats:     { current: 0, goal: data.fats_target },
-                carbs:    { current: 0, goal: data.carbs_target },
-                water:    { current: 0, goal: data.water_target },
-              }
-            }));
+            const lsKey = getDietitianProfileKey(userId);
+            if (lsKey) {
+              localStorage.setItem(lsKey, JSON.stringify({
+                profile, goal, speed: 'medium', activity,
+                nutrition: {
+                  calories: { current: 0, goal: data.calorie_target },
+                  protein:  { current: 0, goal: data.protein_target },
+                  fats:     { current: 0, goal: data.fats_target },
+                  carbs:    { current: 0, goal: data.carbs_target },
+                  water:    { current: 0, goal: data.water_target },
+                }
+              }));
+            }
           } catch {}
           return;
         }
@@ -1046,20 +1038,23 @@ const Dietitian = () => {
         console.warn('Failed to load diet profile from API, falling back to localStorage:', e);
       }
 
-      // Fallback: load from localStorage
+      // Fallback: load from localStorage (isolated per user)
       try {
-        const saved = localStorage.getItem('dietitian_profile');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setUserProfile({ profile: parsed.profile, goal: parsed.goal, speed: parsed.speed, activity: parsed.activity });
-          setNutrition(parsed.nutrition);
+        const lsKey = getDietitianProfileKey(userId);
+        if (lsKey) {
+          const saved = localStorage.getItem(lsKey);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            setUserProfile({ profile: parsed.profile, goal: parsed.goal, speed: parsed.speed, activity: parsed.activity });
+            setNutrition(parsed.nutrition);
+          }
         }
       } catch (e) {
         console.warn('Failed to load dietitian profile from localStorage:', e);
       }
     };
     loadProfile();
-  }, []);
+  }, [userId]);
 
   // Load today's diet plan
   const loadDietPlan = useCallback(async () => {
@@ -1152,9 +1147,12 @@ const Dietitian = () => {
     setNutrition(calcNutrition);
     setShowOnboarding(false);
 
-    // Always save to localStorage
+    // Always save to localStorage (isolated per user)
     try {
-      localStorage.setItem('dietitian_profile', JSON.stringify(data));
+      const lsKey = getDietitianProfileKey(userId);
+      if (lsKey) {
+        localStorage.setItem(lsKey, JSON.stringify(data));
+      }
     } catch (e) {
       console.warn('Failed to save dietitian profile to localStorage:', e);
     }
@@ -1201,9 +1199,12 @@ const Dietitian = () => {
     });
     setShowOnboarding(false);
     setShowProfile(false);
-    // Clear localStorage
+    // Clear localStorage (isolated per user)
     try {
-      localStorage.removeItem('dietitian_profile');
+      const lsKey = getDietitianProfileKey(userId);
+      if (lsKey) {
+        localStorage.removeItem(lsKey);
+      }
     } catch (e) {
       console.warn('Failed to remove dietitian profile from localStorage:', e);
     }

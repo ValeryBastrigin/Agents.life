@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     end_time TIMESTAMP NOT NULL,
     color VARCHAR(7) DEFAULT '#3B82F6',
     description TEXT,
+    completed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

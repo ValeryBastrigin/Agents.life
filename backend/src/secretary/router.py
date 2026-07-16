@@ -84,8 +84,8 @@ async def create_calendar_event(user_id: int, event_data: CalendarEventCreate, d
     new_event = CalendarEvent(
         user_id=user_id,
         title=event_data.title,
-        start_time=datetime.fromisoformat(event_data.start_time),
-        end_time=datetime.fromisoformat(event_data.end_time),
+        start_time=datetime.fromisoformat(event_data.start_time.replace('Z', '+00:00')),
+        end_time=datetime.fromisoformat(event_data.end_time.replace('Z', '+00:00')),
         color=event_data.color,
         description=event_data.description
     )
@@ -117,9 +117,9 @@ async def update_calendar_event(event_id: int, event_data: CalendarEventUpdate, 
     if event_data.title is not None:
         update_data["title"] = event_data.title
     if event_data.start_time is not None:
-        update_data["start_time"] = datetime.fromisoformat(event_data.start_time)
+        update_data["start_time"] = datetime.fromisoformat(event_data.start_time.replace('Z', '+00:00'))
     if event_data.end_time is not None:
-        update_data["end_time"] = datetime.fromisoformat(event_data.end_time)
+        update_data["end_time"] = datetime.fromisoformat(event_data.end_time.replace('Z', '+00:00'))
     if event_data.color is not None:
         update_data["color"] = event_data.color
     if event_data.description is not None:

@@ -122,9 +122,10 @@ const DietPlanPage = () => {
       } catch (e) {
         console.warn('Failed to load user profile (will check localStorage):', e);
         
-        // Fallback: check localStorage for profile data
+        // Fallback: check localStorage for profile data (per-user key)
         try {
-          const stored = localStorage.getItem('dietitian_profile');
+          const lsKey = `dietitian_profile_${userId}`;
+          const stored = localStorage.getItem(lsKey);
           if (stored) {
             const parsed = JSON.parse(stored);
             if (parsed && parsed.profile) {
