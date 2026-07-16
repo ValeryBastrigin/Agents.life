@@ -9,24 +9,27 @@
     <link rel="icon" type="image/png" href="%PUBLIC_URL%/assets/icons/agents/ixteria.png" />
     <title>LifeAgent</title>
     <style>
-      body {
-        background-color: #ffffff;
+      /* Dark theme is now the default for the entire app */
+      body, #root {
+        background-color: #131314;
         transition: background-color 0.3s ease;
       }
-      @media (prefers-color-scheme: dark) {
-        body {
-          background-color: #111827;
-        }
+      /* Light theme override (when user explicitly chooses light) */
+      html:not(.dark) body,
+      html:not(.dark) #root {
+        background-color: #f9f9f9;
       }
     </style>
     <script>
-      // Prevent flash of wrong theme
+      // Dark theme is the default for new users
       (function() {
         const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-          document.body.style.backgroundColor = '#111827';
-        } else if (savedTheme === 'light') {
-          document.body.style.backgroundColor = '#ffffff';
+        if (savedTheme === 'dark' || !savedTheme) {
+          document.documentElement.classList.add('dark');
+          // Save dark as default preference for new users
+          if (!savedTheme) {
+            localStorage.setItem('theme', 'dark');
+          }
         }
       })();
     </script>

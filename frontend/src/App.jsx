@@ -40,7 +40,7 @@ import { sendMessageStream, apiClient } from './utils/apiClient';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
 function App() {
-  const [theme, setTheme] = useState('light');
+const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Apply theme to document
@@ -51,14 +51,6 @@ function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
-
-  // Set initial theme from localStorage on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
-  }, []);
 
   return (
     <UserProvider>
@@ -176,7 +168,12 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
     try {
       const response = await axios.get(`${API_URL}/api/user/${currentUserId}`);
       setUserProfile(response.data);
-      setTheme(response.data.theme_preference);
+      // Only override theme from server if there's no user preference in localStorage
+      // This prevents the login page from flashing from dark to light on logout+reload
+      // Server profile theme is only used as fallback; dark is the default
+      if (!localStorage.getItem('theme')) {
+        setTheme(response.data.theme_preference || 'dark');
+      }
     } catch (error) {
       console.error('Failed to load user profile:', error);
     }

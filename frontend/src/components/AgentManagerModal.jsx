@@ -110,13 +110,13 @@ function AgentManagerModalContent({ userId, onClose, onAgentsChange }) {
   // ---- GUIDE VIEW ----
   if (showGuide) {
     return (
-      <div className="agent-manager-overlay" onClick={onClose}>
-        <div onClick={(e) => e.stopPropagation()} className="agent-manager-card">
+      <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-[28rem] bg-background-light dark:bg-background-dark rounded-[3.5rem] shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] overflow-y-auto animate-fade-in">
           {/* Scrollable content */}
           <div className="px-6 pt-6 pb-2">
             {/* Header */}
             <div className="flex items-center gap-3 mb-6">
-              <button onClick={() => setShowGuide(false)} className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors">
+              <button onClick={() => setShowGuide(false)} className="p-2 hover:bg-surface-light dark:hover:bg-surface-dark rounded-[3rem] transition-colors">
                 <ArrowLeft size={22} className="text-gray-700 dark:text-gray-300" />
               </button>
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -164,7 +164,8 @@ function AgentManagerModalContent({ userId, onClose, onAgentsChange }) {
           </div>
 
           {/* Sticky footer */}
-          <div className="agent-manager-footer" style={{ borderBottomLeftRadius: '3.5rem', borderBottomRightRadius: '3.5rem' }}>
+          <div className="sticky bottom-0 bg-background-light dark:bg-background-dark rounded-b-[3.5rem] px-6 pb-6">
+            <div className="h-px mb-4 bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-600 to-transparent" />
             <button
               onClick={() => setShowGuide(false)}
               className="w-full py-3 rounded-[3rem] bg-gradient-to-r from-violet-500 to-purple-600 text-white font-medium hover:from-violet-600 hover:to-purple-700 transition-all shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2"
@@ -181,8 +182,8 @@ function AgentManagerModalContent({ userId, onClose, onAgentsChange }) {
   // ---- LOADING ----
   if (loading) {
     return (
-      <div className="agent-manager-overlay" onClick={onClose}>
-        <div onClick={(e) => e.stopPropagation()} className="agent-manager-card min-h-[200px] flex items-center justify-center">
+      <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-[28rem] bg-background-light dark:bg-background-dark rounded-[3.5rem] shadow-2xl min-h-[200px] flex items-center justify-center animate-fade-in">
           <Loader2 className="animate-spin text-gray-400" size={32} />
         </div>
       </div>
@@ -203,56 +204,9 @@ function AgentManagerModalContent({ userId, onClose, onAgentsChange }) {
         .agent-icon-modal:hover {
           animation-duration: 0.4s;
         }
-        /* Strict center overlay for modal */
-        .agent-manager-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          z-index: 9999;
-          background: rgba(0,0,0,0.5);
-          backdrop-filter: blur(4px);
-          -webkit-backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 16px;
-        }
-        .agent-manager-card {
-          position: relative;
-          width: 100%;
-          max-width: 28rem;
-          background: var(--bg-background-light, #fff);
-          border-radius: 3.5rem;
-          box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
-          display: flex;
-          flex-direction: column;
-          max-height: calc(100vh - 2rem);
-          overflow-y: auto;
-        }
-        :root.dark .agent-manager-card {
-          background: var(--bg-background-dark, #1e1e2e);
-        }
-        .agent-manager-footer {
-          position: sticky;
-          bottom: 0;
-          background: inherit;
-          padding: 0 24px 24px;
-        }
-        .agent-manager-footer::before {
-          content: '';
-          display: block;
-          height: 1px;
-          margin-bottom: 16px;
-          background: linear-gradient(to right, transparent, #d1d5db, transparent);
-        }
-        :root.dark .agent-manager-footer::before {
-          background: linear-gradient(to right, transparent, #4b5563, transparent);
-        }
       `}</style>
-      <div className="agent-manager-overlay" onClick={onClose}>
-        <div onClick={(e) => e.stopPropagation()} className="agent-manager-card">
+      <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-[28rem] bg-background-light dark:bg-background-dark rounded-[3.5rem] shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] overflow-y-auto animate-fade-in">
           {/* Scrollable content area */}
           <div className="px-6 pt-6 pb-2">
             {/* Header row: title left, ? right */}
@@ -262,7 +216,7 @@ function AgentManagerModalContent({ userId, onClose, onAgentsChange }) {
               </h2>
               <button
                 onClick={() => setShowGuide(true)}
-                className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors flex-shrink-0 ml-3"
+                className="p-2 hover:bg-surface-light dark:hover:bg-surface-dark rounded-[3rem] transition-colors flex-shrink-0 ml-3"
                 title={isRu ? 'Что такое агенты?' : 'What are agents?'}
               >
                 <HelpCircle size={22} className="text-gray-500 dark:text-gray-400" />
@@ -328,11 +282,12 @@ function AgentManagerModalContent({ userId, onClose, onAgentsChange }) {
           </div>
 
           {/* Sticky footer — separated by decorative gradient line */}
-          <div className="agent-manager-footer" style={{ borderBottomLeftRadius: '3.5rem', borderBottomRightRadius: '3.5rem' }}>
+          <div className="sticky bottom-0 bg-background-light dark:bg-background-dark rounded-b-[3.5rem] px-6 pb-6">
+            <div className="h-px mb-4 bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-600 to-transparent" />
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-3 rounded-[3rem] bg-surface-light dark:bg-surface-dark text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+                className="flex-1 px-4 py-3 rounded-[3rem] bg-surface-light dark:bg-surface-dark text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
                 {isRu ? 'Отмена' : 'Cancel'}
               </button>
