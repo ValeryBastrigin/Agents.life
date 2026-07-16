@@ -365,3 +365,22 @@ class DreamGoal(Base):
 
     user = relationship("User", back_populates="dream_goals")
     chat = relationship("Chat")
+
+
+class OtpChallenge(Base):
+    """Хранит состояние Email OTP-челленджа (беспарольная авторизация).
+
+    Код хранится ТОЛЬКО в виде хеша (sha256). В открытом виде в БД не лежит.
+    Также здесь же трекаются попытки ввода и блокировки для rate limiting / защиты от брутфорса.
+    """
+    __tablename__ = "otp_challenges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(100), nullable=False, index=True)
+    code_hash = Column(String(64), nullable=False)          # sha256 hex от 6-значного кода
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    attempts = Column(Integer, default=0)                  # число неверных попыток ввода
+    last_sent_at = Column(DateTime(timezone=True), nullable=False)  # для rate limit (60с)
+    blocked_until = Column(DateTime(timezone=True), nullable=True)  # блокировка на 15 мин
+    verified = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

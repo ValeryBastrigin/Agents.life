@@ -608,9 +608,19 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
         <Route path="/login" element={<LoginPage theme={theme} onLogin={(provider, userData) => {
           console.log('Login with', provider, userData);
           if (userData) {
-            // Set user ID from Google OAuth response
+            // Set user ID from OAuth / OTP response
             const newUserId = userData.user_id ? parseInt(userData.user_id) : 1;
             setUserId(newUserId);
+            
+            // For email OTP, token is already in localStorage (stored by LoginPage)
+            // Clear onboarding flag for new users so modals appear
+            if (provider === 'email') {
+              localStorage.removeItem('onboarding_completed');
+              // Store token for apiClient
+              if (userData.token) {
+                localStorage.setItem('auth_token', userData.token);
+              }
+            }
             
             // Перенаправляем на главную
             navigate('/chat', { replace: true });

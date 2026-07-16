@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-  const [userId, setUserId] = useState(() => {
+  const [userId, setUserIdState] = useState(() => {
     const saved = localStorage.getItem('user_id');
     return saved ? parseInt(saved) : 1;
   });
@@ -13,13 +13,13 @@ export const UserProvider = ({ children }) => {
   });
 
   const updateUserId = (newUserId) => {
-    setUserId(newUserId);
+    setUserIdState(newUserId);
     localStorage.setItem('user_id', newUserId);
     setIsAuthenticated(newUserId > 1);
   };
 
   const clearUser = () => {
-    setUserId(1);
+    setUserIdState(1);
     localStorage.removeItem('user_id');
     setUserProfile(null);
     setIsAuthenticated(false);
