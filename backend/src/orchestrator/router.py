@@ -24,6 +24,8 @@ import traceback
 import logging
 from pathlib import Path
 import random
+import shutil
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -975,6 +977,24 @@ async def update_theme(user_id: int, request: UpdateThemeRequest, db: AsyncSessi
 
     return {"message": "Theme updated successfully"}
 
+class UpdateUserOnboardingRequest(BaseModel):
+    username: str
+    age: int
+
+@router.put("/user/{user_id}/onboarding")
+async def update_onboarding(user_id: int, request: UpdateUserOnboardingRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.username = request.username
+    user.age = request.age
+    await db.commit()
+
+    return {"message": "Onboarding data updated successfully"}
+
 @router.get("/chats/{chat_id}/messages")
 async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -1028,6 +1048,44 @@ async def rename_chat(chat_id: int, new_title: str = Body(..., embed=True), db: 
     await db.refresh(chat)
 
     return {"message": "Chat renamed successfully", "chat": chat}
+
+
+# ======================== AVATAR UPLOAD ========================
+
+@router.post("/user/{user_id}/avatar")
+async def upload_avatar(user_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    """
+    Upload a user avatar image. Saves it to the uploads/ directory and
+    updates the user's avatar_url in the database.
+    """
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Validate file is an image
+    if file.content_type and not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    UPLOAD_DIR = "uploads"
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR)
+
+    # Preserve original extension
+    file_extension = os.path.splitext(file.filename or "avatar.jpg")[1] or ".jpg"
+    filename = f"avatar_{user_id}_{uuid.uuid4().hex[:8]}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Update user's avatar_url in database
+    avatar_url = f"/uploads/{filename}"
+    user.avatar_url = avatar_url
+    await db.commit()
+
+    return {"url": avatar_url, "message": "Avatar updated successfully"}
 
 
 @router.post("/upload")

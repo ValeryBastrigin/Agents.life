@@ -18,7 +18,7 @@ function resolveUploadUrl(url) {
   return url;
 }
 
-const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
+const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout }) => {
   const { t, language, changeLanguage } = useLanguage();
   const fileInputRef = useRef(null);
   const scrollRef = useRef(null);
@@ -28,10 +28,10 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
 
   useEffect(() => {
     if (!scrollRef.current) return;
-    const blocked = upgradePlanOpen || paywallOpen;
+    const blocked = upgradePlanOpen || paywallOpen || agentManagerOpen;
     scrollRef.current.style.overflow = blocked ? 'hidden' : '';
     scrollRef.current.style.position = blocked ? 'relative' : '';
-  }, [upgradePlanOpen, paywallOpen]);
+  }, [upgradePlanOpen, paywallOpen, agentManagerOpen]);
 
   const handleUpgrade = (planId) => {
     setUpgradePlanOpen(false);
@@ -75,7 +75,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         </div>
 
         {/* Profile Section */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">
+        <div className="bg-white dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6 shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-6">
             <div
               className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
@@ -137,7 +137,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         />
 
         {/* Settings Section */}
-        <div className="bg-surface-light dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6">
+        <div className="bg-white dark:bg-surface-dark rounded-[3.5rem] p-6 mb-6 shadow-sm border border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">
             {t('settings')}
           </h3>
@@ -276,7 +276,10 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack }) => {
         )}
 
         {/* Logout Button */}
-        <button className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-[3.5rem] transition-colors font-medium">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-[3.5rem] transition-colors font-medium"
+        >
           <LogOut size={20} />
           <span>{t('logout')}</span>
         </button>

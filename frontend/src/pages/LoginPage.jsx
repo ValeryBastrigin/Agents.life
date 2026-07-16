@@ -39,6 +39,24 @@ export default function LoginPage({ theme, onLogin }) {
     }
   }, [theme]);
 
+  // ── Handle OAuth callback redirect ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
+      const userData = {
+        email: params.get('email'),
+        name: params.get('name'),
+        google_id: params.get('google_id'),
+        picture: params.get('picture'),
+        user_id: params.get('user_id'),
+      };
+      // Clear query params from the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Notify parent
+      if (onLogin) onLogin('google', userData);
+    }
+  }, [onLogin]);
+
   // ── Floating agent icons (bigger on mobile, no ixteria, with duplicates) ──
   // Positions spread across full width on mobile (m: 1%–95%)
   const floatingAgents = [
@@ -69,14 +87,19 @@ export default function LoginPage({ theme, onLogin }) {
 
   // ── Auth handlers ──
   const handleGoogleLogin = () => {
-    if (onLogin) onLogin('google');
+    // Redirect to Google OAuth endpoint
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+    window.location.href = `${API_URL}/auth/google`;
   };
+
   const handleAppleLogin = () => {
     if (onLogin) onLogin('apple');
   };
+
   const handleYandexLogin = () => {
     if (onLogin) onLogin('yandex');
   };
+
   const handleEmailLogin = () => {
     if (onLogin) onLogin('email');
   };

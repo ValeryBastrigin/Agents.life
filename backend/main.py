@@ -1,6 +1,9 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from src.orchestrator.router import router as orchestrator_router
+from src.auth.router import router as auth_router
 from src.orchestrator.agent_settings import router as agent_settings_router
 from src.secretary.router import router as secretary_router
 from src.accountant.router import router as accountant_router
@@ -25,8 +28,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Load environment variables
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
 # Include routers
-app.include_router(orchestrator_router)
+app.include_router(auth_router)
+app.include_router(orchestrator_router, prefix="/api")
 app.include_router(secretary_router, prefix="/api")
 app.include_router(accountant_router)
 app.include_router(mentor_router)
@@ -42,7 +49,6 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
     print(f"REQUEST BODY: {await request.body()}")
     return {"detail": exc.errors(), "body": exc.body}
 
-import os
 upload_dir = os.path.join(os.getcwd(), "uploads")
 if not os.path.exists(upload_dir):
     os.makedirs(upload_dir)

@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Sparkles, X, AlertTriangle, Lightbulb, Mic, StopCircle, Loader2, CheckCircle2, ArrowRight, MessageSquare, ChevronRight } from 'lucide-react';
+import { useUser } from '../contexts/UserContext';
 import { apiClient } from '../utils/apiClient';
 
 const DreamInputModal = ({ isOpen, onClose }) => {
+  const { userId } = useUser();
   const [dream, setDream] = useState('');
   const [validationError, setValidationError] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -184,7 +186,7 @@ const DreamInputModal = ({ isOpen, onClose }) => {
     try {
       const res = await apiClient.post('/api/mentor/analyze-dream-steps', {
         dream: dream.trim(),
-        user_id: 1
+        user_id: userId
       });
 
       if (res.data?.success && res.data?.goals?.length > 0) {
@@ -275,7 +277,7 @@ const DreamInputModal = ({ isOpen, onClose }) => {
     try {
       const res = await apiClient.post('/api/mentor/select-multi-steps', {
         selections,
-        user_id: 1
+        user_id: userId
       });
 
       if (res.data?.success) {

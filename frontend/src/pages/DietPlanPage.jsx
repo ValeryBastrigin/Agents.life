@@ -6,9 +6,9 @@ import { getDietPlan, saveDietPlan, createChat, deleteDietPlan } from '../utils/
 import DietitianBackground from '../components/DietitianBackground';
 import MealPlanRequestModal from '../components/MealPlanRequestModal';
 import MealPlanWidget from '../components/ui/widgets/MealPlanWidget';
+import { useUser } from '../contexts/UserContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
-const DEMO_USER_ID = 1;
 
 // ---------- Profile Setup Card ----------
 const ProfileSetupCard = ({ profile, onContinue, onConfigure, onSkip }) => {
@@ -87,6 +87,7 @@ const ProfileSetupCard = ({ profile, onContinue, onConfigure, onSkip }) => {
 // ---------- Main Component ----------
 const DietPlanPage = () => {
   const navigate = useNavigate();
+  const { userId } = useUser();
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -111,7 +112,7 @@ const DietPlanPage = () => {
   useEffect(() => {
     (async () => {
       try {
-        const response = await axios.get(`${API_URL}/api/user/${DEMO_USER_ID}/diet-profile`);
+        const response = await axios.get(`${API_URL}/api/user/${userId}/diet-profile`);
         if (response.data) {
           setUserProfile(response.data);
           // Check if essential fields are filled
@@ -145,7 +146,7 @@ const DietPlanPage = () => {
   useEffect(() => {
     (async () => {
       try {
-        const data = await getDietPlan(DEMO_USER_ID);
+        const data = await getDietPlan(userId);
         if (data.plan_data) {
           const parsed = JSON.parse(data.plan_data);
           if (parsed && parsed.meals) {
@@ -170,7 +171,7 @@ const DietPlanPage = () => {
   const handleDeletePlan = async () => {
     setDeleting(true);
     try {
-      await deleteDietPlan(DEMO_USER_ID);
+      await deleteDietPlan(userId);
       setMealPlan(null);
       setShowDeleteConfirm(false);
     } catch (e) {
@@ -243,7 +244,7 @@ const DietPlanPage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_id: DEMO_USER_ID,
+          user_id: userId,
           agent: 'dietitian',
           message: messageText,
           generate_meal_plan: true,
@@ -302,7 +303,7 @@ const DietPlanPage = () => {
       if (stayOnPage) {
         // Reload the meal plan from the server
         try {
-          const data = await getDietPlan(DEMO_USER_ID);
+          const data = await getDietPlan(userId);
           if (data.plan_data) {
             const parsed = JSON.parse(data.plan_data);
             if (parsed && parsed.meals) {
@@ -340,7 +341,7 @@ const DietPlanPage = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: DEMO_USER_ID,
+          user_id: userId,
           agent: 'dietitian',
           message: messageText,
         }),

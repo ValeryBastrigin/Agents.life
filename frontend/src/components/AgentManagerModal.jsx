@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { HelpCircle, ArrowLeft, Check, Sparkles, Users, Brain, Target, Heart, TrendingUp, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient } from '../utils/apiClient';
@@ -34,13 +35,21 @@ const AGENT_CATEGORIES = {
   },
 };
 
-export default function AgentManagerModal({ userId, onClose, onAgentsChange }) {
+function AgentManagerModalContent({ userId, onClose, onAgentsChange }) {
   const { language } = useLanguage();
   const [showGuide, setShowGuide] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [activeAgents, setActiveAgents] = useState(new Set());
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
 
   // Load agent settings from backend on mount
   useEffect(() => {
@@ -101,10 +110,10 @@ export default function AgentManagerModal({ userId, onClose, onAgentsChange }) {
   // ---- GUIDE VIEW ----
   if (showGuide) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-        <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-background-light dark:bg-background-dark rounded-[3.5rem] shadow-2xl flex flex-col max-h-[85vh]">
+      <div className="agent-manager-overlay" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} className="agent-manager-card">
           {/* Scrollable content */}
-          <div className="overflow-y-auto px-6 pt-6 pb-2">
+          <div className="px-6 pt-6 pb-2">
             {/* Header */}
             <div className="flex items-center gap-3 mb-6">
               <button onClick={() => setShowGuide(false)} className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-[3rem] transition-colors">
@@ -155,8 +164,7 @@ export default function AgentManagerModal({ userId, onClose, onAgentsChange }) {
           </div>
 
           {/* Sticky footer */}
-          <div className="px-6 pb-6 pt-2">
-            <div className="h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-600 to-transparent mb-4" />
+          <div className="agent-manager-footer" style={{ borderBottomLeftRadius: '3.5rem', borderBottomRightRadius: '3.5rem' }}>
             <button
               onClick={() => setShowGuide(false)}
               className="w-full py-3 rounded-[3rem] bg-gradient-to-r from-violet-500 to-purple-600 text-white font-medium hover:from-violet-600 hover:to-purple-700 transition-all shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2"
@@ -165,6 +173,17 @@ export default function AgentManagerModal({ userId, onClose, onAgentsChange }) {
               {isRu ? 'Понятно, выбрать агентов' : 'Got it, choose agents'}
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- LOADING ----
+  if (loading) {
+    return (
+      <div className="agent-manager-overlay" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} className="agent-manager-card min-h-[200px] flex items-center justify-center">
+          <Loader2 className="animate-spin text-gray-400" size={32} />
         </div>
       </div>
     );
@@ -184,11 +203,58 @@ export default function AgentManagerModal({ userId, onClose, onAgentsChange }) {
         .agent-icon-modal:hover {
           animation-duration: 0.4s;
         }
+        /* Strict center overlay for modal */
+        .agent-manager-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 9999;
+          background: rgba(0,0,0,0.5);
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+        }
+        .agent-manager-card {
+          position: relative;
+          width: 100%;
+          max-width: 28rem;
+          background: var(--bg-background-light, #fff);
+          border-radius: 3.5rem;
+          box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+          display: flex;
+          flex-direction: column;
+          max-height: calc(100vh - 2rem);
+          overflow-y: auto;
+        }
+        :root.dark .agent-manager-card {
+          background: var(--bg-background-dark, #1e1e2e);
+        }
+        .agent-manager-footer {
+          position: sticky;
+          bottom: 0;
+          background: inherit;
+          padding: 0 24px 24px;
+        }
+        .agent-manager-footer::before {
+          content: '';
+          display: block;
+          height: 1px;
+          margin-bottom: 16px;
+          background: linear-gradient(to right, transparent, #d1d5db, transparent);
+        }
+        :root.dark .agent-manager-footer::before {
+          background: linear-gradient(to right, transparent, #4b5563, transparent);
+        }
       `}</style>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-        <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-background-light dark:bg-background-dark rounded-[3.5rem] shadow-2xl flex flex-col max-h-[85vh]">
+      <div className="agent-manager-overlay" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} className="agent-manager-card">
           {/* Scrollable content area */}
-          <div className="overflow-y-auto px-6 pt-6 pb-2">
+          <div className="px-6 pt-6 pb-2">
             {/* Header row: title left, ? right */}
             <div className="flex items-start justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white leading-tight">
@@ -262,8 +328,7 @@ export default function AgentManagerModal({ userId, onClose, onAgentsChange }) {
           </div>
 
           {/* Sticky footer — separated by decorative gradient line */}
-          <div className="px-6 pb-6 pt-2">
-            <div className="h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-600 to-transparent mb-4" />
+          <div className="agent-manager-footer" style={{ borderBottomLeftRadius: '3.5rem', borderBottomRightRadius: '3.5rem' }}>
             <div className="flex gap-3">
               <button
                 onClick={onClose}
@@ -282,5 +347,12 @@ export default function AgentManagerModal({ userId, onClose, onAgentsChange }) {
         </div>
       </div>
     </>
+  );
+}
+
+export default function AgentManagerModal(props) {
+  return ReactDOM.createPortal(
+    <AgentManagerModalContent {...props} />,
+    document.body
   );
 }

@@ -4,6 +4,7 @@ import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBran
 import MentorBackground from '../components/MentorBackground';
 import DreamInputModal from '../components/DreamInputModal';
 import MentorGuideModal from '../components/MentorGuideModal';
+import { useUser } from '../contexts/UserContext';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
@@ -42,6 +43,7 @@ const categoryLabels = {
 
 const Mentor = () => {
   const navigate = useNavigate();
+  const { userId } = useUser();
   const [habitData, setHabitData] = useState({ habits: [], xp: 0, level: 1, unlockedAchievements: [] });
   const [loading, setLoading] = useState(false);
   const [dreamModalOpen, setDreamModalOpen] = useState(false);
@@ -62,7 +64,7 @@ const Mentor = () => {
     try {
       setMaterialsLoading(true);
       setMaterialsError(null);
-      const res = await axios.get(`${API_URL}/api/mentor/recommended-materials?user_id=1`);
+      const res = await axios.get(`${API_URL}/api/mentor/recommended-materials?user_id=${userId}`);
       if (res.data?.materials) {
         setRecommendedMaterials(res.data.materials);
       } else {
@@ -89,7 +91,7 @@ const Mentor = () => {
 
   const loadDreamGoals = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/mentor/dream-goals?user_id=1`);
+      const res = await axios.get(`${API_URL}/api/mentor/dream-goals?user_id=${userId}`);
       if (res.data?.goals) {
         setGoals(res.data.goals.filter(g => g.status === 'active' || g.status === 'saved'));
       }
@@ -106,7 +108,7 @@ const Mentor = () => {
 
   const handleDeleteGoal = async (goalId) => {
     try {
-      await axios.delete(`${API_URL}/api/mentor/dream-goals/${goalId}?user_id=1`);
+      await axios.delete(`${API_URL}/api/mentor/dream-goals/${goalId}?user_id=${userId}`);
       loadDreamGoals();
     } catch (err) {
       console.error('Failed to delete goal:', err);
@@ -222,7 +224,7 @@ const Mentor = () => {
             <button onClick={async () => {
               try {
                 const res = await axios.post(`${API_URL}/api/chats`, {
-                  user_id: 1,
+                  user_id: userId,
                   agent_type: 'mentor',
                   welcome_message: 'Привет! 👋 Я — ваш ментор. Чем я могу помочь вам сегодня? Расскажите о своих целях, планах или задайте любой вопрос о развитии и самореализации.'
                 });
@@ -728,14 +730,14 @@ const Mentor = () => {
                               try {
                                 // 1. Create a mentor chat
                                 const createRes = await axios.post(`${API_URL}/api/chats`, {
-                                  user_id: 1,
+                                  user_id: userId,
                                   agent_type: 'mentor',
                                 });
                                 const chatId = createRes.data.chat_id || createRes.data.id;
                                 
                                 // 2. Send user message to the chat
                                 await axios.post(`${API_URL}/api/chat`, {
-                                  user_id: 1,
+                                  user_id: userId,
                                   chat_id: chatId,
                                   agent: 'mentor',
                                 message: `Привет, хочу обсудить с тобой ${step.text}${step.description ? `\n${step.description}` : ''}`

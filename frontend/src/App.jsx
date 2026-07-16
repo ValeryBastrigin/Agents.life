@@ -30,7 +30,10 @@ import FinancialAnalyst from './pages/FinancialAnalyst';
 import LoginPage from './pages/LoginPage';
 import PaywallModal from './components/PaywallModal';
 import UpgradePlanModal from './components/UpgradePlanModal';
+import OnboardingModal from './components/OnboardingModal';
+import OnboardingAgentModal from './components/OnboardingAgentModal';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import { UserProvider, useUser } from './contexts/UserContext';
 import axios from 'axios';
 import { sendMessageStream, apiClient } from './utils/apiClient';
 
@@ -39,8 +42,6 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 function App() {
   const [theme, setTheme] = useState('light');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
-  const [userId] = useState(1);
 
   // Apply theme to document
   useEffect(() => {
@@ -51,11 +52,98 @@ function App() {
     }
   }, [theme]);
 
-  // Load user profile on mount
+  // Set initial theme from localStorage on mount
   useEffect(() => {
-    loadUserProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
   }, []);
+
+  return (
+    <UserProvider>
+      <LanguageProvider>
+        <Router>
+          <AppContent
+            theme={theme}
+            sidebarOpen={sidebarOpen}
+            setSidebarOpen={setSidebarOpen}
+            setTheme={setTheme}
+          />
+        </Router>
+      </LanguageProvider>
+    </UserProvider>
+  );
+}
+
+function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { language, changeLanguage, t } = useLanguage();
+  const { userId, setUserId, userProfile, setUserProfile, clearUser, isAuthenticated } = useUser();
+  const [chats, setChats] = useState([]);
+  const [headerSolid, setHeaderSolid] = useState(false);
+
+  // ── Onboarding state ──
+  const [showAgentOnboarding, setShowAgentOnboarding] = useState(false);
+  const [showNameOnboarding, setShowNameOnboarding] = useState(false);
+  const [selectedAgents, setSelectedAgents] = useState([]);
+
+  // ── Paywall state ──
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  // Listen for paywall events from apiClient
+  useEffect(() => {
+    const handler = () => setShowPaywall(true);
+    window.addEventListener('paywall:show', handler);
+    return () => window.removeEventListener('paywall:show', handler);
+  }, []);
+
+  // Check authentication and redirect to login if not authenticated
+  useEffect(() => {
+    const publicRoutes = ['/login'];
+    if (!isAuthenticated && !publicRoutes.includes(location.pathname)) {
+      navigate('/login', { replace: true });
+    }
+  }, [isAuthenticated, location.pathname, navigate]);
+
+  // Load user profile on mount and when userId changes
+  useEffect(() => {
+    loadUserProfile(userId);
+  }, [userId]);
+
+  // Check if user needs onboarding (first time login)
+  useEffect(() => {
+    const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
+    if (userProfile && userId > 1 && !onboardingCompleted) { // Skip for demo user (id=1) and if already completed
+      const needsOnboarding = !userProfile.username || userProfile.username === 'demo_user' || !userProfile.age;
+      if (needsOnboarding && location.pathname === '/chat') {
+        setShowAgentOnboarding(true);
+      }
+    }
+  }, [userProfile, userId, location.pathname]);
+
+  const handleAgentOnboardingComplete = (agents) => {
+    setSelectedAgents(agents);
+    setShowAgentOnboarding(false);
+    setShowNameOnboarding(true);
+  };
+
+  const handleNameOnboardingComplete = async ({ name, age }) => {
+    try {
+      await axios.put(`${API_URL}/api/user/${userId}/onboarding`, {
+        username: name,
+        age: age
+      });
+      // Reload user profile to get updated data
+      await loadUserProfile(userId);
+      setShowNameOnboarding(false);
+      // Mark onboarding as completed in localStorage to prevent re-showing
+      localStorage.setItem('onboarding_completed', 'true');
+    } catch (error) {
+      console.error('Failed to save onboarding data:', error);
+    }
+  };
 
   // Listen for avatar changes from Profile page
   useEffect(() => {
@@ -69,17 +157,24 @@ function App() {
     return () => window.removeEventListener('avatar-changed', handleAvatarChange);
   }, []);
 
-  // Set initial theme from localStorage on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
-  }, []);
+  const handleSelectPlan = (planId) => {
+    setShowPaywall(false);
+    // Navigate to profile with upgrade modal open
+    sessionStorage.setItem('upgradePlan', planId);
+    navigate('/profile');
+  };
 
-  const loadUserProfile = async () => {
+  const handleLogout = () => {
+    localStorage.removeItem('google_token');
+    localStorage.removeItem('user');
+    sessionStorage.clear();
+    clearUser();
+    window.location.href = '/login';
+  };
+
+  const loadUserProfile = async (currentUserId) => {
     try {
-      const response = await axios.get(`${API_URL}/api/user/${userId}`);
+      const response = await axios.get(`${API_URL}/api/user/${currentUserId}`);
       setUserProfile(response.data);
       setTheme(response.data.theme_preference);
     } catch (error) {
@@ -98,46 +193,6 @@ function App() {
     } catch (error) {
       console.error('Failed to update theme:', error);
     }
-  };
-
-  return (
-    <LanguageProvider>
-      <Router>
-        <AppContent
-          theme={theme}
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          userProfile={userProfile}
-          handleThemeToggle={handleThemeToggle}
-        />
-      </Router>
-    </LanguageProvider>
-  );
-}
-
-function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThemeToggle }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { language, changeLanguage, t } = useLanguage();
-  const [chats, setChats] = useState([]);
-  const [userId] = useState(1);
-  const [headerSolid, setHeaderSolid] = useState(false);
-
-  // ── Paywall state ──
-  const [showPaywall, setShowPaywall] = useState(false);
-
-  // Listen for paywall events from apiClient
-  useEffect(() => {
-    const handler = () => setShowPaywall(true);
-    window.addEventListener('paywall:show', handler);
-    return () => window.removeEventListener('paywall:show', handler);
-  }, []);
-
-  const handleSelectPlan = (planId) => {
-    setShowPaywall(false);
-    // Navigate to profile with upgrade modal open
-    sessionStorage.setItem('upgradePlan', planId);
-    navigate('/profile');
   };
 
   // ── Session state (shared with header capsule) ──
@@ -551,7 +606,17 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
 
       {/* Routes */}
       <Routes>
-        <Route path="/login" element={<LoginPage theme={theme} onLogin={(provider) => console.log('Login with', provider)} />} />
+        <Route path="/login" element={<LoginPage theme={theme} onLogin={(provider, userData) => {
+          console.log('Login with', provider, userData);
+          if (userData) {
+            // Set user ID from Google OAuth response
+            const newUserId = userData.user_id ? parseInt(userData.user_id) : 1;
+            setUserId(newUserId);
+            
+            // Перенаправляем на главную
+            navigate('/chat', { replace: true });
+          }
+        }} />} />
         <Route path="/" element={<Navigate to="/chat" replace />} />
         <Route path="/chat/:chatId?" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} userProfile={userProfile} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
@@ -569,7 +634,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         <Route path="/mentor/tree" element={<DevelopmentTree />} />
         <Route path="/mentor/habits" element={<HabitTracker />} />
         <Route path="/financial-analyst" element={<FinancialAnalyst />} />
-        <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onBack={() => {
+        <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onLogout={handleLogout} onBack={() => {
           const lastChatId = sessionStorage.getItem('lastChatId');
           navigate(lastChatId ? `/chat/${lastChatId}` : '/chat');
         }} />} />
@@ -580,6 +645,20 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, userProfile, handleThe
         isOpen={showPaywall}
         onClose={() => setShowPaywall(false)}
         onSelectPlan={handleSelectPlan}
+      />
+
+      {/* ═══ Onboarding Agent Modal ═══ */}
+      <OnboardingAgentModal
+        userId={userId}
+        isOpen={showAgentOnboarding}
+        onComplete={handleAgentOnboardingComplete}
+      />
+
+      {/* ═══ Onboarding Name/Age Modal ═══ */}
+      <OnboardingModal
+        isOpen={showNameOnboarding}
+        onClose={() => setShowNameOnboarding(false)}
+        onComplete={handleNameOnboardingComplete}
       />
     </div>
   );
@@ -656,6 +735,7 @@ function parseUserMessageContent(content) {
 }
 
 function Home({ onChatCreated, theme, onScroll, userProfile }) {
+  const { userId } = useUser();
   const [messages, setMessages] = useState([]);
   const messagesRef = useRef([]);
   // Keep ref in sync
@@ -669,7 +749,6 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
   const [chatId, setChatId] = useState(null);
   const chatIdRef = useRef(null);
   const navigatedFromStreamRef = useRef(false);
-  const [userId] = useState(1);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const location = useLocation();

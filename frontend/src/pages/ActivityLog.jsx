@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, RefreshCw, Activity, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useUser } from '../contexts/UserContext';
 import LogItem from '../components/activity/LogItem';
 import axios from 'axios';
 
@@ -12,7 +13,7 @@ const PAGE_SIZE = 15;
 export default function ActivityLog({ theme }) {
   const navigate = useNavigate();
   const { language } = useLanguage();
-  const [userId] = useState(1);
+  const { userId } = useUser();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);

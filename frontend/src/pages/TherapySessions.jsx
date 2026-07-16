@@ -5,15 +5,8 @@ import {
   Smile, ListChecks, AlertTriangle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
 import { apiClient } from '../utils/apiClient';
-
-function getUserId() {
-  try {
-    return parseInt(localStorage.getItem('selectedUserId') || '1', 10);
-  } catch {
-    return 1;
-  }
-}
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -104,13 +97,12 @@ function getSectionMeta(title) {
 
 export default function TherapySessions() {
   const navigate = useNavigate();
+  const { userId } = useUser();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-
-  const userId = getUserId();
 
   const loadSessions = useCallback(async () => {
     try {

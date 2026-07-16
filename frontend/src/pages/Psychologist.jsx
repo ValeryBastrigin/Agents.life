@@ -7,12 +7,9 @@ import { X, BookOpen, Brain, Heart, MessageCircle, BarChart3, Smile, ArrowLeft }
 import { useNavigate, useLocation } from 'react-router-dom';
 
 import { useLanguage } from '../contexts/LanguageContext';
+import { useUser } from '../contexts/UserContext';
 
 import { apiClient } from '../utils/apiClient';
-
-
-
-const USER_ID = 1;
 
 
 
@@ -109,6 +106,7 @@ const InfoModal = ({ isOpen, onClose, title, children, hideButton, footerButton 
 const Psychologist = () => {
 
   const navigate = useNavigate();
+  const { userId } = useUser();
 
   const location = useLocation();
 
@@ -180,7 +178,7 @@ const { language, changeLanguage, t } = useLanguage();
 
     try {
 
-      const res = await apiClient.get(`/api/user/${USER_ID}/therapy/active`);
+      const res = await apiClient.get(`/api/user/${userId}/therapy/active`);
 
       if (res.data?.active && res.data?.session) {
 
@@ -206,7 +204,7 @@ const { language, changeLanguage, t } = useLanguage();
 
     try {
 
-      const res = await apiClient.get(`/api/user/${USER_ID}/mood-week`);
+      const res = await apiClient.get(`/api/user/${userId}/mood-week`);
 
       setMoodWeek(res.data || []);
 
@@ -230,7 +228,7 @@ const { language, changeLanguage, t } = useLanguage();
 
     try {
 
-      await apiClient.post(`/api/user/${USER_ID}/mood`, {
+      await apiClient.post(`/api/user/${userId}/mood`, {
 
         mood: option.mood,
 
@@ -272,7 +270,7 @@ const { language, changeLanguage, t } = useLanguage();
 
       // Проверяем, нет ли уже активной сессии — если есть, идём в её чат
 
-      const activeRes = await apiClient.get(`/api/user/${USER_ID}/therapy/active`);
+      const activeRes = await apiClient.get(`/api/user/${userId}/therapy/active`);
 
       if (activeRes.data?.active && activeRes.data?.session?.chat_id) {
 
@@ -304,7 +302,7 @@ const { language, changeLanguage, t } = useLanguage();
 
       const createRes = await apiClient.post('/api/chats', {
 
-        user_id: USER_ID,
+        user_id: userId,
 
         title: 'Сеанс психотерапии',
 
@@ -322,7 +320,7 @@ const { language, changeLanguage, t } = useLanguage();
 
       // Start therapy session
 
-      await apiClient.post(`/api/user/${USER_ID}/therapy-sessions`, {
+      await apiClient.post(`/api/user/${userId}/therapy-sessions`, {
 
         chat_id: chatId,
 

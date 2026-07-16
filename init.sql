@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    google_id VARCHAR(255) UNIQUE,
     avatar_url VARCHAR(255),
+    age INTEGER,
     token_balance INTEGER DEFAULT 1000,
     plan VARCHAR(20) DEFAULT 'FREE',             -- FREE, PRO, UNLIMITED
     credits_used INTEGER DEFAULT 0,              -- сколько кредитов потрачено сегодня
@@ -166,6 +168,18 @@ BEGIN
         WHERE table_name='users' AND column_name='credits_used'
     ) THEN
         ALTER TABLE users ADD COLUMN credits_used INTEGER DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='google_id'
+    ) THEN
+        ALTER TABLE users ADD COLUMN google_id VARCHAR(255) UNIQUE;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='age'
+    ) THEN
+        ALTER TABLE users ADD COLUMN age INTEGER;
     END IF;
 END $$;
 

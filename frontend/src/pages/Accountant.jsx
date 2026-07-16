@@ -5,6 +5,7 @@ import AccountantBackground from '../components/AccountantBackground';
 import PortfolioAnalysisModal from '../components/PortfolioAnalysisModal';
 import StatementUploadModal from '../components/StatementAnalysisModal';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
 
 // ---------- Modal: Как пользоваться ----------
 const ManualModal = ({ isOpen, onClose }) => {
@@ -780,6 +781,7 @@ const StatementsModal = ({ isOpen, onClose, onStatementsChange, onStartAnalysis 
 // ========== Главная страница Финансового-помощника ==========
 const Accountant = () => {
   const navigate = useNavigate();
+  const { userId } = useUser();
   const [showManual, setShowManual] = useState(false);
   const [showStatements, setShowStatements] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -1386,12 +1388,12 @@ const Accountant = () => {
         isOpen={showPortfolioAnalysis}
         onClose={() => setShowPortfolioAnalysis(false)}
         onComplete={handlePortfolioAnalysisComplete}
-        userId={1}
+        userId={userId}
       />
       <StatementUploadModal
         isOpen={showStatementUpload}
         onClose={() => setShowStatementUpload(false)}
-        userId={1}
+        userId={userId}
         onStatementSaved={() => setStatementsRefresh(prev => prev + 1)}
       />
     </div>

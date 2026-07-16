@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, Clock, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Check, X, Bell, Sparkles, BookOpen, ListTodo, Zap, ArrowLeft, ArrowRight, Layers } from 'lucide-react';
 import SecretaryBackground from '../components/SecretaryBackground';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useUser } from '../contexts/UserContext';
 import moment from 'moment';
 import { Calendar as BigCalendar, momentLocalizer, Views } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -15,9 +16,9 @@ const localizer = momentLocalizer(moment);
 
 const Secretary = ({ theme }) => {
   const { t, language } = useLanguage();
+  const { userId } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
-  const [userId] = useState(1);
   const [creatingChat, setCreatingChat] = useState(false);
   
   const [currentDate, setCurrentDate] = useState(new Date());

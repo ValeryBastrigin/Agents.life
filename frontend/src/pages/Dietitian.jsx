@@ -3,6 +3,7 @@ import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, 
 import DietitianBackground from '../components/DietitianBackground';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useUser } from '../contexts/UserContext';
 import { apiClient } from '../utils/apiClient';
 
 // ---------- Nutrition calculation (Mifflin-St Jeor) ----------
@@ -540,7 +541,7 @@ const ManualModal = ({ isOpen, onClose }) => {
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
-const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
+const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal, userId }) => {
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(today);
   const [viewMode, setViewMode] = useState('day'); // 'day' | 'week' | 'month'
@@ -553,7 +554,6 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
   const [loading, setLoading] = useState(false);
   const [datesWithFood, setDatesWithFood] = useState({});
 
-  const DEMO_USER_ID = 1;
   const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const selectedDateStr = formatDate(selectedDate);
 
@@ -563,7 +563,7 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
     const loadDay = async () => {
       setLoading(true);
       try {
-        const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-by-date?date=${selectedDateStr}`);
+        const { data } = await apiClient.get(`/api/user/${userId}/food-by-date?date=${selectedDateStr}`);
         setDayTotals(data.totals);
         const transformed = data.items.map(item => ({
           id: item.id,
@@ -594,7 +594,7 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
     const end = formatDate(new Date(calendarYear, calendarMonth + 1, 0));
     const load = async () => {
       try {
-        const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-date-range?start_date=${start}&end_date=${end}`);
+        const { data } = await apiClient.get(`/api/user/${userId}/food-date-range?start_date=${start}&end_date=${end}`);
         setDatesWithFood(data.days || {});
       } catch (e) { console.warn('Failed to load date range:', e); }
     };
@@ -610,7 +610,7 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
     const start = formatDate(startDate);
     const load = async () => {
       try {
-        const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-date-range?start_date=${start}&end_date=${end}`);
+        const { data } = await apiClient.get(`/api/user/${userId}/food-date-range?start_date=${start}&end_date=${end}`);
         setWeekData(data);
       } catch (e) { console.warn('Failed to load week data:', e); }
     };
@@ -626,7 +626,7 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal }) => {
     const start = formatDate(startDate);
     const load = async () => {
       try {
-        const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-date-range?start_date=${start}&end_date=${end}`);
+        const { data } = await apiClient.get(`/api/user/${userId}/food-date-range?start_date=${start}&end_date=${end}`);
         setMonthData(data);
       } catch (e) { console.warn('Failed to load month data:', e); }
     };
@@ -996,6 +996,7 @@ const getInitialNutrition = () => {
 const Dietitian = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { userId } = useUser();
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -1008,13 +1009,11 @@ const Dietitian = () => {
 
   const [nutrition, setNutrition] = useState(getInitialNutrition());
 
-  const DEMO_USER_ID = 1;
-
   // Load diet profile from API on mount, with localStorage fallback
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/diet-profile`);
+        const { data } = await apiClient.get(`/api/user/${userId}/diet-profile`);
         if (data && data.height != null) {
           const profile = { height: data.height, weight: data.weight, age: data.age, gender: data.gender };
           const goal = data.goal;
@@ -1065,7 +1064,7 @@ const Dietitian = () => {
   // Load today's diet plan
   const loadDietPlan = useCallback(async () => {
     try {
-      const { data } = await apiClient.get(`/api/dietplan/${DEMO_USER_ID}`);
+      const { data } = await apiClient.get(`/api/dietplan/${userId}`);
       if (data && data.plan_data) {
         try {
           const parsed = JSON.parse(data.plan_data);
@@ -1080,7 +1079,7 @@ const Dietitian = () => {
       console.warn('Failed to load diet plan:', e);
       setDietPlan(null);
     }
-  }, [DEMO_USER_ID]);
+  }, [userId]);
 
   useEffect(() => {
     loadDietPlan();
@@ -1089,7 +1088,7 @@ const Dietitian = () => {
   // Load today's food consumption from API
   const loadFoodToday = useCallback(async () => {
     try {
-      const { data } = await apiClient.get(`/api/user/${DEMO_USER_ID}/food-today?_t=${Date.now()}`);
+      const { data } = await apiClient.get(`/api/user/${userId}/food-today?_t=${Date.now()}`);
       if (data) {
         setNutrition(prev => ({
           ...prev,
@@ -1118,7 +1117,7 @@ const Dietitian = () => {
     } catch (e) {
       console.warn('Failed to load food today from API:', e);
     }
-  }, [DEMO_USER_ID]);
+  }, [userId]);
 
   // Load food data on mount and set up periodic refresh
   useEffect(() => {
@@ -1162,7 +1161,7 @@ const Dietitian = () => {
 
     // Save to backend API
     try {
-      await apiClient.put(`/api/user/${DEMO_USER_ID}/diet-profile`, {
+      await apiClient.put(`/api/user/${userId}/diet-profile`, {
         height: Number(profile.height),
         weight: Number(profile.weight),
         age: Number(profile.age),
@@ -1210,7 +1209,7 @@ const Dietitian = () => {
     }
     // Clear backend
     try {
-      apiClient.delete(`/api/user/${DEMO_USER_ID}/diet-profile`);
+      apiClient.delete(`/api/user/${userId}/diet-profile`);
     } catch (e) {
       console.warn('Failed to delete diet profile from API:', e);
     }
@@ -1241,7 +1240,7 @@ const Dietitian = () => {
     try {
       const chatResponse = await apiClient.post('/api/chats', {
         title: '🍽️ Дневник питания',
-        user_id: DEMO_USER_ID,
+        user_id: userId,
         agent_type: 'dietitian',
         welcome_message: WELCOME_MESSAGE,
       });
@@ -1252,13 +1251,13 @@ const Dietitian = () => {
     } catch (e) {
       console.error('Не удалось создать новый чат:', e);
     }
-  }, [navigate, DEMO_USER_ID]);
+  }, [navigate, userId]);
 
   const handleChatWithDietitian = useCallback(async () => {
     try {
       const chatResponse = await apiClient.post('/api/chats', {
         title: '💬 Чат с диетологом',
-        user_id: DEMO_USER_ID,
+        user_id: userId,
         agent_type: 'dietitian',
         welcome_message: '👋 Здравствуйте! Я ваш персональный диетолог. Чем могу помочь? Расскажите, что вас интересует: составление рациона, вопросы по питанию или что-то ещё?',
       });
@@ -1269,7 +1268,7 @@ const Dietitian = () => {
     } catch (e) {
       console.error('Не удалось создать чат с диетологом:', e);
     }
-  }, [navigate, DEMO_USER_ID]);
+  }, [navigate, userId]);
 
   const caloriesProgress = Math.min(
     nutrition.calories.goal > 0 ? (nutrition.calories.current / nutrition.calories.goal) * 100 : 0, 100
@@ -1601,7 +1600,7 @@ const Dietitian = () => {
       {showOnboarding && <OnboardingModal key={Date.now()} isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} onComplete={handleOnboardingComplete} editData={userProfile} />}
       <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} userProfile={userProfile} nutrition={nutrition} onDelete={handleDeleteProfile} />
       <ManualModal isOpen={showManual} onClose={() => setShowManual(false)} />
-      <FoodDiaryModal isOpen={showDiary} onClose={() => setShowDiary(false)} nutritionGoal={nutrition.calories.goal} />
+      <FoodDiaryModal isOpen={showDiary} onClose={() => setShowDiary(false)} nutritionGoal={nutrition.calories.goal} userId={userId} />
     </div>
     </>
   );

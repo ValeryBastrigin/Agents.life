@@ -5,9 +5,11 @@ import bankcardIcon from './bankcard.svg';
 import portfelIcon from './portfel.svg';
 import StatementAnalysisModal from '../components/StatementAnalysisModal';
 import PortfolioAnalysisModal from '../components/PortfolioAnalysisModal';
+import { useUser } from '../contexts/UserContext';
 
 const FinancialAnalyst = () => {
   const navigate = useNavigate();
+  const { userId } = useUser();
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [showPortfolio, setShowPortfolio] = useState(false);
 
@@ -145,7 +147,7 @@ const FinancialAnalyst = () => {
         onComplete={() => {
           setShowPortfolio(false);
         }}
-        userId={1}
+        userId={userId}
       />
     </div>
   );

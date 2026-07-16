@@ -15,6 +15,7 @@ import { TreePine, Target, BookOpen, ChevronRight, ArrowLeft, Loader2, MessageSq
 import MentorBackground from '../components/MentorBackground';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
@@ -395,6 +396,7 @@ const STORAGE_KEY = 'development-tree-positions';
 
 const DevelopmentTreeContent = () => {
   const navigate = useNavigate();
+  const { userId } = useUser();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [goals, setGoals] = useState([]);
@@ -419,7 +421,7 @@ const DevelopmentTreeContent = () => {
   const loadGoals = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/api/mentor/dream-goals?user_id=1`);
+      const res = await axios.get(`${API_URL}/api/mentor/dream-goals?user_id=${userId}`);
       const fetchedGoals = (res.data?.goals || []).filter(g => g.status === 'active' || g.status === 'saved');
       setGoals(fetchedGoals);
       const { nodes: treeNodes, edges: treeEdges } = buildTreeFromGoals(fetchedGoals);
@@ -493,7 +495,7 @@ const DevelopmentTreeContent = () => {
     if (goalId != null) {
       axios.patch(
         `${API_URL}/api/mentor/dream-goals/${goalId}/steps/${stepIndex}/status`,
-        { user_id: 1, status: newStatus }
+        { user_id: userId, status: newStatus }
       ).catch(err => {
         console.error('Failed to persist step status:', err);
       });
@@ -506,12 +508,12 @@ const DevelopmentTreeContent = () => {
     try {
       const stepText = step.title || step.summary || step.text || step.description || '';
       const createRes = await axios.post(`${API_URL}/api/chats`, {
-        user_id: 1,
+        user_id: userId,
         agent_type: 'mentor',
       });
       const chatId = createRes.data.chat_id || createRes.data.id;
       await axios.post(`${API_URL}/api/chat`, {
-        user_id: 1,
+        user_id: userId,
         chat_id: chatId,
         agent: 'mentor',
         message: `Привет, хочу обсудить с тобой шаг в рамках цели «${goal.goal_summary}»: ${stepText}${step.description ? `\n${step.description}` : ''}`,

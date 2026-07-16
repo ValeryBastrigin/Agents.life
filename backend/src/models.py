@@ -11,7 +11,9 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
+    google_id = Column(String(255), unique=True, nullable=True)  # Google OAuth user ID
     avatar_url = Column(String(255))
+    age = Column(Integer, nullable=True)  # User age for onboarding
     token_balance = Column(Integer, default=1000)
     plan = Column(String(20), default="FREE")           # FREE, PRO, UNLIMITED
     credits_used = Column(Integer, default=0)            # сколько кредитов потрачено сегодня

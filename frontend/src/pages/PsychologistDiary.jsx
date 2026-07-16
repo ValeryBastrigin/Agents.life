@@ -2,16 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookOpen, Plus, Trash2, Edit3, X, Send, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
 
 const apiBase = process.env.REACT_APP_API_URL || '';
-
-function getUserId() {
-  try {
-    return parseInt(localStorage.getItem('selectedUserId') || '1', 10);
-  } catch {
-    return 1;
-  }
-}
 
 const MOOD_OPTIONS = [
   { value: 4, emoji: '😊', label: 'Отлично' },
@@ -43,6 +36,7 @@ function formatDate(iso) {
 
 export default function PsychologistDiary() {
   const navigate = useNavigate();
+  const { userId } = useUser();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -57,8 +51,6 @@ export default function PsychologistDiary() {
 
   // Delete confirm
   const [deleteId, setDeleteId] = useState(null);
-
-  const userId = getUserId();
 
   const loadEntries = useCallback(async () => {
     try {
