@@ -31,6 +31,19 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ""
+    container_name: lifeagent-frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - app
+    restart: unless-stopped
+
   app:
     build:
       context: .

@@ -290,10 +290,12 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
   };
   // ── end session state ──
 
-  // Load user chats on mount
+  // Load user chats on mount and when userId changes
   useEffect(() => {
-    loadChats();
-  }, []);
+    if (userId) {
+      loadChats();
+    }
+  }, [userId]);
 
   // Reset headerSolid when navigating to agent pages (not chat)
   useEffect(() => {
