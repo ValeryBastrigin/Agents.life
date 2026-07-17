@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useParams, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import SecretaryBackground from './components/SecretaryBackground';
 import AccountantBackground from './components/AccountantBackground';
@@ -28,6 +28,7 @@ import NotesList from './pages/NotesList';
 import NoteEditor from './pages/NoteEditor';
 import FinancialAnalyst from './pages/FinancialAnalyst';
 import LoginPage from './pages/LoginPage';
+import LandingPage from './pages/LandingPage';
 import PaywallModal from './components/PaywallModal';
 import UpgradePlanModal from './components/UpgradePlanModal';
 import OnboardingModal from './components/OnboardingModal';
@@ -93,7 +94,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
 
   // Check authentication and redirect to login if not authenticated
   useEffect(() => {
-    const publicRoutes = ['/login'];
+    const publicRoutes = ['/', '/login', '/landing'];
     if (!isAuthenticated && !publicRoutes.includes(location.pathname)) {
       navigate('/login', { replace: true });
     }
@@ -389,9 +390,9 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
   };
 
   return (
-    <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark ${theme} relative overflow-hidden`}>
+      <div className={`${location.pathname === '/landing' || location.pathname === '/' ? 'min-h-screen' : 'h-screen'} flex flex-col bg-background-light dark:bg-background-dark ${theme} relative ${location.pathname === '/landing' || location.pathname === '/' ? '' : 'overflow-hidden'}`}>
       {/* Animated Background - Only visible on chat pages */}
-      {!location.pathname.startsWith('/profile') && !location.pathname.startsWith('/secretary') && !location.pathname.startsWith('/accountant') && !location.pathname.startsWith('/dietitian') && !location.pathname.startsWith('/psychologist') && !location.pathname.startsWith('/mentor') && location.pathname !== '/login' && (
+      {!location.pathname.startsWith('/profile') && !location.pathname.startsWith('/secretary') && !location.pathname.startsWith('/accountant') && !location.pathname.startsWith('/dietitian') && !location.pathname.startsWith('/psychologist') && !location.pathname.startsWith('/mentor') && location.pathname !== '/login' && location.pathname !== '/landing' && (
         <div className="absolute inset-0 pointer-events-none z-0">
           <AnimatedBackground theme={theme} isLoading={false} />
         </div>
@@ -418,7 +419,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
       />
 
       {/* Header */}
-      {location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && location.pathname !== '/login' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
+      {location.pathname !== '/landing' && location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && location.pathname !== '/login' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
           <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
@@ -626,7 +627,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
             navigate('/chat', { replace: true });
           }
         }} />} />
-        <Route path="/" element={<Navigate to="/chat" replace />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/chat/:chatId?" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} userProfile={userProfile} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
         <Route path="/secretary/logs" element={<ActivityLog theme={theme} />} />
@@ -1329,6 +1331,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
                     : 'opacity-0 translate-y-2 scale-95'
                 }`}
               >
+
                 {greetings[language][greetingIndex]}
               </p>
             </div>
