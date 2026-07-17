@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import SecretaryBackground from './components/SecretaryBackground';
 import AccountantBackground from './components/AccountantBackground';
@@ -392,7 +392,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
   return (
       <div className={`${location.pathname === '/landing' || location.pathname === '/' ? 'min-h-screen' : 'h-screen'} flex flex-col bg-background-light dark:bg-background-dark ${theme} relative ${location.pathname === '/landing' || location.pathname === '/' ? '' : 'overflow-hidden'}`}>
       {/* Animated Background - Only visible on chat pages */}
-      {!location.pathname.startsWith('/profile') && !location.pathname.startsWith('/secretary') && !location.pathname.startsWith('/accountant') && !location.pathname.startsWith('/dietitian') && !location.pathname.startsWith('/psychologist') && !location.pathname.startsWith('/mentor') && location.pathname !== '/login' && location.pathname !== '/landing' && (
+      {!location.pathname.startsWith('/profile') && !location.pathname.startsWith('/secretary') && !location.pathname.startsWith('/accountant') && !location.pathname.startsWith('/dietitian') && !location.pathname.startsWith('/psychologist') && !location.pathname.startsWith('/mentor') && location.pathname !== '/login' && location.pathname !== '/landing' && location.pathname !== '/' && (
         <div className="absolute inset-0 pointer-events-none z-0">
           <AnimatedBackground theme={theme} isLoading={false} />
         </div>
@@ -419,7 +419,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
       />
 
       {/* Header */}
-      {location.pathname !== '/landing' && location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && location.pathname !== '/login' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
+      {location.pathname !== '/landing' && location.pathname !== '/' && location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && location.pathname !== '/login' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
           <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>

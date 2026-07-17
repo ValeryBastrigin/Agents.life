@@ -200,13 +200,15 @@ const AnimatedLandingBg = () => (
 );
 
 // ── Парящие иконки агентов — fixed на весь viewport ──
-// Координаты в vw/vh, чтобы иконки летали по всему экрану независимо от скролла
 const FLOATING_AGENTS = [
   { icon: AGENTS[0].icon, x: 5, y: 12, driftX: 20, driftY: 18, delay: 0, scale: 0.8, blur: 'blur-sm' },
   { icon: AGENTS[1].icon, x: 78, y: 8, driftX: -18, driftY: 30, delay: 1.5, scale: 0.75, blur: 'blur-sm' },
   { icon: AGENTS[2].icon, x: 2, y: 68, driftX: 22, driftY: -12, delay: 0.8, scale: 0.7, blur: 'blur-[2px]' },
   { icon: AGENTS[3].icon, x: 82, y: 72, driftX: -12, driftY: -18, delay: 2.2, scale: 0.8, blur: 'blur-sm' },
   { icon: AGENTS[4].icon, x: 42, y: 3, driftX: 8, driftY: 40, delay: 3, scale: 0.65, blur: 'blur-[2px]' },
+  { icon: AGENTS[0].icon, x: 55, y: 50, driftX: 15, driftY: -25, delay: 4, scale: 0.6, blur: 'blur-[2px]' },
+  { icon: AGENTS[2].icon, x: 20, y: 40, driftX: -20, driftY: 22, delay: 5, scale: 0.55, blur: 'blur-sm' },
+  { icon: AGENTS[3].icon, x: 65, y: 55, driftX: 18, driftY: -18, delay: 6, scale: 0.5, blur: 'blur-[2px]' },
 ];
 
 const FloatingIcons = () => (
@@ -240,13 +242,316 @@ const FloatingIcons = () => (
           opacity: { duration: 5 + i, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: agent.delay },
         }}
       >
-        <div className="w-full h-full rounded-3xl bg-gray-900/40 backdrop-blur-xl border border-white/10 p-6 shadow-2xl">
-          <img src={agent.icon} alt="" className="w-full h-full object-contain drop-shadow-lg" />
-        </div>
+        <img src={agent.icon} alt="" className="w-full h-full object-contain drop-shadow-2xl" />
       </motion.div>
     ))}
   </>
 );
+
+// ── Секция "обзор агентов" (вторая секция после hero) ──
+function AgentsOverviewSection() {
+  const sectionRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start end', 'end start'],
+  });
+
+  const bgOpacity = useTransform(scrollYProgress, [0, 0.15, 0.85, 1], [0.3, 1, 1, 0.3]);
+  const bgY = useTransform(scrollYProgress, [0, 0.15, 0.85, 1], [40, 0, 0, -20]);
+
+  // Отдельно для сетки агентов — появление через whileInView
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.12, delayChildren: 0.2 },
+    },
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 40, scale: 0.85 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: { type: 'spring', stiffness: 180, damping: 18 },
+    },
+  };
+
+  return (
+    <motion.section
+      ref={sectionRef}
+      style={{ opacity: bgOpacity, y: bgY }}
+      className="min-h-screen flex items-center justify-center py-28 px-6 relative z-10"
+    >
+      <div className="max-w-6xl mx-auto w-full text-center">
+        {/* Заголовок */}
+        <motion.h2
+          className="text-4xl lg:text-5xl font-bold text-white mb-4"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.6 }}
+        >
+          Вас уже ждут{' '}
+          <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            5 AI-агентов
+          </span>
+        </motion.h2>
+
+        <motion.p
+          className="text-gray-400 text-lg max-w-2xl mx-auto mb-4"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ delay: 0.15, duration: 0.6 }}
+        >
+          И их количество постоянно растёт. Каждый агент — специалист в своей области.
+        </motion.p>
+
+        {/* Счётчик-тикер */}
+        <motion.div
+          className="flex items-center justify-center gap-2 mb-14"
+          initial={{ opacity: 0, scale: 0.8 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ delay: 0.25, type: 'spring', stiffness: 200 }}
+        >
+          <span className="text-5xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            5
+          </span>
+          <span className="text-gray-500 text-lg">/</span>
+          <span className="text-gray-500 text-2xl">∞</span>
+        </motion.div>
+
+        {/* Иконки агентов — капсулы liquid glass */}
+        <motion.div
+          className="flex flex-col items-center gap-6 max-w-md mx-auto mb-16"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-50px' }}
+        >
+          {AGENTS.map((agent) => (
+            <motion.div
+              key={agent.id}
+              variants={cardVariants}
+              whileHover={{ scale: 1.05, y: -3 }}
+              className="relative w-full group cursor-pointer"
+              onClick={() => {
+                const el = document.getElementById(`agent-${agent.id}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              {/* Liquid glass capsule */}
+              <div className="relative flex items-center gap-5 px-8 py-5 rounded-full overflow-hidden
+                bg-white/[0.04] backdrop-blur-xl
+                border border-white/[0.08]
+                shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]
+                before:absolute before:inset-0 before:rounded-full
+                before:bg-gradient-to-br before:from-white/[0.06] before:to-transparent
+                before:pointer-events-none"
+              >
+                {/* Glow on hover */}
+                <div
+                  className="absolute -inset-2 rounded-full blur-xl opacity-0 group-hover:opacity-60 transition-opacity duration-500 pointer-events-none"
+                  style={{ backgroundColor: agent.bgColor }}
+                />
+
+                {/* Icon */}
+                <div className="relative flex-shrink-0 z-10">
+                  <img
+                    src={agent.icon}
+                    alt={agent.name}
+                    className="w-14 h-14 lg:w-16 lg:h-16 object-contain drop-shadow-lg"
+                  />
+                </div>
+
+                {/* Name */}
+                <span className={`relative z-10 font-semibold ${agent.textColor} text-xl lg:text-2xl leading-tight`}>
+                  {agent.name}
+                </span>
+
+                {/* Subtle bottom border glow */}
+                <div
+                  className="absolute bottom-0 left-[10%] right-[10%] h-[1px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                  style={{
+                    background: `linear-gradient(90deg, transparent, ${agent.bgColor}, transparent)`,
+                    filter: 'blur(2px)',
+                  }}
+                />
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Анимированные линии связи между агентами */}
+        <motion.div
+          className="relative h-0 mx-auto mb-16 max-w-4xl"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ delay: 0.6, duration: 0.8 }}
+        >
+          <svg
+            viewBox="0 0 800 60"
+            className="absolute inset-0 w-full h-16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {[
+              { x1: 80, y1: 30, x2: 240, y2: 30, delay: 0 },
+              { x1: 240, y1: 30, x2: 400, y2: 30, delay: 0.2 },
+              { x1: 400, y1: 30, x2: 560, y2: 30, delay: 0.4 },
+              { x1: 560, y1: 30, x2: 720, y2: 30, delay: 0.6 },
+              { x1: 80, y1: 30, x2: 720, y2: 30, delay: 0.8 },
+            ].map((line, i) => (
+              <motion.line
+                key={i}
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x1}
+                y2={line.y1}
+                stroke="url(#gradientLine)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeDasharray="6 6"
+                initial={{ pathLength: 0, opacity: 0 }}
+                whileInView={{ pathLength: 1, opacity: 0.4 }}
+                viewport={{ once: true }}
+                transition={{
+                  delay: 0.7 + line.delay,
+                  duration: 0.8,
+                  ease: 'easeInOut',
+                }}
+              />
+            ))}
+            <defs>
+              <linearGradient id="gradientLine" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#3b82f6" />
+                <stop offset="50%" stopColor="#a855f7" />
+                <stop offset="100%" stopColor="#ec4899" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </motion.div>
+
+        {/* Блок про отличие от LLM */}
+        <motion.div
+          className="max-w-4xl mx-auto px-6 py-10 rounded-3xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 backdrop-blur-sm"
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ delay: 0.5, duration: 0.8 }}
+        >
+          <h3 className="text-2xl lg:text-3xl font-bold text-white mb-6">
+            Не просто{' '}
+            <span className="bg-gradient-to-r from-gray-400 to-gray-300 bg-clip-text text-transparent line-through decoration-2 decoration-gray-600">
+              LLM
+            </span>
+            , а{' '}
+            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              живые помощники
+            </span>
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+            <div className="p-6 rounded-2xl bg-red-500/5 border border-red-500/10">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <span className="text-red-400 font-semibold text-lg">Обычный LLM-чат</span>
+              </div>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="text-red-400/60 mt-1">•</span>
+                  Не знает, кто вы и что для вас важно
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-400/60 mt-1">•</span>
+                  Каждый раз начинает с чистого листа
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-400/60 mt-1">•</span>
+                  Не помнит ваши дела, финансы и цели
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-400/60 mt-1">•</span>
+                  Работает в одиночку, без связи с другими
+                </li>
+              </ul>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span className="text-emerald-400 font-semibold text-lg">AI-агенты Ixteria</span>
+              </div>
+              <ul className="space-y-2 text-gray-300 text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400/60 mt-1">•</span>
+                  Знают контекст вашей жизни, привычек и целей
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400/60 mt-1">•</span>
+                  Общаются друг с другом для комплексной автоматизации
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400/60 mt-1">•</span>
+                  Каждый — эксперт в своей сфере, но работают как команда
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400/60 mt-1">•</span>
+                  Постоянно учатся на ваших данных и становятся точнее
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Вывод-цитата */}
+          <motion.p
+            className="text-gray-500 italic text-sm mt-6 text-center max-w-xl mx-auto"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ delay: 0.8 }}
+          >
+            «Мы создали не просто чат-ботов, а команду цифровых сотрудников,
+            которые действительно понимают вашу жизнь и работают сообща,
+            чтобы вы могли заниматься тем, что действительно важно.»
+          </motion.p>
+        </motion.div>
+
+        {/* Скролл-индикатор */}
+        <motion.div
+          className="mt-12"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 1.0 }}
+        >
+          <motion.div
+            animate={{ y: [0, 12, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            className="text-gray-500 flex flex-col items-center gap-2"
+          >
+            <span className="text-xs uppercase tracking-widest">Познакомиться с каждым</span>
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+          </motion.div>
+        </motion.div>
+      </div>
+    </motion.section>
+  );
+}
 
 // ── Один агент (секция) ──
 function AgentSection({ agent, index }) {
@@ -264,6 +569,7 @@ function AgentSection({ agent, index }) {
 
   return (
     <motion.section
+      id={`agent-${agent.id}`}
       ref={sectionRef}
       style={{ opacity, scale, y }}
       className="min-h-screen flex items-center justify-center py-20 px-6 relative z-10"
@@ -276,19 +582,16 @@ function AgentSection({ agent, index }) {
             whileHover={{ scale: 1.05 }}
             transition={{ type: 'spring', stiffness: 300 }}
           >
+            {/* Свечение как у Ixteria */}
             <div
-              className="absolute inset-0 rounded-full blur-3xl opacity-60"
+              className="absolute inset-0 rounded-full blur-[80px] opacity-50 scale-150"
               style={{ backgroundColor: agent.bgColor }}
             />
-            <div className={`w-48 h-48 lg:w-64 lg:h-64 rounded-full bg-gradient-to-br ${agent.color} p-[3px] shadow-2xl`}>
-              <div className="w-full h-full rounded-full bg-gray-900/90 flex items-center justify-center p-8">
-                <img
-                  src={agent.icon}
-                  alt={agent.name}
-                  className="w-full h-full object-contain drop-shadow-lg"
-                />
-              </div>
-            </div>
+            <img
+              src={agent.icon}
+              alt={agent.name}
+              className="w-48 h-48 lg:w-64 lg:h-64 object-contain drop-shadow-2xl relative"
+            />
           </motion.div>
 
           {/* ── Контент ── */}
@@ -480,6 +783,9 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
       </motion.section>
+
+      {/* ── Секция "Обзор агентов" (вторая секция) ── */}
+      <AgentsOverviewSection />
 
       {/* ── Секции агентов ── */}
       <div className="relative z-10">
