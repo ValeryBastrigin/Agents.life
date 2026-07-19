@@ -286,9 +286,9 @@ function FloatingAgentsBg() {
           animate={{
             x: [0, a.driftX * 2, 0],
             y: [0, a.driftY * 2, 0],
-            opacity: [0.06, 0.22, 0.06],
-            scale: [1, 1.2, 1],
-            rotate: [0, 12, -12, 0],
+            opacity: [0.2, 0.5, 0.2],
+            scale: [1, 1.15, 1],
+            rotate: [0, 10, -10, 0],
           }}
           transition={{
             duration: a.speed + 5,
@@ -300,8 +300,8 @@ function FloatingAgentsBg() {
           <img
             src={a.icon}
             alt=""
-            className="w-full h-full object-contain opacity-70"
-            style={{ filter: 'brightness(0.8) saturate(0.6)' }}
+            className="w-full h-full object-contain"
+            style={{ filter: 'brightness(1.1) saturate(0.9) drop-shadow(0 0 6px rgba(255,255,255,0.12))' }}
           />
         </motion.div>
       ))}
@@ -309,81 +309,12 @@ function FloatingAgentsBg() {
   );
 }
 
-// ── ═══ ПАРЯЩИЕ ИКОНКИ АГЕНТОВ ВОКРУГ ЛОГОТИПА ═══ ──
-const ORBIT_AGENTS = [
-  { icon: '/assets/icons/agents/секретарь.svg', angle: 0, radiusX: 55, radiusY: 30, speed: 25, size: 24 },
-  { icon: '/assets/icons/agents/бухгалтер.svg', angle: 60, radiusX: 60, radiusY: 32, speed: 30, size: 22 },
-  { icon: '/assets/icons/agents/диетолог.svg', angle: 120, radiusX: 50, radiusY: 28, speed: 22, size: 20 },
-  { icon: '/assets/icons/agents/психолог.svg', angle: 180, radiusX: 58, radiusY: 34, speed: 28, size: 24 },
-  { icon: '/assets/icons/agents/ментор.svg', angle: 240, radiusX: 52, radiusY: 26, speed: 26, size: 22 },
-  { icon: '/assets/icons/agents/финансовый ассистент.png', angle: 300, radiusX: 56, radiusY: 30, speed: 24, size: 20 },
-];
 
-function OrbitalAgentsBg() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 flex items-center justify-center">
-      {ORBIT_AGENTS.map((a, i) => (
-        <motion.div
-          key={i}
-          className="absolute"
-          style={{
-            width: a.size,
-            height: a.size,
-          }}
-          initial={{ opacity: 0 }}
-          animate={{
-            opacity: [0, 0.35, 0.15, 0.35, 0],
-            rotate: [0, 15, -15, 10, 0],
-          }}
-          transition={{
-            opacity: {
-              duration: a.speed,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              times: [0, 0.2, 0.5, 0.8, 1],
-              delay: i * 0.5,
-            },
-            rotate: {
-              duration: a.speed * 0.7,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              delay: i * 0.5,
-            },
-          }}
-        >
-          <motion.div
-            className="w-full h-full"
-            animate={{
-              x: [0, Math.cos(a.angle * Math.PI / 180) * a.radiusX, 0],
-              y: [0, Math.sin(a.angle * Math.PI / 180) * a.radiusY, 0],
-            }}
-            transition={{
-              duration: a.speed,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              delay: i * 0.5,
-            }}
-          >
-            <img
-              src={a.icon}
-              alt=""
-              className="w-full h-full object-contain"
-              style={{ filter: 'brightness(0.9) saturate(0.7) drop-shadow(0 0 8px rgba(255,255,255,0.15))' }}
-            />
-          </motion.div>
-        </motion.div>
-      ))}
-    </div>
-  );
-}
 
 // ── ═══ АНИМИРОВАННЫЙ ЛОГОТИП IXTERIA ═══ ──
 function AnimatedIxteriaLogo() {
   return (
-    <div className="relative flex flex-col items-center justify-center pointer-events-none">
-      {/* Парящие иконки агентов позади логотипа */}
-      <OrbitalAgentsBg />
-
+    <div className="relative flex flex-col items-center justify-center" style={{ marginTop: '-96px' }}>
       {/* Внешнее свечение */}
       <motion.div
         className="absolute rounded-full blur-[120px] bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-pink-500/30 scale-[3]"
@@ -400,12 +331,13 @@ function AnimatedIxteriaLogo() {
 
       {/* Центральная иконка — появляется с масштабом и вращением */}
       <motion.div
+        className="relative z-10"
         initial={{ scale: 0, rotate: -180, opacity: 0 }}
         animate={{ scale: 1, rotate: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 100, damping: 12, delay: 0.15 }}
       >
         <motion.div
-          className="relative w-[38vw] h-[38vw] max-w-[220px] max-h-[220px]"
+          className="w-[57vw] h-[57vw] max-w-[330px] max-h-[330px]"
           animate={{
             y: [0, -10, 0],
             rotate: [0, 4, -4, 0],
@@ -425,13 +357,13 @@ function AnimatedIxteriaLogo() {
 
       {/* Серебристая надпись Ixteria под иконкой */}
       <motion.div
-        className="mt-2 text-center"
+        className="mt-2 text-center relative z-10"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.6 }}
       >
         <span
-          className="text-lg lg:text-xl font-bold tracking-[0.15em] uppercase"
+          className="text-2xl lg:text-3xl font-bold tracking-[0.15em] uppercase"
           style={{
             background: 'linear-gradient(135deg, #e8e8e8 0%, #a0a0a0 50%, #e8e8e8 100%)',
             WebkitBackgroundClip: 'text',
