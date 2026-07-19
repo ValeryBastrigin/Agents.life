@@ -1,8 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, useAnimation } from 'framer-motion';
 
-// ── Agent data ──
+// ── Agent data ── (unchanged)
 const AGENTS = [
   {
     id: 'secretary',
@@ -156,7 +156,54 @@ const AGENTS = [
   },
 ];
 
-// ── Пульсирующие градиентные сферы для фона ──
+// ── ═══ СТАР-ПАРТИКЛЫ ═══ ──
+function StarField() {
+  const stars = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < 80; i++) {
+      result.push({
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: Math.random() * 2.5 + 0.5,
+        opacity: Math.random() * 0.5 + 0.15,
+        duration: Math.random() * 4 + 3,
+        delay: Math.random() * 5,
+      });
+    }
+    return result;
+  }, []);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {stars.map((star) => (
+        <motion.div
+          key={star.id}
+          className="absolute rounded-full bg-white"
+          style={{
+            left: `${star.x}%`,
+            top: `${star.y}%`,
+            width: star.size,
+            height: star.size,
+            opacity: star.opacity,
+          }}
+          animate={{
+            opacity: [star.opacity, star.opacity * 2.5, star.opacity],
+            scale: [1, 1.3, 1],
+          }}
+          transition={{
+            duration: star.duration,
+            delay: star.delay,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── ═══ ПУЛЬСИРУЮЩИЕ СФЕРЫ ═══ ──
 const BLUR_COLORS = [
   { color: 'rgba(37, 99, 235, 0.15)', size: 600, x: 20, y: 10, driftX: 25, driftY: 20, speed: 20 },
   { color: 'rgba(147, 51, 234, 0.15)', size: 500, x: 60, y: 40, driftX: -20, driftY: 25, speed: 25 },
@@ -165,90 +212,139 @@ const BLUR_COLORS = [
   { color: 'rgba(217, 119, 6, 0.1)', size: 400, x: 45, y: 70, driftX: 20, driftY: -20, speed: 18 },
 ];
 
-const AnimatedLandingBg = () => (
-  <div className="absolute inset-0 overflow-hidden pointer-events-none">
-    {BLUR_COLORS.map((item, i) => (
-      <motion.div
-        key={i}
-        className="absolute rounded-full"
-        style={{
-          backgroundColor: item.color,
-          filter: 'blur(80px)',
-          width: item.size,
-          height: item.size,
-        }}
-        initial={{
-          x: `${item.x}%`,
-          y: `${item.y}%`,
-          scale: 0.9,
-        }}
-        animate={{
-          x: `${item.x + item.driftX}%`,
-          y: `${item.y + item.driftY}%`,
-          scale: 1.1,
-          opacity: [0.4, 0.7, 0.4],
-        }}
-        transition={{
-          x: { duration: item.speed, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' },
-          y: { duration: item.speed * 1.2, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' },
-          scale: { duration: item.speed * 0.7, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' },
-          opacity: { duration: item.speed * 0.5, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' },
-        }}
-      />
-    ))}
-  </div>
-);
+function AnimatedLandingBg() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {BLUR_COLORS.map((item, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            backgroundColor: item.color,
+            filter: 'blur(80px)',
+            width: item.size,
+            height: item.size,
+          }}
+          initial={{
+            x: `${item.x}%`,
+            y: `${item.y}%`,
+            scale: 0.9,
+          }}
+          animate={{
+            x: `${item.x + item.driftX}%`,
+            y: `${item.y + item.driftY}%`,
+            scale: 1.1,
+            opacity: [0.4, 0.7, 0.4],
+          }}
+          transition={{
+            x: { duration: item.speed, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' },
+            y: { duration: item.speed * 1.2, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' },
+            scale: { duration: item.speed * 0.7, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' },
+            opacity: { duration: item.speed * 0.5, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' },
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
-// ── Парящие иконки агентов — fixed на весь viewport ──
+// ── ═══ ПАРЯЩИЕ ИКОНКИ АГЕНТОВ НА ФОНЕ ═══ ──
 const FLOATING_AGENTS = [
-  { icon: AGENTS[0].icon, x: 5, y: 12, driftX: 20, driftY: 18, delay: 0, scale: 0.8, blur: 'blur-sm' },
-  { icon: AGENTS[1].icon, x: 78, y: 8, driftX: -18, driftY: 30, delay: 1.5, scale: 0.75, blur: 'blur-sm' },
-  { icon: AGENTS[2].icon, x: 2, y: 68, driftX: 22, driftY: -12, delay: 0.8, scale: 0.7, blur: 'blur-[2px]' },
-  { icon: AGENTS[3].icon, x: 82, y: 72, driftX: -12, driftY: -18, delay: 2.2, scale: 0.8, blur: 'blur-sm' },
-  { icon: AGENTS[4].icon, x: 42, y: 3, driftX: 8, driftY: 40, delay: 3, scale: 0.65, blur: 'blur-[2px]' },
-  { icon: AGENTS[0].icon, x: 55, y: 50, driftX: 15, driftY: -25, delay: 4, scale: 0.6, blur: 'blur-[2px]' },
-  { icon: AGENTS[2].icon, x: 20, y: 40, driftX: -20, driftY: 22, delay: 5, scale: 0.55, blur: 'blur-sm' },
-  { icon: AGENTS[3].icon, x: 65, y: 55, driftX: 18, driftY: -18, delay: 6, scale: 0.5, blur: 'blur-[2px]' },
+  { icon: '/assets/icons/agents/секретарь.svg', x: 8, y: 12, driftX: 8, driftY: -5, speed: 14, size: 28 },
+  { icon: '/assets/icons/agents/бухгалтер.svg', x: 85, y: 22, driftX: -6, driftY: 7, speed: 18, size: 24 },
+  { icon: '/assets/icons/agents/диетолог.svg', x: 12, y: 55, driftX: 5, driftY: 8, speed: 16, size: 22 },
+  { icon: '/assets/icons/agents/психолог.svg', x: 82, y: 60, driftX: -8, driftY: -6, speed: 20, size: 26 },
+  { icon: '/assets/icons/agents/ментор.svg', x: 50, y: 8, driftX: 4, driftY: 6, speed: 12, size: 30 },
+  { icon: '/assets/icons/agents/финансовый ассистент.png', x: 18, y: 80, driftX: 7, driftY: -4, speed: 22, size: 20 },
 ];
 
-const FloatingIcons = () => (
-  <>
-    {FLOATING_AGENTS.map((agent, i) => (
-      <motion.div
-        key={i}
-        className={`fixed pointer-events-none z-0 ${agent.blur}`}
-        style={{
-          width: 140,
-          height: 140,
-        }}
-        initial={{
-          left: `${agent.x}vw`,
-          top: `${agent.y}vh`,
-          scale: agent.scale,
-          rotate: 0,
-        }}
-        animate={{
-          left: `${agent.x + agent.driftX}vw`,
-          top: `${agent.y + agent.driftY}vh`,
-          rotate: [0, 10, -10, 5, 0],
-          scale: [agent.scale, agent.scale * 1.3, agent.scale],
-          opacity: [0.2, 0.5, 0.2],
-        }}
-        transition={{
-          left: { duration: 12 + i * 2, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: agent.delay },
-          top: { duration: 10 + i * 2, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: agent.delay },
-          rotate: { duration: 8 + i, repeat: Infinity, ease: 'easeInOut', delay: agent.delay },
-          scale: { duration: 6 + i, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: agent.delay },
-          opacity: { duration: 5 + i, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: agent.delay },
-        }}
-      >
-        <img src={agent.icon} alt="" className="w-full h-full object-contain drop-shadow-2xl" />
-      </motion.div>
-    ))}
-  </>
-);
+function FloatingAgentsBg() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {FLOATING_AGENTS.map((a, i) => (
+        <motion.div
+          key={i}
+          className="absolute"
+          style={{
+            left: `${a.x}%`,
+            top: `${a.y}%`,
+            width: a.size,
+            height: a.size,
+          }}
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{
+            x: [0, a.driftX, 0],
+            y: [0, a.driftY, 0],
+            opacity: [0.12, 0.3, 0.12],
+            scale: [1, 1.15, 1],
+            rotate: [0, 10, -10, 0],
+          }}
+          transition={{
+            duration: a.speed,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: i * 1.5,
+          }}
+        >
+          <img
+            src={a.icon}
+            alt=""
+            className="w-full h-full object-contain opacity-70"
+            style={{ filter: 'brightness(0.8) saturate(0.6)' }}
+          />
+        </motion.div>
+      ))}
+    </div>
+  );
+}
 
-// ── Секция "обзор агентов" (вторая секция после hero) ──
+// ── ═══ АНИМИРОВАННЫЙ ЛОГОТИП IXTERIA ═══ ──
+function AnimatedIxteriaLogo() {
+  return (
+    <div className="relative flex items-center justify-center pointer-events-none">
+      {/* Внешнее свечение */}
+      <motion.div
+        className="absolute rounded-full blur-[120px] bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-pink-500/30 scale-[3]"
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={{ opacity: [0.3, 0.6, 0.3], scale: [2.5, 3.2, 2.5] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute rounded-full blur-[80px] bg-gradient-to-br from-cyan-400/20 to-violet-500/20 scale-[2]"
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={{ opacity: [0.2, 0.5, 0.2], scale: [1.8, 2.4, 1.8] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+      />
+
+      {/* Центральная иконка — появляется с масштабом и вращением */}
+      <motion.div
+        initial={{ scale: 0, rotate: -180, opacity: 0 }}
+        animate={{ scale: 1, rotate: 0, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 100, damping: 12, delay: 0.15 }}
+      >
+        <motion.div
+          className="relative w-[48vw] h-[48vw] max-w-[280px] max-h-[280px]"
+          animate={{
+            y: [0, -12, 0],
+            rotate: [0, 4, -4, 0],
+          }}
+          transition={{
+            y: { duration: 3.5, repeat: Infinity, ease: 'easeInOut' },
+            rotate: { duration: 5, repeat: Infinity, ease: 'easeInOut' },
+          }}
+        >
+          <img
+            src="/assets/icons/agents/ixteria.svg"
+            alt="Ixteria"
+            className="w-full h-full object-contain drop-shadow-2xl"
+          />
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ── ═══ СЕКЦИЯ "ОБЗОР АГЕНТОВ" (вторая секция) ═══ ──
 function AgentsOverviewSection() {
   const sectionRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -259,7 +355,6 @@ function AgentsOverviewSection() {
   const bgOpacity = useTransform(scrollYProgress, [0, 0.15, 0.85, 1], [0.3, 1, 1, 0.3]);
   const bgY = useTransform(scrollYProgress, [0, 0.15, 0.85, 1], [40, 0, 0, -20]);
 
-  // Отдельно для сетки агентов — появление через whileInView
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -285,7 +380,6 @@ function AgentsOverviewSection() {
       className="min-h-screen flex items-center justify-center py-28 px-6 relative z-10"
     >
       <div className="max-w-6xl mx-auto w-full text-center">
-        {/* Заголовок */}
         <motion.h2
           className="text-4xl lg:text-5xl font-bold text-white mb-4"
           initial={{ opacity: 0, y: 30 }}
@@ -309,7 +403,6 @@ function AgentsOverviewSection() {
           И их количество постоянно растёт. Каждый агент — специалист в своей области.
         </motion.p>
 
-        {/* Счётчик-тикер */}
         <motion.div
           className="flex items-center justify-center gap-2 mb-14"
           initial={{ opacity: 0, scale: 0.8 }}
@@ -324,7 +417,6 @@ function AgentsOverviewSection() {
           <span className="text-gray-500 text-2xl">∞</span>
         </motion.div>
 
-        {/* Иконки агентов — капсулы liquid glass */}
         <motion.div
           className="flex flex-col items-center gap-6 max-w-md mx-auto mb-16"
           variants={containerVariants}
@@ -343,7 +435,6 @@ function AgentsOverviewSection() {
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
             >
-              {/* Liquid glass capsule */}
               <div className="relative flex items-center gap-5 px-8 py-5 rounded-full overflow-hidden
                 bg-white/[0.04] backdrop-blur-xl
                 border border-white/[0.08]
@@ -352,13 +443,11 @@ function AgentsOverviewSection() {
                 before:bg-gradient-to-br before:from-white/[0.06] before:to-transparent
                 before:pointer-events-none"
               >
-                {/* Glow on hover */}
                 <div
                   className="absolute -inset-2 rounded-full blur-xl opacity-0 group-hover:opacity-60 transition-opacity duration-500 pointer-events-none"
                   style={{ backgroundColor: agent.bgColor }}
                 />
 
-                {/* Icon */}
                 <div className="relative flex-shrink-0 z-10">
                   <img
                     src={agent.icon}
@@ -367,12 +456,10 @@ function AgentsOverviewSection() {
                   />
                 </div>
 
-                {/* Name */}
                 <span className={`relative z-10 font-semibold ${agent.textColor} text-xl lg:text-2xl leading-tight`}>
                   {agent.name}
                 </span>
 
-                {/* Subtle bottom border glow */}
                 <div
                   className="absolute bottom-0 left-[10%] right-[10%] h-[1px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
                   style={{
@@ -385,7 +472,6 @@ function AgentsOverviewSection() {
           ))}
         </motion.div>
 
-        {/* Анимированные линии связи между агентами */}
         <motion.div
           className="relative h-0 mx-auto mb-16 max-w-4xl"
           initial={{ opacity: 0 }}
@@ -412,7 +498,7 @@ function AgentsOverviewSection() {
                 y1={line.y1}
                 x2={line.x1}
                 y2={line.y1}
-                stroke="url(#gradientLine)"
+                stroke="url(#gradientLine2)"
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeDasharray="6 6"
@@ -427,7 +513,7 @@ function AgentsOverviewSection() {
               />
             ))}
             <defs>
-              <linearGradient id="gradientLine" x1="0" y1="0" x2="1" y2="0">
+              <linearGradient id="gradientLine2" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor="#3b82f6" />
                 <stop offset="50%" stopColor="#a855f7" />
                 <stop offset="100%" stopColor="#ec4899" />
@@ -436,7 +522,6 @@ function AgentsOverviewSection() {
           </svg>
         </motion.div>
 
-        {/* Блок про отличие от LLM */}
         <motion.div
           className="max-w-4xl mx-auto px-6 py-10 rounded-3xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 backdrop-blur-sm"
           initial={{ opacity: 0, y: 40 }}
@@ -515,7 +600,6 @@ function AgentsOverviewSection() {
             </div>
           </div>
 
-          {/* Вывод-цитата */}
           <motion.p
             className="text-gray-500 italic text-sm mt-6 text-center max-w-xl mx-auto"
             initial={{ opacity: 0 }}
@@ -529,7 +613,6 @@ function AgentsOverviewSection() {
           </motion.p>
         </motion.div>
 
-        {/* Скролл-индикатор */}
         <motion.div
           className="mt-12"
           initial={{ opacity: 0 }}
@@ -553,7 +636,7 @@ function AgentsOverviewSection() {
   );
 }
 
-// ── Один агент (секция) ──
+// ── ═══ СЕКЦИЯ ОДНОГО АГЕНТА ═══ ──
 function AgentSection({ agent, index }) {
   const sectionRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -576,13 +659,11 @@ function AgentSection({ agent, index }) {
     >
       <div className="max-w-6xl mx-auto w-full">
         <div className={`flex flex-col ${isEven ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-12 lg:gap-20`}>
-          {/* ── Иконка агента с подсветкой ── */}
           <motion.div
             className="flex-shrink-0 relative"
             whileHover={{ scale: 1.05 }}
             transition={{ type: 'spring', stiffness: 300 }}
           >
-            {/* Свечение как у Ixteria */}
             <div
               className="absolute inset-0 rounded-full blur-[80px] opacity-50 scale-150"
               style={{ backgroundColor: agent.bgColor }}
@@ -594,7 +675,6 @@ function AgentSection({ agent, index }) {
             />
           </motion.div>
 
-          {/* ── Контент ── */}
           <div className="flex-1 space-y-8">
             <div>
               <span className={`text-sm font-semibold uppercase tracking-widest ${agent.textColor}`}>
@@ -605,7 +685,6 @@ function AgentSection({ agent, index }) {
               </h2>
             </div>
 
-            {/* ПРОБЛЕМА */}
             <div className="space-y-3">
               <p className="text-red-400/80 text-sm font-medium uppercase tracking-wide">
                 С чем вы сталкиваетесь
@@ -625,7 +704,6 @@ function AgentSection({ agent, index }) {
               </div>
             </div>
 
-            {/* РЕШЕНИЕ */}
             <div className="space-y-3">
               <p className={`${agent.textColor} text-sm font-medium uppercase tracking-wide`}>
                 Решение
@@ -648,7 +726,6 @@ function AgentSection({ agent, index }) {
               </div>
             </div>
 
-            {/* РЕЗУЛЬТАТЫ */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {agent.results.map((result, i) => (
                 <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
@@ -660,7 +737,6 @@ function AgentSection({ agent, index }) {
               ))}
             </div>
 
-            {/* Функции */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {agent.features.map((feature, i) => (
                 <div key={i} className="flex items-center gap-2 text-gray-400 text-sm">
@@ -678,6 +754,7 @@ function AgentSection({ agent, index }) {
   );
 }
 
+// ── ═══ ГЛАВНЫЙ ЭКСПОРТ ═══ ──
 export default function LandingPage() {
   const navigate = useNavigate();
   const heroRef = useRef(null);
@@ -686,178 +763,274 @@ export default function LandingPage() {
     offset: ['start start', 'end start'],
   });
 
-  const heroOpacity = useTransform(heroScroll, [0, 1], [1, 0]);
-  const heroY = useTransform(heroScroll, [0, 1], [0, -100]);
-  const heroScale = useTransform(heroScroll, [0, 1], [1, 0.95]);
+  const heroOpacity = useTransform(heroScroll, [0, 0.5], [1, 0]);
+  const heroY = useTransform(heroScroll, [0, 0.5], [0, -80]);
+  const heroScale = useTransform(heroScroll, [0, 0.5], [1, 0.95]);
 
   return (
-    <div className="relative min-h-screen bg-gray-950 text-white">
-      {/* ── Переливающийся фон ── */}
+    <div className="relative min-h-screen bg-[#0a0e1a] text-white overflow-x-hidden">
+      {/* ── Фоновые элементы (применяются ко всей странице) ── */}
+      {/* Глубокий космический градиент */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 100% 60% at 50% 0%, rgba(25, 60, 150, 0.25) 0%, transparent 60%), ' +
+            'radial-gradient(ellipse 80% 50% at 80% 100%, rgba(100, 30, 180, 0.15) 0%, transparent 60%), ' +
+            'radial-gradient(ellipse 60% 40% at 20% 80%, rgba(30, 100, 200, 0.12) 0%, transparent 50%), ' +
+            'linear-gradient(180deg, #0a0e1a 0%, #0d1428 40%, #0f0b1a 100%)',
+        }}
+      />
+
+      {/* Мерцающие звёзды */}
+      <StarField />
+
+      {/* Пульсирующие градиентные сферы */}
       <AnimatedLandingBg />
 
-      {/* ── Парящие иконки агентов (поверх фона, но под контентом) ── */}
-      <FloatingIcons />
+      {/* Парящие иконки агентов на фоне */}
+      <FloatingAgentsBg />
 
-      {/* ── Навигация (Вход) ── */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4">
+      {/* ── ХЕДЕР (фиксированный) ── */}
+      <header
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4"
+        style={{
+          paddingTop: 'max(16px, env(safe-area-inset-top))',
+          paddingLeft: 'max(24px, env(safe-area-inset-left))',
+          paddingRight: 'max(24px, env(safe-area-inset-right))',
+        }}
+      >
         <div className="flex items-center gap-3">
-          <img src="/assets/icons/agents/ixteria.svg" alt="Ixteria" className="w-8 h-8" />
-          <span className="text-xl font-bold text-white">Ixteria</span>
+          <img
+            src="/assets/icons/agents/ixteria.svg"
+            alt="Ixteria"
+            className="w-9 h-9 lg:w-11 lg:h-11 drop-shadow-lg"
+          />
+          <span className="text-xl lg:text-2xl font-bold text-white tracking-tight">Ixteria</span>
         </div>
+
         <button
           onClick={() => navigate('/login')}
-          className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-medium transition-all duration-300 hover:scale-105 backdrop-blur-md"
+          className="px-5 py-2 lg:px-7 lg:py-2.5 rounded-full border border-white/25 text-white/90 text-sm lg:text-base font-medium
+            hover:bg-white/10 hover:border-white/40 transition-all duration-300 backdrop-blur-md active:scale-95"
         >
           Вход
         </button>
       </header>
 
-      {/* ── Хиро-секция ── */}
+      {/* ── SPACER ДЛЯ ФИКСИРОВАННОГО ХЕДЕРА ── */}
+      <div className="h-12 lg:h-16" />
+
+      {/* ── HERO-СЕКЦИЯ ── */}
       <motion.section
         ref={heroRef}
         style={{ opacity: heroOpacity, y: heroY, scale: heroScale }}
-        className="min-h-screen flex flex-col items-center justify-center text-center px-6 relative z-10"
+        className="relative z-10 flex flex-col items-center min-h-screen px-6"
       >
-        {/* ── Иконка Ixteria (без круглого контейнера) ── */}
-        <motion.div
-          className="mb-8 relative"
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 150, damping: 15, delay: 0.2 }}
-        >
-          {/* Свечение */}
-          <div className="absolute inset-0 rounded-full blur-[100px] bg-gradient-to-r from-blue-500/40 via-purple-500/40 to-pink-500/40 scale-[2] animate-pulse" />
-          <div className="absolute inset-0 rounded-full blur-[60px] bg-gradient-to-br from-cyan-400/30 to-violet-500/30 scale-150" />
+        {/* ══ ВЕРХНИЙ БЛОК: текст (расширен на ПК) ══ */}
+        <div className="w-full max-w-lg lg:max-w-3xl xl:max-w-4xl mx-auto flex flex-col items-start flex-1 justify-center gap-3 -mt-4 lg:-mt-8">
+          {/* Badge — поднят выше */}
+          <motion.div
+            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-white/70 text-xs lg:text-sm font-medium tracking-wide backdrop-blur-sm"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.6 }}
+          >
+            <span className="text-sm">✨</span>
+            <span>Ваши ИИ-агенты в одном месте</span>
+          </motion.div>
 
-          {/* Только иконка, без круга-контейнера */}
-          <img
-            src="/assets/icons/agents/ixteria.svg"
-            alt="Ixteria"
-            className="w-40 h-40 lg:w-56 lg:h-56 object-contain drop-shadow-2xl relative"
-          />
+          {/* H1 заголовок — увеличен и расширен на ПК */}
+          <motion.h1
+            className="text-[2.4rem] lg:text-[4.2rem] xl:text-[4.8rem] leading-[1.1] font-extrabold tracking-tight text-white w-full"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
+          >
+            <span className="block">Соберите свою</span>
+            <span className="block">
+              команду{' '}
+              <span className="bg-gradient-to-r from-pink-400 via-fuchsia-400 to-purple-400 bg-clip-text text-transparent">
+                ИИ-агентов
+              </span>
+            </span>
+            <span className="block">для работы и жизни</span>
+          </motion.h1>
+
+          {/* Описание — расширен на ПК */}
+          <motion.p
+            className="text-gray-400 text-sm lg:text-lg leading-relaxed max-w-sm lg:max-w-xl xl:max-w-2xl"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.7 }}
+          >
+            Финансы, здоровье, продуктивность и развитие — доверяйте задачи своим ИИ-агентам. Они работают, пока вы занимаетесь важным.
+          </motion.p>
+        </div>
+
+        {/* ══ АНИМИРОВАННЫЙ ЛОГОТИП IXTERIA (увеличен в 2 раза, с левитацией) ══ */}
+        <div className="relative w-full flex-1 flex items-center justify-center my-2">
+          <AnimatedIxteriaLogo />
+        </div>
+
+        {/* ══ CTA КНОПКА ══ */}
+        <motion.div
+          className="w-full max-w-lg mx-auto mb-3"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+        >
+          <button
+            onClick={() => navigate('/login')}
+            className="w-full py-4 lg:py-5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600
+              text-white text-lg lg:text-xl font-semibold tracking-wide
+              shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30
+              active:scale-[0.98] transition-all duration-200
+              flex items-center justify-center gap-2"
+          >
+            <span>Попробовать бесплатно</span>
+            <svg className="w-5 h-5 lg:w-6 lg:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
         </motion.div>
 
-        {/* Заголовок — серебристый */}
-        <motion.h1
-          className="text-6xl lg:text-8xl font-black mb-6 leading-tight relative z-10 tracking-tight"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
-        >
-          <span className="bg-gradient-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent drop-shadow-lg">
-            Ixteria
-          </span>
-        </motion.h1>
-
-        {/* Подзаголовок */}
-        <motion.p
-          className="text-lg lg:text-2xl text-gray-300 max-w-3xl leading-relaxed mb-10 relative z-10"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.8 }}
-        >
-          Соберите команду ИИ-агентов: от финансового аналитика и диетолога
-          до тайм-менеджера и психотерапевта.
-          <br />
-          <span className="text-white font-semibold">
-            Автоматизируй жизнь и работу вместе с Ixteria.
-          </span>
-        </motion.p>
-
-        {/* Скролл-индикатор */}
+        {/* ══ БЛОК ДОВЕРИЯ ══ */}
         <motion.div
-          className="absolute bottom-10"
+          className="flex items-center justify-center gap-2 text-gray-500 text-xs lg:text-sm mb-6 flex-wrap"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.5 }}
+          transition={{ delay: 0.65, duration: 0.6 }}
+        >
+          <span className="flex items-center gap-1">
+            <svg className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-emerald-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            Бесплатный доступ
+          </span>
+          <span className="text-gray-600">•</span>
+          <span className="flex items-center gap-1">
+            <svg className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-emerald-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            Без карты
+          </span>
+          <span className="text-gray-600">•</span>
+          <span className="flex items-center gap-1">
+            <svg className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-emerald-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            Отмена в любой момент
+          </span>
+        </motion.div>
+
+        {/* ══ СКРОЛЛ-ИНДИКАТОР ══ */}
+        <motion.div
+          className="relative"
+          style={{
+            marginBottom: 'max(16px, env(safe-area-inset-bottom))',
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2, duration: 0.8 }}
         >
           <motion.div
-            animate={{ y: [0, 12, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            className="text-gray-500 flex flex-col items-center gap-2"
+            animate={{
+              y: [0, 10, 0],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            className="flex flex-col items-center gap-1"
           >
-            <span className="text-xs uppercase tracking-widest">Узнать больше</span>
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            <span className="text-[10px] lg:text-xs uppercase tracking-[0.2em] text-gray-600 font-medium">
+              Листайте
+            </span>
+            <svg
+              className="w-5 h-5 lg:w-6 lg:h-6 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
           </motion.div>
         </motion.div>
       </motion.section>
 
-      {/* ── Секция "Обзор агентов" (вторая секция) ── */}
+      {/* ── СЕКЦИЯ "ОБЗОР АГЕНТОВ" ── */}
       <AgentsOverviewSection />
 
-      {/* ── Секции агентов ── */}
+      {/* ── СЕКЦИИ АГЕНТОВ ── */}
       <div className="relative z-10">
         {AGENTS.map((agent, index) => (
           <AgentSection key={agent.id} agent={agent} index={index} />
         ))}
       </div>
 
-      {/* ── CTA: Начать использовать ── */}
+      {/* ── CTA: НАЧАТЬ ИСПОЛЬЗОВАТЬ ── */}
       <motion.section
         className="min-h-[60vh] flex flex-col items-center justify-center text-center px-6 relative z-10 pb-20"
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
-        viewport={{ once: true, margin: '-100px' }}
+        viewport={{ once: true }}
         transition={{ duration: 0.8 }}
       >
-        <div className="max-w-2xl">
-          <motion.h2
-            className="text-4xl lg:text-5xl font-bold text-white mb-6"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
-            Готовы собрать свою{' '}
-            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              команду ИИ-агентов
-            </span>
-            ?
-          </motion.h2>
+        <motion.h2
+          className="text-4xl lg:text-5xl font-bold text-white mb-6"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ delay: 0.2, duration: 0.6 }}
+        >
+          Готовы начать?
+        </motion.h2>
 
-          <motion.p
-            className="text-gray-400 text-lg mb-10 leading-relaxed"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-          >
-            Пять специалистов, одна платформа. Финансы, питание, продуктивность,
-            психологическая поддержка и развитие — всё в одном окне.
-          </motion.p>
+        <motion.p
+          className="text-gray-400 text-lg max-w-md mx-auto mb-10"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ delay: 0.35, duration: 0.6 }}
+        >
+          Соберите свою команду ИИ-агентов уже сегодня. Первые 7 дней — бесплатно.
+        </motion.p>
 
-          <motion.button
-            onClick={() => navigate('/login')}
-            className="px-10 py-4 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white text-lg font-semibold shadow-2xl shadow-purple-500/30 hover:scale-105 transition-all duration-300"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.6 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            Начать использовать
-          </motion.button>
-
-          <motion.p
-            className="text-gray-600 text-sm mt-6"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.8 }}
-          >
-            Бесплатный старт • Без привязки карты • 5 агентов в базовом плане
-          </motion.p>
-        </div>
+        <motion.button
+          onClick={() => navigate('/login')}
+          className="px-10 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600
+            text-white text-lg font-semibold tracking-wide
+            shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30
+            active:scale-[0.98] transition-all duration-200"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          Попробовать бесплатно
+        </motion.button>
       </motion.section>
 
-      {/* ── Футер ── */}
-      <footer className="relative z-10 text-center py-8 border-t border-white/10">
-        <p className="text-gray-600 text-sm">
-          © 2026 Ixteria. Все права защищены.
-        </p>
+      {/* ── ФУТЕР ── */}
+      <footer className="relative z-10 border-t border-white/5 py-8 px-6">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <img
+              src="/assets/icons/agents/ixteria.svg"
+              alt="Ixteria"
+              className="w-6 h-6 opacity-40"
+            />
+            <span className="text-gray-500 text-sm font-medium">Ixteria</span>
+          </div>
+          <p className="text-gray-600 text-xs">
+            © 2026 Ixteria. Все права защищены.
+          </p>
+        </div>
       </footer>
     </div>
   );
