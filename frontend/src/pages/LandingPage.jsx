@@ -250,18 +250,29 @@ function AnimatedLandingBg() {
 
 // ── ═══ ПАРЯЩИЕ ИКОНКИ АГЕНТОВ НА ФОНЕ ═══ ──
 const FLOATING_AGENTS = [
-  { icon: '/assets/icons/agents/секретарь.svg', x: 8, y: 12, driftX: 8, driftY: -5, speed: 14, size: 28 },
-  { icon: '/assets/icons/agents/бухгалтер.svg', x: 85, y: 22, driftX: -6, driftY: 7, speed: 18, size: 24 },
-  { icon: '/assets/icons/agents/диетолог.svg', x: 12, y: 55, driftX: 5, driftY: 8, speed: 16, size: 22 },
-  { icon: '/assets/icons/agents/психолог.svg', x: 82, y: 60, driftX: -8, driftY: -6, speed: 20, size: 26 },
-  { icon: '/assets/icons/agents/ментор.svg', x: 50, y: 8, driftX: 4, driftY: 6, speed: 12, size: 30 },
-  { icon: '/assets/icons/agents/финансовый ассистент.png', x: 18, y: 80, driftX: 7, driftY: -4, speed: 22, size: 20 },
+  { icon: '/assets/icons/agents/секретарь.svg', x: 5, y: 10, driftX: 10, driftY: -8, speed: 14, size: 72 },
+  { icon: '/assets/icons/agents/бухгалтер.svg', x: 82, y: 18, driftX: -8, driftY: 10, speed: 18, size: 64 },
+  { icon: '/assets/icons/agents/диетолог.svg', x: 8, y: 50, driftX: 6, driftY: 10, speed: 16, size: 60 },
+  { icon: '/assets/icons/agents/психолог.svg', x: 80, y: 55, driftX: -10, driftY: -8, speed: 20, size: 68 },
+  { icon: '/assets/icons/agents/ментор.svg', x: 48, y: 5, driftX: 5, driftY: 8, speed: 12, size: 78 },
+  { icon: '/assets/icons/agents/финансовый ассистент.png', x: 15, y: 78, driftX: 8, driftY: -6, speed: 22, size: 56 },
+];
+
+// Дополнительные фоновые иконки для заполнения всей высоты страницы
+const FLOATING_AGENTS_EXTRA = [
+  { icon: '/assets/icons/agents/секретарь.svg', x: 90, y: 42, driftX: -7, driftY: 8, speed: 19, size: 52 },
+  { icon: '/assets/icons/agents/бухгалтер.svg', x: 3, y: 33, driftX: 8, driftY: -9, speed: 21, size: 48 },
+  { icon: '/assets/icons/agents/диетолог.svg', x: 72, y: 75, driftX: -6, driftY: 7, speed: 17, size: 48 },
+  { icon: '/assets/icons/agents/психолог.svg', x: 28, y: 90, driftX: 7, driftY: -6, speed: 23, size: 52 },
+  { icon: '/assets/icons/agents/ментор.svg', x: 58, y: 45, driftX: -8, driftY: 7, speed: 15, size: 56 },
+  { icon: '/assets/icons/agents/финансовый ассистент.png', x: 38, y: 22, driftX: 6, driftY: 8, speed: 20, size: 44 },
 ];
 
 function FloatingAgentsBg() {
+  const allAgents = [...FLOATING_AGENTS, ...FLOATING_AGENTS_EXTRA];
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {FLOATING_AGENTS.map((a, i) => (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      {allAgents.map((a, i) => (
         <motion.div
           key={i}
           className="absolute"
@@ -273,14 +284,14 @@ function FloatingAgentsBg() {
           }}
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{
-            x: [0, a.driftX, 0],
-            y: [0, a.driftY, 0],
-            opacity: [0.12, 0.3, 0.12],
-            scale: [1, 1.15, 1],
-            rotate: [0, 10, -10, 0],
+            x: [0, a.driftX * 2, 0],
+            y: [0, a.driftY * 2, 0],
+            opacity: [0.06, 0.22, 0.06],
+            scale: [1, 1.2, 1],
+            rotate: [0, 12, -12, 0],
           }}
           transition={{
-            duration: a.speed,
+            duration: a.speed + 5,
             repeat: Infinity,
             ease: 'easeInOut',
             delay: i * 1.5,
@@ -298,10 +309,81 @@ function FloatingAgentsBg() {
   );
 }
 
+// ── ═══ ПАРЯЩИЕ ИКОНКИ АГЕНТОВ ВОКРУГ ЛОГОТИПА ═══ ──
+const ORBIT_AGENTS = [
+  { icon: '/assets/icons/agents/секретарь.svg', angle: 0, radiusX: 55, radiusY: 30, speed: 25, size: 24 },
+  { icon: '/assets/icons/agents/бухгалтер.svg', angle: 60, radiusX: 60, radiusY: 32, speed: 30, size: 22 },
+  { icon: '/assets/icons/agents/диетолог.svg', angle: 120, radiusX: 50, radiusY: 28, speed: 22, size: 20 },
+  { icon: '/assets/icons/agents/психолог.svg', angle: 180, radiusX: 58, radiusY: 34, speed: 28, size: 24 },
+  { icon: '/assets/icons/agents/ментор.svg', angle: 240, radiusX: 52, radiusY: 26, speed: 26, size: 22 },
+  { icon: '/assets/icons/agents/финансовый ассистент.png', angle: 300, radiusX: 56, radiusY: 30, speed: 24, size: 20 },
+];
+
+function OrbitalAgentsBg() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 flex items-center justify-center">
+      {ORBIT_AGENTS.map((a, i) => (
+        <motion.div
+          key={i}
+          className="absolute"
+          style={{
+            width: a.size,
+            height: a.size,
+          }}
+          initial={{ opacity: 0 }}
+          animate={{
+            opacity: [0, 0.35, 0.15, 0.35, 0],
+            rotate: [0, 15, -15, 10, 0],
+          }}
+          transition={{
+            opacity: {
+              duration: a.speed,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              times: [0, 0.2, 0.5, 0.8, 1],
+              delay: i * 0.5,
+            },
+            rotate: {
+              duration: a.speed * 0.7,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              delay: i * 0.5,
+            },
+          }}
+        >
+          <motion.div
+            className="w-full h-full"
+            animate={{
+              x: [0, Math.cos(a.angle * Math.PI / 180) * a.radiusX, 0],
+              y: [0, Math.sin(a.angle * Math.PI / 180) * a.radiusY, 0],
+            }}
+            transition={{
+              duration: a.speed,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              delay: i * 0.5,
+            }}
+          >
+            <img
+              src={a.icon}
+              alt=""
+              className="w-full h-full object-contain"
+              style={{ filter: 'brightness(0.9) saturate(0.7) drop-shadow(0 0 8px rgba(255,255,255,0.15))' }}
+            />
+          </motion.div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
 // ── ═══ АНИМИРОВАННЫЙ ЛОГОТИП IXTERIA ═══ ──
 function AnimatedIxteriaLogo() {
   return (
-    <div className="relative flex items-center justify-center pointer-events-none">
+    <div className="relative flex flex-col items-center justify-center pointer-events-none">
+      {/* Парящие иконки агентов позади логотипа */}
+      <OrbitalAgentsBg />
+
       {/* Внешнее свечение */}
       <motion.div
         className="absolute rounded-full blur-[120px] bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-pink-500/30 scale-[3]"
@@ -323,9 +405,9 @@ function AnimatedIxteriaLogo() {
         transition={{ type: 'spring', stiffness: 100, damping: 12, delay: 0.15 }}
       >
         <motion.div
-          className="relative w-[48vw] h-[48vw] max-w-[280px] max-h-[280px]"
+          className="relative w-[38vw] h-[38vw] max-w-[220px] max-h-[220px]"
           animate={{
-            y: [0, -12, 0],
+            y: [0, -10, 0],
             rotate: [0, 4, -4, 0],
           }}
           transition={{
@@ -339,6 +421,26 @@ function AnimatedIxteriaLogo() {
             className="w-full h-full object-contain drop-shadow-2xl"
           />
         </motion.div>
+      </motion.div>
+
+      {/* Серебристая надпись Ixteria под иконкой */}
+      <motion.div
+        className="mt-2 text-center"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.6 }}
+      >
+        <span
+          className="text-lg lg:text-xl font-bold tracking-[0.15em] uppercase"
+          style={{
+            background: 'linear-gradient(135deg, #e8e8e8 0%, #a0a0a0 50%, #e8e8e8 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            textShadow: '0 0 20px rgba(200,200,200,0.2), 0 0 40px rgba(200,200,200,0.1)',
+          }}
+        >
+          Ixteria
+        </span>
       </motion.div>
     </div>
   );
@@ -767,6 +869,14 @@ export default function LandingPage() {
   const heroY = useTransform(heroScroll, [0, 0.5], [0, -80]);
   const heroScale = useTransform(heroScroll, [0, 0.5], [1, 0.95]);
 
+  // При перезагрузке — скроллим наверх, чтобы избежать "швыряния"
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   return (
     <div className="relative min-h-screen bg-[#0a0e1a] text-white overflow-x-hidden">
       {/* ── Фоновые элементы (применяются ко всей странице) ── */}
@@ -821,6 +931,9 @@ export default function LandingPage() {
       {/* ── SPACER ДЛЯ ФИКСИРОВАННОГО ХЕДЕРА ── */}
       <div className="h-12 lg:h-16" />
 
+      {/* ── ВСЕ ЭЛЕМЕНТЫ СТРАНИЦЫ ПОДНЯТЫ НА 24px ВВЕРХ (кроме хедера) ── */}
+      <div style={{ marginTop: '-48px' }}>
+
       {/* ── HERO-СЕКЦИЯ ── */}
       <motion.section
         ref={heroRef}
@@ -828,7 +941,7 @@ export default function LandingPage() {
         className="relative z-10 flex flex-col items-center min-h-screen px-6"
       >
         {/* ══ ВЕРХНИЙ БЛОК: текст (расширен на ПК) ══ */}
-        <div className="w-full max-w-lg lg:max-w-3xl xl:max-w-4xl mx-auto flex flex-col items-start flex-1 justify-center gap-3 -mt-4 lg:-mt-8">
+        <div className="w-full max-w-lg lg:max-w-3xl xl:max-w-4xl mx-auto flex flex-col items-start flex-1 justify-center gap-2 -mt-4 lg:-mt-8">
           {/* Badge — поднят выше */}
           <motion.div
             className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-white/70 text-xs lg:text-sm font-medium tracking-wide backdrop-blur-sm"
@@ -842,16 +955,15 @@ export default function LandingPage() {
 
           {/* H1 заголовок — увеличен и расширен на ПК */}
           <motion.h1
-            className="text-[2.4rem] lg:text-[4.2rem] xl:text-[4.8rem] leading-[1.1] font-extrabold tracking-tight text-white w-full"
+            className="text-[2rem] lg:text-[4.2rem] xl:text-[4.8rem] leading-[1.1] font-extrabold tracking-tight text-white w-full"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.7 }}
           >
-            <span className="block">Соберите свою</span>
+            <span className="block">Ваши персональные</span>
             <span className="block">
-              команду{' '}
               <span className="bg-gradient-to-r from-pink-400 via-fuchsia-400 to-purple-400 bg-clip-text text-transparent">
-                ИИ-агентов
+                ИИ-агенты
               </span>
             </span>
             <span className="block">для работы и жизни</span>
@@ -859,7 +971,7 @@ export default function LandingPage() {
 
           {/* Описание — расширен на ПК */}
           <motion.p
-            className="text-gray-400 text-sm lg:text-lg leading-relaxed max-w-sm lg:max-w-xl xl:max-w-2xl"
+            className="text-gray-400 text-sm lg:text-lg leading-relaxed max-w-sm lg:max-w-xl xl:max-w-2xl mb-1"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35, duration: 0.7 }}
@@ -869,13 +981,13 @@ export default function LandingPage() {
         </div>
 
         {/* ══ АНИМИРОВАННЫЙ ЛОГОТИП IXTERIA (увеличен в 2 раза, с левитацией) ══ */}
-        <div className="relative w-full flex-1 flex items-center justify-center my-2">
+        <div className="relative w-full flex-1 flex items-center justify-center my-1">
           <AnimatedIxteriaLogo />
         </div>
 
         {/* ══ CTA КНОПКА ══ */}
         <motion.div
-          className="w-full max-w-lg mx-auto mb-3"
+          className="w-full max-w-lg mx-auto mb-2"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.6 }}
@@ -897,7 +1009,7 @@ export default function LandingPage() {
 
         {/* ══ БЛОК ДОВЕРИЯ ══ */}
         <motion.div
-          className="flex items-center justify-center gap-2 text-gray-500 text-xs lg:text-sm mb-6 flex-wrap"
+          className="flex items-center justify-center gap-2 text-gray-500 text-xs lg:text-sm mb-4 flex-wrap"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.65, duration: 0.6 }}
@@ -928,7 +1040,7 @@ export default function LandingPage() {
         <motion.div
           className="relative"
           style={{
-            marginBottom: 'max(16px, env(safe-area-inset-bottom))',
+            marginBottom: 'max(12px, env(safe-area-inset-bottom))',
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -936,20 +1048,20 @@ export default function LandingPage() {
         >
           <motion.div
             animate={{
-              y: [0, 10, 0],
+              y: [0, 8, 0],
             }}
             transition={{
               duration: 2,
               repeat: Infinity,
               ease: 'easeInOut',
             }}
-            className="flex flex-col items-center gap-1"
+            className="flex flex-col items-center gap-0.5"
           >
-            <span className="text-[10px] lg:text-xs uppercase tracking-[0.2em] text-gray-600 font-medium">
+            <span className="text-[9px] lg:text-[10px] uppercase tracking-[0.25em] text-gray-600 font-medium">
               Листайте
             </span>
             <svg
-              className="w-5 h-5 lg:w-6 lg:h-6 text-gray-500"
+              className="w-4 h-4 lg:w-5 lg:h-5 text-gray-500"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1015,6 +1127,8 @@ export default function LandingPage() {
           Попробовать бесплатно
         </motion.button>
       </motion.section>
+
+      </div>
 
       {/* ── ФУТЕР ── */}
       <footer className="relative z-10 border-t border-white/5 py-8 px-6">
