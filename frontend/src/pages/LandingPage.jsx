@@ -379,6 +379,14 @@ function AnimatedIxteriaLogo() {
 }
 
 // ── ═══ СЕКЦИЯ "ОБЗОР АГЕНТОВ" (вторая секция) ═══ ──
+const AGENT_DESCRIPTIONS = {
+  'Тайм-менеджер': 'Создавайте расписание, планируйте дела, обсуждайте события',
+  'Финансовый помощник': 'Анализируйте расходы и инвестиции, обсуждайте траты и доходы с агентом',
+  'Диетолог': 'Обсуждайте питание, следите за КБЖУ, создавайте индивидуальный рацион',
+  'Психолог': 'Начинайте сеансы психотерапии, открывайтесь, анализируйте ваши сеансы вместе с психологом',
+  'Ментор': 'Обсудите свою мечту с Ментором и сделайте ее реальной',
+};
+
 function AgentsOverviewSection() {
   const sectionRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -389,181 +397,100 @@ function AgentsOverviewSection() {
   const bgOpacity = useTransform(scrollYProgress, [0, 0.15, 0.85, 1], [0.3, 1, 1, 0.3]);
   const bgY = useTransform(scrollYProgress, [0, 0.15, 0.85, 1], [40, 0, 0, -20]);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.12, delayChildren: 0.2 },
-    },
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 40, scale: 0.85 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: { type: 'spring', stiffness: 180, damping: 18 },
-    },
-  };
-
   return (
     <motion.section
       ref={sectionRef}
       style={{ opacity: bgOpacity, y: bgY }}
-      className="min-h-screen flex items-center justify-center py-28 px-6 relative z-10"
+      className="min-h-screen flex items-center justify-center py-4 px-4 relative z-10"
     >
-      <div className="max-w-6xl mx-auto w-full text-center">
+      <div className="max-w-6xl mx-auto w-full">
         <motion.h2
-          className="text-4xl lg:text-5xl font-bold text-white mb-4"
-          initial={{ opacity: 0, y: 30 }}
+          className="text-2xl lg:text-4xl font-bold text-white mb-1 text-center"
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6 }}
         >
-          Вас уже ждут{' '}
+          Ваши{' '}
           <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            5 AI-агентов
+            AI-агенты
           </span>
         </motion.h2>
 
         <motion.p
-          className="text-gray-400 text-lg max-w-2xl mx-auto mb-4"
+          className="text-gray-400 text-xs lg:text-sm max-w-xl mx-auto mb-3 text-center"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ delay: 0.15, duration: 0.6 }}
         >
-          И их количество постоянно растёт. Каждый агент — специалист в своей области.
+          Каждый — эксперт в своей области. Нажмите, чтобы узнать больше.
         </motion.p>
 
-        <motion.div
-          className="flex items-center justify-center gap-2 mb-14"
-          initial={{ opacity: 0, scale: 0.8 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ delay: 0.25, type: 'spring', stiffness: 200 }}
-        >
-          <span className="text-5xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            5
-          </span>
-          <span className="text-gray-500 text-lg">/</span>
-          <span className="text-gray-500 text-2xl">∞</span>
-        </motion.div>
-
-        <motion.div
-          className="flex flex-col items-center gap-6 max-w-md mx-auto mb-16"
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-50px' }}
-        >
+        <div className="flex flex-col gap-3 lg:gap-4 max-w-2xl mx-auto mb-10">
           {AGENTS.map((agent) => (
             <motion.div
               key={agent.id}
-              variants={cardVariants}
-              whileHover={{ scale: 1.05, y: -3 }}
-              className="relative w-full group cursor-pointer"
+              whileHover={{ scale: 1.02, x: 6 }}
+              whileTap={{ scale: 0.99 }}
+              className="relative group cursor-pointer flex items-center gap-4 lg:gap-6 px-4 lg:px-6 py-3 lg:py-4 rounded-2xl
+                bg-white/[0.04] backdrop-blur-xl border border-white/[0.08]
+                shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
               onClick={() => {
                 const el = document.getElementById(`agent-${agent.id}`);
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: '-30px' }}
+              transition={{ type: 'spring', stiffness: 180, damping: 18, delay: AGENTS.indexOf(agent) * 0.08 }}
             >
-              <div className="relative flex items-center gap-5 px-8 py-5 rounded-full overflow-hidden
-                bg-white/[0.04] backdrop-blur-xl
-                border border-white/[0.08]
-                shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]
-                before:absolute before:inset-0 before:rounded-full
-                before:bg-gradient-to-br before:from-white/[0.06] before:to-transparent
-                before:pointer-events-none"
+              {/* Glow on hover */}
+              <div
+                className="absolute -inset-2 rounded-2xl blur-xl opacity-0 group-hover:opacity-60 transition-opacity duration-500 pointer-events-none"
+                style={{ backgroundColor: agent.bgColor }}
+              />
+
+              {/* Bouncing icon — слева */}
+              <motion.div
+                className="relative z-10 flex-shrink-0"
+                animate={{ y: [0, -6, 0] }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: AGENTS.indexOf(agent) * 0.3,
+                }}
               >
-                <div
-                  className="absolute -inset-2 rounded-full blur-xl opacity-0 group-hover:opacity-60 transition-opacity duration-500 pointer-events-none"
-                  style={{ backgroundColor: agent.bgColor }}
+                <img
+                  src={agent.icon}
+                  alt={agent.name}
+                  className="w-[16vw] h-[16vw] max-w-[70px] max-h-[70px] lg:max-w-[90px] lg:max-h-[90px] object-contain drop-shadow-lg"
                 />
+              </motion.div>
 
-                <div className="relative flex-shrink-0 z-10">
-                  <img
-                    src={agent.icon}
-                    alt={agent.name}
-                    className="w-14 h-14 lg:w-16 lg:h-16 object-contain drop-shadow-lg"
-                  />
-                </div>
-
-                <span className={`relative z-10 font-semibold ${agent.textColor} text-xl lg:text-2xl leading-tight`}>
+              {/* Текстовая часть */}
+              <div className="relative z-10 flex flex-col min-w-0">
+                <span className={`font-semibold text-sm lg:text-lg ${agent.textColor} leading-tight`}>
                   {agent.name}
                 </span>
-
-                <div
-                  className="absolute bottom-0 left-[10%] right-[10%] h-[1px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                  style={{
-                    background: `linear-gradient(90deg, transparent, ${agent.bgColor}, transparent)`,
-                    filter: 'blur(2px)',
-                  }}
-                />
+                <span className="text-gray-400 text-[10px] lg:text-sm leading-snug mt-0.5">
+                  {AGENT_DESCRIPTIONS[agent.name]}
+                </span>
               </div>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
 
+        {/* Сравнение: LLM vs Ixteria Agents */}
         <motion.div
-          className="relative h-0 mx-auto mb-16 max-w-4xl"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ delay: 0.6, duration: 0.8 }}
-        >
-          <svg
-            viewBox="0 0 800 60"
-            className="absolute inset-0 w-full h-16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            {[
-              { x1: 80, y1: 30, x2: 240, y2: 30, delay: 0 },
-              { x1: 240, y1: 30, x2: 400, y2: 30, delay: 0.2 },
-              { x1: 400, y1: 30, x2: 560, y2: 30, delay: 0.4 },
-              { x1: 560, y1: 30, x2: 720, y2: 30, delay: 0.6 },
-              { x1: 80, y1: 30, x2: 720, y2: 30, delay: 0.8 },
-            ].map((line, i) => (
-              <motion.line
-                key={i}
-                x1={line.x1}
-                y1={line.y1}
-                x2={line.x1}
-                y2={line.y1}
-                stroke="url(#gradientLine2)"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeDasharray="6 6"
-                initial={{ pathLength: 0, opacity: 0 }}
-                whileInView={{ pathLength: 1, opacity: 0.4 }}
-                viewport={{ once: true }}
-                transition={{
-                  delay: 0.7 + line.delay,
-                  duration: 0.8,
-                  ease: 'easeInOut',
-                }}
-              />
-            ))}
-            <defs>
-              <linearGradient id="gradientLine2" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#3b82f6" />
-                <stop offset="50%" stopColor="#a855f7" />
-                <stop offset="100%" stopColor="#ec4899" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </motion.div>
-
-        <motion.div
-          className="max-w-4xl mx-auto px-6 py-10 rounded-3xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 backdrop-blur-sm"
-          initial={{ opacity: 0, y: 40 }}
+          className="max-w-2xl mx-auto px-4 py-6 rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 backdrop-blur-sm"
+          initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ delay: 0.5, duration: 0.8 }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ delay: 0.3, duration: 0.7 }}
         >
-          <h3 className="text-2xl lg:text-3xl font-bold text-white mb-6">
+          <h3 className="text-base lg:text-xl font-bold text-white mb-4 text-center">
             Не просто{' '}
             <span className="bg-gradient-to-r from-gray-400 to-gray-300 bg-clip-text text-transparent line-through decoration-2 decoration-gray-600">
               LLM
@@ -574,60 +501,60 @@ function AgentsOverviewSection() {
             </span>
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-            <div className="p-6 rounded-2xl bg-red-500/5 border border-red-500/10">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+            <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
-                <span className="text-red-400 font-semibold text-lg">Обычный LLM-чат</span>
+                <span className="text-red-400 font-semibold text-xs">Обычный LLM-чат</span>
               </div>
-              <ul className="space-y-2 text-gray-400 text-sm">
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400/60 mt-1">•</span>
+              <ul className="space-y-1.5 text-gray-400 text-[10px] lg:text-xs">
+                <li className="flex items-start gap-1">
+                  <span className="text-red-400/60 mt-0.5">•</span>
                   Не знает, кто вы и что для вас важно
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400/60 mt-1">•</span>
+                <li className="flex items-start gap-1">
+                  <span className="text-red-400/60 mt-0.5">•</span>
                   Каждый раз начинает с чистого листа
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400/60 mt-1">•</span>
+                <li className="flex items-start gap-1">
+                  <span className="text-red-400/60 mt-0.5">•</span>
                   Не помнит ваши дела, финансы и цели
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400/60 mt-1">•</span>
+                <li className="flex items-start gap-1">
+                  <span className="text-red-400/60 mt-0.5">•</span>
                   Работает в одиночку, без связи с другими
                 </li>
               </ul>
             </div>
 
-            <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="text-emerald-400 font-semibold text-lg">AI-агенты Ixteria</span>
+                <span className="text-emerald-400 font-semibold text-xs">AI-агенты Ixteria</span>
               </div>
-              <ul className="space-y-2 text-gray-300 text-sm">
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400/60 mt-1">•</span>
+              <ul className="space-y-1.5 text-gray-300 text-[10px] lg:text-xs">
+                <li className="flex items-start gap-1">
+                  <span className="text-emerald-400/60 mt-0.5">•</span>
                   Знают контекст вашей жизни, привычек и целей
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400/60 mt-1">•</span>
+                <li className="flex items-start gap-1">
+                  <span className="text-emerald-400/60 mt-0.5">•</span>
                   Общаются друг с другом для комплексной автоматизации
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400/60 mt-1">•</span>
+                <li className="flex items-start gap-1">
+                  <span className="text-emerald-400/60 mt-0.5">•</span>
                   Каждый — эксперт в своей сфере, но работают как команда
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-emerald-400/60 mt-1">•</span>
+                <li className="flex items-start gap-1">
+                  <span className="text-emerald-400/60 mt-0.5">•</span>
                   Постоянно учатся на ваших данных и становятся точнее
                 </li>
               </ul>
@@ -635,35 +562,16 @@ function AgentsOverviewSection() {
           </div>
 
           <motion.p
-            className="text-gray-500 italic text-sm mt-6 text-center max-w-xl mx-auto"
+            className="text-gray-500 italic text-[10px] lg:text-xs mt-4 text-center max-w-md mx-auto"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ delay: 0.8 }}
+            viewport={{ once: true, margin: '-60px' }}
+            transition={{ delay: 0.6 }}
           >
             «Мы создали не просто чат-ботов, а команду цифровых сотрудников,
             которые действительно понимают вашу жизнь и работают сообща,
             чтобы вы могли заниматься тем, что действительно важно.»
           </motion.p>
-        </motion.div>
-
-        <motion.div
-          className="mt-12"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 1.0 }}
-        >
-          <motion.div
-            animate={{ y: [0, 12, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            className="text-gray-500 flex flex-col items-center gap-2"
-          >
-            <span className="text-xs uppercase tracking-widest">Познакомиться с каждым</span>
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-            </svg>
-          </motion.div>
         </motion.div>
       </div>
     </motion.section>
@@ -1040,7 +948,7 @@ export default function LandingPage() {
           viewport={{ once: true, margin: '-80px' }}
           transition={{ delay: 0.35, duration: 0.6 }}
         >
-          Соберите свою команду ИИ-агентов уже сегодня. Первые 7 дней — бесплатно.
+          Соберите свою команду ИИ-агентов уже сегодня.
         </motion.p>
 
         <motion.button
