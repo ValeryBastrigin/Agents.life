@@ -5,7 +5,7 @@ from sqlalchemy import select, update, func
 from sqlalchemy.orm import selectinload
 from src.database import get_db
 from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, DietPlan, UserAgentSettings
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from src.config import client
 from pydantic import BaseModel, ValidationError
 from typing import Optional, List, Union, Any
@@ -18,6 +18,7 @@ import json
 import httpx
 import base64
 import asyncio
+import math
 import re
 import mimetypes
 import traceback
@@ -578,6 +579,7 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
         credits_cost = 1  # minimum cost for any AI interaction
     user.credits_used = (user.credits_used or 0) + credits_cost
     user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+    user.last_credit_reset = date.today()
 
     await db.commit()
     await db.refresh(user)
@@ -734,6 +736,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
                 credits_cost = 1
             user.credits_used = (user.credits_used or 0) + credits_cost
             user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+            user.last_credit_reset = date.today()
             await db.commit()
 
             async for event in _stream_final_response(response_text, chat.id, is_new_chat, agent_name):
@@ -810,6 +813,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             credits_cost = 1
         user.credits_used = (user.credits_used or 0) + credits_cost
         user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+        user.last_credit_reset = date.today()
         await db.commit()
 
         metadata = {
@@ -1154,17 +1158,21 @@ async def upload_file(file: UploadFile = File(...)):
 async def transcribe_audio(
     file: UploadFile = File(...),
     user_id: int = Form(...),
-    duration_seconds: float = Form(0),
+    duration_seconds: float = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
     if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="File must be an audio file")
 
+    # Длительность необходима для корректного расчёта стоимости. Нулевое
+    # значение раньше позволяло успешно транскрибировать аудио бесплатно.
+    if not math.isfinite(duration_seconds) or duration_seconds <= 0:
+        raise HTTPException(status_code=400, detail="duration_seconds must be greater than 0")
+
     # Проверка кредитов перед транскрибацией
     audio_minutes = duration_seconds / 60.0
     credits_cost = calculate_cost("mistral_audio", audio_minutes=audio_minutes)
-    if credits_cost == 0 and audio_minutes > 0:
-        credits_cost = 1  # minimum cost
+    credits_cost = max(credits_cost, 1)  # minimum cost for any paid transcription
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -1231,16 +1239,22 @@ async def transcribe_audio(
             raise HTTPException(status_code=400, detail="Transcription result is empty")
 
         # --- Deduct credits for transcription ---
-        audio_minutes = duration_seconds / 60.0
-        credits_cost = calculate_cost("mistral_audio", audio_minutes=audio_minutes)
-        if credits_cost == 0 and audio_minutes > 0:
-            credits_cost = 1  # minimum cost
-
-        user = await db.execute(select(User).where(User.id == user_id))
-        user = user.scalar_one_or_none()
+        # Блокируем строку пользователя только на короткой финальной операции,
+        # чтобы параллельные транскрибации не перетёрли изменения баланса.
+        user_result = await db.execute(
+            select(User).where(User.id == user_id).with_for_update()
+        )
+        user = user_result.scalar_one_or_none()
         if user:
+            # Сбрасываем счётчик при наступлении нового дня
+            today = date.today()
+            if user.last_credit_reset is None or user.last_credit_reset < today:
+                user.credits_used = 0
+                user.last_credit_reset = today
+
             user.credits_used = (user.credits_used or 0) + credits_cost
             user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+            user.last_credit_reset = today
             await db.commit()
 
         return {"text": transcribed_text}

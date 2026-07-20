@@ -1459,6 +1459,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
       {/* Chat Input Footer - fixed/sticky снизу как в ChatGPT / Gemini */}
       <div className="sticky bottom-0 px-4 py-4 flex-shrink-0 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light/95 dark:via-background-dark/95 to-transparent">
         <ChatInput
+          userId={userId}
           onSendMessage={(msg) => {
             // Set agent name based on last assistant message in history
             const lastAssistantMsg = messages.filter(m => m.role === 'assistant').pop();

@@ -182,6 +182,8 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
       if (result.data?.text) {
         const trimmed = result.data.text.trim();
         if (trimmed) {
+          // Уведомляем полоску лимитов о списании кредитов
+          window.dispatchEvent(new Event('billing-updated'));
           if (mode === 'edit') {
             setMessage(trimmed);
           } else {

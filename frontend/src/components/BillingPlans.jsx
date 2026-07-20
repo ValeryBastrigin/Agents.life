@@ -9,13 +9,25 @@ const BillingPlans = ({ userProfile, onUpgrade, onPaywall }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const loadStatus = () => {
     if (!userProfile?.id) return;
-
     apiClient.get('/api/billing/status', { params: { user_id: userProfile.id } })
       .then(r => setStatus(r.data))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadStatus();
+  }, [userProfile?.id]);
+
+  // Слушаем событие обновления биллинга (например, после транскрибации)
+  useEffect(() => {
+    const handleBillingUpdate = () => {
+      loadStatus();
+    };
+    window.addEventListener('billing-updated', handleBillingUpdate);
+    return () => window.removeEventListener('billing-updated', handleBillingUpdate);
   }, [userProfile?.id]);
 
   if (loading) {
