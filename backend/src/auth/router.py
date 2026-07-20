@@ -1,7 +1,9 @@
-"""Google OAuth 2.0 API routes + Telegram Login Widget.
+"""OAuth 2.0 API routes: Google, Yandex + Telegram Login Widget.
 
 - GET  /auth/google          → redirects user to Google consent screen
 - GET  /auth/callback        → callback endpoint for Google to send the auth code
+- GET  /auth/yandex          → redirects user to Yandex OAuth consent screen
+- GET  /auth/yandex/callback → callback endpoint for Yandex to send the auth code
 - POST /auth/telegram        → verify Telegram Login Widget data
 """
 
@@ -14,12 +16,16 @@ from pydantic import BaseModel
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .config import google_oauth_config, telegram_auth_config
+from .config import google_oauth_config, yandex_oauth_config, telegram_auth_config
 from .service import (
     build_authorization_url,
     exchange_code_for_token,
     fetch_user_profile,
     format_user_profile,
+    build_yandex_authorization_url,
+    yandex_exchange_code_for_token,
+    yandex_fetch_user_profile,
+    format_yandex_user_profile,
 )
 from .telegram_service import (
     parse_telegram_data,
@@ -298,3 +304,186 @@ async def auth_telegram(
         "avatar_url": user.avatar_url,
         "first_name": req.first_name,
     }
+
+
+# ---------------------------------------------------------------------------
+#  Yandex OAuth
+# ---------------------------------------------------------------------------
+
+async def _find_or_create_user_by_yandex(
+    db: AsyncSession,
+    yandex_id: str,
+    email: str,
+    name: str,
+    picture: str,
+) -> User:
+    """Находит пользователя по yandex_id через user_identities,
+    или по email, или создаёт нового пользователя.
+
+    Если пользователь с таким yandex_id уже есть — возвращаем его.
+    Если identity не найден, но пользователь с таким email уже существует
+    (например, зарегистрирован через Google или OTP) — привязываем
+    yandex identity к существующему пользователю.
+    Если нет — создаём нового пользователя.
+    """
+    # 1. Ищем identity по provider='yandex' и provider_id=yandex_id
+    result = await db.execute(
+        select(UserIdentity).where(
+            UserIdentity.provider == "yandex",
+            UserIdentity.provider_id == str(yandex_id),
+        )
+    )
+    identity = result.scalar_one_or_none()
+
+    if identity:
+        # Пользователь уже существует — возвращаем его
+        result = await db.execute(select(User).where(User.id == identity.user_id))
+        user = result.scalar_one_or_none()
+        if user:
+            # Обновляем provider_data (имя, аватар могут измениться)
+            identity.provider_data = json.dumps({
+                "name": name,
+                "email": email,
+                "picture": picture,
+            })
+            await db.commit()
+            return user
+
+    # 2. Если identity не найден — ищем пользователя по email
+    if email:
+        result = await db.execute(
+            select(User).where(User.email == email)
+        )
+        existing_user = result.scalar_one_or_none()
+        if existing_user:
+            # Привязываем yandex identity к существующему пользователю
+            identity = UserIdentity(
+                user_id=existing_user.id,
+                provider="yandex",
+                provider_id=str(yandex_id),
+                provider_data=json.dumps({
+                    "name": name,
+                    "email": email,
+                    "picture": picture,
+                }),
+            )
+            db.add(identity)
+            await db.commit()
+            await db.refresh(existing_user)
+            return existing_user
+
+    # 3. Создаём нового пользователя
+    # Генерируем username из email или yandex_id
+    safe_username = email.split("@")[0] if email else f"ya_{yandex_id}"
+    # Убеждаемся, что username уникален
+    result = await db.execute(
+        select(User).where(User.username == safe_username)
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        safe_username = f"ya_{yandex_id}_{os.urandom(3).hex()}"
+
+    user = User(
+        username=safe_username,
+        email=email or f"ya_{yandex_id}@yandex.ixteria",
+        password_hash="",  # беспарольный вход
+        avatar_url=picture or "",
+        token_balance=1000,
+        plan="FREE",
+        theme_preference="light",
+    )
+    db.add(user)
+    await db.flush()  # Получаем ID пользователя
+
+    # 4. Создаём identity-запись
+    identity = UserIdentity(
+        user_id=user.id,
+        provider="yandex",
+        provider_id=str(yandex_id),
+        provider_data=json.dumps({
+            "name": name,
+            "email": email,
+            "picture": picture,
+        }),
+    )
+    db.add(identity)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@router.get("/auth/yandex")
+async def auth_yandex():
+    """
+    Redirect the user to Yandex's OAuth 2.0 consent screen.
+    """
+    if not yandex_oauth_config.is_configured():
+        raise HTTPException(
+            status_code=500,
+            detail="Yandex OAuth is not configured properly.",
+        )
+
+    authorization_url = build_yandex_authorization_url()
+    return RedirectResponse(url=authorization_url, status_code=302)
+
+
+@router.get("/auth/yandex/callback")
+async def auth_yandex_callback(code: str = Query(..., description="Authorization code from Yandex")):
+    """
+    Callback endpoint that Yandex redirects to after user consent.
+    Exchanges the code for an access token, fetches the user profile,
+    creates or retrieves the user in the database, and redirects back
+    to the frontend with user data as query params.
+
+    This path MUST match YANDEX_CALLBACK_URL in .env
+    (currently http://localhost:8001/api/auth/yandex/callback).
+    """
+    # 1. Exchange code for access token
+    token_data = await yandex_exchange_code_for_token(code)
+    access_token = token_data.get("access_token")
+
+    if not access_token:
+        # Redirect back to frontend with error
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/login?error=no_token",
+            status_code=302,
+        )
+
+    # 2. Fetch user profile with the access token
+    raw_profile = await yandex_fetch_user_profile(access_token)
+    profile = format_yandex_user_profile(raw_profile)
+
+    # 3. Log the user data to the console
+    print("=== Yandex OAuth Login ===")
+    print(f"Email: {profile['email']}")
+    print(f"Name:  {profile['name']}")
+    print(f"Yandex ID: {profile['yandex_id']}")
+    print(f"Picture: {profile['picture']}")
+    print("===========================")
+
+    # 4. Create or retrieve user in database
+    async with async_session() as session:
+        user = await _find_or_create_user_by_yandex(
+            session,
+            yandex_id=profile['yandex_id'],
+            email=profile['email'],
+            name=profile['name'],
+            picture=profile['picture'],
+        )
+
+    # 5. Create JWT token and redirect with session info
+    token = create_jwt(user.id, user.email)
+
+    query_params = (
+        f"success=true"
+        f"&email={profile['email']}"
+        f"&name={profile['name']}"
+        f"&yandex_id={profile['yandex_id']}"
+        f"&picture={profile['picture']}"
+        f"&user_id={user.id}"
+        f"&access_token={token}"
+    )
+    return RedirectResponse(
+        url=f"{FRONTEND_URL}/login?{query_params}",
+        status_code=302,
+    )

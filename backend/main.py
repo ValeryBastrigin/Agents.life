@@ -33,7 +33,7 @@ app.add_middleware(
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # Include routers
-app.include_router(auth_router)
+app.include_router(auth_router, prefix="/api")
 app.include_router(otp_router)
 app.include_router(orchestrator_router)
 app.include_router(secretary_router, prefix="/api")

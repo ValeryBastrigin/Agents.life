@@ -1,11 +1,15 @@
-"""Google OAuth 2.0 service: build auth URL, exchange code for token, fetch user profile."""
+"""OAuth 2.0 service functions: build auth URLs, exchange code for token, fetch user profile."""
 
 import urllib.parse
 from fastapi import HTTPException
 import httpx
 
-from .config import google_oauth_config
+from .config import google_oauth_config, yandex_oauth_config
 
+
+# ═══════════════════════════════════════════════════════════════════
+#  Google OAuth
+# ═══════════════════════════════════════════════════════════════════
 
 def build_authorization_url(state: str = "") -> str:
     """Build the Google OAuth 2.0 authorization URL."""
@@ -81,4 +85,89 @@ def format_user_profile(profile: dict) -> dict:
         "picture": profile.get("picture"),
         "verified_email": profile.get("verified_email", False),
         "locale": profile.get("locale", ""),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  Yandex OAuth
+# ═══════════════════════════════════════════════════════════════════
+
+def build_yandex_authorization_url() -> str:
+    """Build the Yandex OAuth 2.0 authorization URL."""
+    if not yandex_oauth_config.is_configured():
+        raise HTTPException(
+            status_code=500,
+            detail="Yandex OAuth is not configured properly. Check YANDEX_CLIENT_ID, "
+                   "YANDEX_CLIENT_SECRET, YANDEX_CALLBACK_URL in .env.",
+        )
+
+    params = {
+        "response_type": "code",
+        "client_id": yandex_oauth_config.client_id,
+        "redirect_uri": yandex_oauth_config.redirect_uri,
+    }
+
+    query_string = urllib.parse.urlencode(params)
+    return f"{yandex_oauth_config.authorization_base_url}?{query_string}"
+
+
+async def yandex_exchange_code_for_token(code: str) -> dict:
+    """Exchange the authorization code for a Yandex access token.
+
+    Uses Content-Type: application/x-www-form-urlencoded as required by Yandex.
+    """
+    data = {
+        "code": code,
+        "client_id": yandex_oauth_config.client_id,
+        "client_secret": yandex_oauth_config.client_secret,
+        "redirect_uri": yandex_oauth_config.redirect_uri,
+        "grant_type": "authorization_code",
+    }
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.post(
+            yandex_oauth_config.token_url,
+            data=urllib.parse.urlencode(data),
+            headers=headers,
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to exchange Yandex code for token: {response.text}",
+        )
+
+    return response.json()
+
+
+async def yandex_fetch_user_profile(access_token: str) -> dict:
+    """Fetch the user's Yandex profile using the access token."""
+    headers = {"Authorization": f"OAuth {access_token}"}
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get(yandex_oauth_config.userinfo_url, headers=headers)
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to fetch Yandex user profile: {response.text}",
+        )
+
+    return response.json()
+
+
+def format_yandex_user_profile(profile: dict) -> dict:
+    """Extract and return only the fields we care about from the Yandex profile."""
+    return {
+        "yandex_id": str(profile.get("id", "")),
+        "email": profile.get("default_email", profile.get("emails", [""])[0]),
+        "name": profile.get("real_name", profile.get("display_name", "")),
+        "first_name": profile.get("first_name", ""),
+        "last_name": profile.get("last_name", ""),
+        "picture": profile.get("default_avatar_id", ""),
+        "login": profile.get("login", ""),
     }

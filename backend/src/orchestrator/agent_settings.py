@@ -102,6 +102,9 @@ async def update_user_agent_settings(
                 )
             )
 
+    # Устанавливаем флаг agents_selected
+    user.agents_selected = True
+
     await db.commit()
 
     return {"message": "Agent settings updated successfully", "enabled_agents": list(enabled_set)}

@@ -8,17 +8,21 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, nullable=False)
+    username = Column(String(50), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     google_id = Column(String(255), unique=True, nullable=True)  # Google OAuth user ID
     avatar_url = Column(String(255))
-    age = Column(Integer, nullable=True)  # User age for onboarding
     token_balance = Column(Integer, default=1000)
     plan = Column(String(20), default="FREE")           # FREE, PRO, UNLIMITED
     credits_used = Column(Integer, default=0)            # сколько кредитов потрачено сегодня
     last_credit_reset = Column(Date, nullable=True)      # дата последнего дневного сброса credits_used
     theme_preference = Column(String(10), default="light")
+    # Onboarding fields
+    agents_selected = Column(Boolean, default=False)     # флаг, что пользователь выбрал агентов
+    profile_completed = Column(Boolean, default=False)   # флаг, что пользователь заполнил профиль
+    display_name = Column(String(100), nullable=True)    # имя пользователя для отображения (неуникальное)
+    birth_date = Column(Date, nullable=True)             # дата рождения
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

@@ -31,6 +31,21 @@ class GoogleOAuthConfig:
 
 
 @dataclass
+class YandexOAuthConfig:
+    client_id: str = field(default_factory=lambda: os.getenv("YANDEX_CLIENT_ID", ""))
+    client_secret: str = field(default_factory=lambda: os.getenv("YANDEX_CLIENT_SECRET", ""))
+    redirect_uri: str = field(default_factory=lambda: os.getenv("YANDEX_CALLBACK_URL", ""))
+
+    # Yandex OAuth 2.0 endpoints
+    authorization_base_url: str = "https://oauth.yandex.ru/authorize"
+    token_url: str = "https://oauth.yandex.ru/token"
+    userinfo_url: str = "https://login.yandex.ru/info"
+
+    def is_configured(self) -> bool:
+        return bool(self.client_id and self.client_secret and self.redirect_uri)
+
+
+@dataclass
 class TelegramAuthConfig:
     """Конфигурация Telegram Login Widget."""
     bot_token: str = field(default_factory=lambda: os.getenv("TELEGRAM_BOT_TOKEN", ""))
@@ -42,4 +57,5 @@ class TelegramAuthConfig:
 
 # Singleton configs
 google_oauth_config = GoogleOAuthConfig()
+yandex_oauth_config = YandexOAuthConfig()
 telegram_auth_config = TelegramAuthConfig()

@@ -10,6 +10,7 @@ import ChatInput from './components/ChatInput';
 import AnimatedBackground from './components/AnimatedBackground';
 import ChatWidgetRenderer from './components/ui/widgets/ChatWidgetRenderer';
 import MarkdownRenderer from './components/MarkdownRenderer';
+import AgentManagerModal from './components/AgentManagerModal';
 import { User, Menu, ArrowLeft, Bot, User as UserIcon, Clock, XCircle } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
@@ -31,8 +32,6 @@ import LoginPage from './pages/LoginPage';
 import LandingPage from './pages/LandingPage';
 import PaywallModal from './components/PaywallModal';
 import UpgradePlanModal from './components/UpgradePlanModal';
-import OnboardingModal from './components/OnboardingModal';
-import OnboardingAgentModal from './components/OnboardingAgentModal';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { UserProvider, useUser } from './contexts/UserContext';
 import axios from 'axios';
@@ -78,9 +77,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
   const [headerSolid, setHeaderSolid] = useState(false);
 
   // ── Onboarding state ──
-  const [showAgentOnboarding, setShowAgentOnboarding] = useState(false);
-  const [showNameOnboarding, setShowNameOnboarding] = useState(false);
-  const [selectedAgents, setSelectedAgents] = useState([]);
+  const [showAgentManager, setShowAgentManager] = useState(false);
+  const [enabledAgents, setEnabledAgents] = useState(['secretary', 'accountant', 'dietitian', 'psychologist', 'mentor']);
 
   // ── Paywall state ──
   const [showPaywall, setShowPaywall] = useState(false);
@@ -100,43 +98,26 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
     }
   }, [isAuthenticated, location.pathname, navigate]);
 
-  // Load user profile on mount and when userId changes
+  // Load user profile and agent settings on mount and when userId changes
   useEffect(() => {
     loadUserProfile(userId);
+    loadAgentSettings(userId);
   }, [userId]);
 
-  // Check if user needs onboarding (first time login)
+  // Check onboarding status when userProfile changes
   useEffect(() => {
-    const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
-    if (userProfile && userId > 1 && !onboardingCompleted) { // Skip for demo user (id=1) and if already completed
-      const needsOnboarding = !userProfile.username || userProfile.username === 'demo_user' || !userProfile.age;
-      if (needsOnboarding && location.pathname === '/chat') {
-        setShowAgentOnboarding(true);
+    const publicRoutes = ['/', '/login', '/landing'];
+    
+    // Only show modals if authenticated, NOT on public routes, and inside the app
+    if (userProfile && isAuthenticated && !publicRoutes.includes(location.pathname)) {
+      // Show AgentManager if agents_selected is false
+      if (!userProfile.agents_selected) {
+        setShowAgentManager(true);
       }
     }
-  }, [userProfile, userId, location.pathname]);
+  }, [userProfile, isAuthenticated, location.pathname]);
 
-  const handleAgentOnboardingComplete = (agents) => {
-    setSelectedAgents(agents);
-    setShowAgentOnboarding(false);
-    setShowNameOnboarding(true);
-  };
 
-  const handleNameOnboardingComplete = async ({ name, age }) => {
-    try {
-      await axios.put(`${API_URL}/api/user/${userId}/onboarding`, {
-        username: name,
-        age: age
-      });
-      // Reload user profile to get updated data
-      await loadUserProfile(userId);
-      setShowNameOnboarding(false);
-      // Mark onboarding as completed in localStorage to prevent re-showing
-      localStorage.setItem('onboarding_completed', 'true');
-    } catch (error) {
-      console.error('Failed to save onboarding data:', error);
-    }
-  };
 
   // Listen for avatar changes from Profile page
   useEffect(() => {
@@ -155,6 +136,22 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
     // Navigate to profile with upgrade modal open
     sessionStorage.setItem('upgradePlan', planId);
     navigate('/profile');
+  };
+
+  const handleAgentManagerComplete = (activeIds) => {
+    setEnabledAgents(activeIds);
+    setShowAgentManager(false);
+    // Reload user profile to get updated agents_selected flag
+    loadUserProfile(userId);
+    // Reload agent settings to ensure sync with backend (enabled/disabled states)
+    loadAgentSettings(userId);
+  };
+
+  // Wrapper to sync agent settings with backend after any update (from Sidebar or onboarding)
+  const handleSetEnabledAgents = (activeIds) => {
+    setEnabledAgents(activeIds);
+    // Reload from backend to ensure both sidebar and backend are in sync
+    loadAgentSettings(userId);
   };
 
   const handleLogout = () => {
@@ -177,6 +174,20 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
       }
     } catch (error) {
       console.error('Failed to load user profile:', error);
+    }
+  };
+
+  const loadAgentSettings = async (currentUserId) => {
+    if (!currentUserId) return;
+    try {
+      const response = await axios.get(`${API_URL}/api/user/${currentUserId}/agent-settings`);
+      const enabled = response.data
+        .filter((s) => s.is_enabled)
+        .map((s) => s.agent_name);
+      setEnabledAgents(enabled);
+      console.log('Loaded agent settings:', enabled);
+    } catch (error) {
+      console.error('Failed to load agent settings:', error);
     }
   };
 
@@ -411,6 +422,9 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
         onClose={() => setSidebarOpen(false)}
         theme={theme}
         chats={chats}
+        userId={userId}
+        enabledAgents={enabledAgents}
+        setEnabledAgents={handleSetEnabledAgents}
         onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
         onDeleteChat={handleDeleteChat}
@@ -613,14 +627,9 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
             const newUserId = userData.user_id ? parseInt(userData.user_id) : 1;
             setUserId(newUserId);
             
-            // For email OTP, token is already in localStorage (stored by LoginPage)
-            // Clear onboarding flag for new users so modals appear
-            if (provider === 'email' || provider === 'telegram') {
-              localStorage.removeItem('onboarding_completed');
-              // Store token for apiClient
-              if (userData.token) {
-                localStorage.setItem('auth_token', userData.token);
-              }
+            // Store token for apiClient
+            if (userData.token) {
+              localStorage.setItem('auth_token', userData.token);
             }
             
             // Перенаправляем на главную
@@ -658,19 +667,15 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
         onSelectPlan={handleSelectPlan}
       />
 
-      {/* ═══ Onboarding Agent Modal ═══ */}
-      <OnboardingAgentModal
-        userId={userId}
-        isOpen={showAgentOnboarding}
-        onComplete={handleAgentOnboardingComplete}
-      />
+      {/* ═══ Onboarding Modals ═══ */}
+      {showAgentManager && (
+        <AgentManagerModal
+          userId={userId}
+          onClose={() => setShowAgentManager(false)}
+          onAgentsChange={handleAgentManagerComplete}
+        />
+      )}
 
-      {/* ═══ Onboarding Name/Age Modal ═══ */}
-      <OnboardingModal
-        isOpen={showNameOnboarding}
-        onClose={() => setShowNameOnboarding(false)}
-        onComplete={handleNameOnboardingComplete}
-      />
     </div>
   );
 }

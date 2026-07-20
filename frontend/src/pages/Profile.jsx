@@ -108,7 +108,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout }) => {
             />
             <div>
               <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-1">
-                {userProfile?.username || 'User'}
+                {userProfile?.display_name || userProfile?.username || 'User'}
               </h2>
               <p className="text-gray-500 dark:text-gray-400">
                 {userProfile?.email || 'user@example.com'}

@@ -288,6 +288,10 @@ class UserProfile(BaseModel):
     fats_target: Optional[int] = None
     carbs_target: Optional[int] = None
     water_target: Optional[int] = None
+    agents_selected: bool = False
+    profile_completed: bool = False
+    display_name: Optional[str] = None
+    birth_date: Optional[str] = None
 
 # Agent registry
 AGENT_REGISTRY = {}
@@ -958,7 +962,11 @@ async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):
         token_balance=user.token_balance,
         plan=user.plan or "FREE",
         credits_used=user.credits_used or 0,
-        theme_preference=user.theme_preference
+        theme_preference=user.theme_preference,
+        agents_selected=user.agents_selected or False,
+        profile_completed=user.profile_completed or False,
+        display_name=user.display_name,
+        birth_date=user.birth_date.isoformat() if user.birth_date else None
     )
 
 @router.put("/user/{user_id}/theme")
@@ -977,23 +985,35 @@ async def update_theme(user_id: int, request: UpdateThemeRequest, db: AsyncSessi
 
     return {"message": "Theme updated successfully"}
 
-class UpdateUserOnboardingRequest(BaseModel):
-    username: str
-    age: int
 
-@router.put("/user/{user_id}/onboarding")
-async def update_onboarding(user_id: int, request: UpdateUserOnboardingRequest, db: AsyncSession = Depends(get_db)):
+class ProfileSetupRequest(BaseModel):
+    display_name: str
+    birth_date: str
+
+
+@router.put("/user/{user_id}/profile-setup")
+async def profile_setup(user_id: int, request: ProfileSetupRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user.username = request.username
-    user.age = request.age
+    user.display_name = request.display_name
+    user.profile_completed = True
+    
+    # Parse birth_date string to Date
+    from datetime import datetime
+    try:
+        birth_date = datetime.strptime(request.birth_date, "%Y-%m-%d").date()
+        user.birth_date = birth_date
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid birth_date format. Use YYYY-MM-DD")
+
     await db.commit()
 
-    return {"message": "Onboarding data updated successfully"}
+    return {"message": "Profile setup completed successfully"}
+
 
 @router.get("/chats/{chat_id}/messages")
 async def get_chat_messages(chat_id: int, db: AsyncSession = Depends(get_db)):

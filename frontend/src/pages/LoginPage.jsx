@@ -131,17 +131,43 @@ export default function LoginPage({ theme, onLogin }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'true') {
-      const userData = {
-        email: params.get('email'),
-        name: params.get('name'),
-        google_id: params.get('google_id'),
-        picture: params.get('picture'),
-        user_id: params.get('user_id'),
-      };
-      // Clear query params from the URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      // Notify parent
-      if (onLogin) onLogin('google', userData);
+      const googleId = params.get('google_id');
+      const yandexId = params.get('yandex_id');
+      const accessToken = params.get('access_token');
+
+      // Handle Yandex OAuth callback (has yandex_id + access_token)
+      if (yandexId) {
+        const userData = {
+          email: params.get('email'),
+          name: params.get('name'),
+          yandex_id: yandexId,
+          picture: params.get('picture'),
+          user_id: params.get('user_id'),
+          token: accessToken,
+        };
+        // Store token & user info
+        if (accessToken) {
+          localStorage.setItem('auth_token', accessToken);
+          localStorage.setItem('user_id', params.get('user_id') || '');
+        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+        if (onLogin) onLogin('yandex', userData);
+        return;
+      }
+
+      // Handle Google OAuth callback (has google_id)
+      if (googleId) {
+        const userData = {
+          email: params.get('email'),
+          name: params.get('name'),
+          google_id: googleId,
+          picture: params.get('picture'),
+          user_id: params.get('user_id'),
+        };
+        window.history.replaceState({}, document.title, window.location.pathname);
+        if (onLogin) onLogin('google', userData);
+        return;
+      }
     }
   }, [onLogin]);
 
@@ -187,11 +213,11 @@ export default function LoginPage({ theme, onLogin }) {
 
   // ── Auth handlers ──
   const handleGoogleLogin = () => {
-    window.location.href = `${API_URL}/auth/google`;
+    window.location.href = `${API_URL}/api/auth/google`;
   };
 
   const handleYandexLogin = () => {
-    if (onLogin) onLogin('yandex');
+    window.location.href = `${API_URL}/api/auth/yandex`;
   };
 
   const handleEmailLogin = () => {

@@ -15,7 +15,7 @@ const floatAnimations = [
   { animationDelay: '1.6s' },
 ];
 
-const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDeleteChat, onRenameChat, onPinChat }) => {
+const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDeleteChat, onRenameChat, onPinChat, userId, enabledAgents, setEnabledAgents }) => {
   const { t, language } = useLanguage();
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [chatOptions, setChatOptions] = useState(null);
@@ -24,7 +24,6 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [isMobile, setIsMobile] = useState(false);
   const [agentManagerOpen, setAgentManagerOpen] = useState(false);
-  const [enabledAgents, setEnabledAgents] = useState(['secretary', 'accountant', 'dietitian', 'psychologist', 'mentor']);
   const menuButtonRef = useRef(null);
 
   // Check if mobile device
@@ -272,8 +271,13 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
       {/* Agent Manager Modal */}
       {agentManagerOpen && (
         <AgentManagerModal
-          onClose={() => setAgentManagerOpen(false)}
-          onAgentsChange={(activeIds) => setEnabledAgents(activeIds)}
+          userId={userId}
+          onClose={() => {
+            setAgentManagerOpen(false);
+          }}
+          onAgentsChange={(activeIds) => {
+            setEnabledAgents(activeIds);
+          }}
         />
       )}
 
