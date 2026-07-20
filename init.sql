@@ -247,6 +247,21 @@ CREATE TABLE IF NOT EXISTS portfolio_analyses (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- User identities table (привязка провайдеров: Google, Telegram, Яндекс и т.д.)
+CREATE TABLE IF NOT EXISTS user_identities (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    provider VARCHAR(50) NOT NULL,          -- 'google', 'telegram', 'yandex'
+    provider_id VARCHAR(255) NOT NULL,      -- id пользователя у провайдера
+    provider_data TEXT DEFAULT '{}',        -- JSON с дополнительными данными
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (provider, provider_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_identities_user_id ON user_identities(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_identities_provider ON user_identities(provider);
+CREATE INDEX IF NOT EXISTS idx_user_identities_provider_id ON user_identities(provider_id);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);
 CREATE INDEX IF NOT EXISTS idx_chats_agent_id ON chats(agent_id);

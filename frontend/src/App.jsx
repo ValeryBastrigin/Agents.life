@@ -615,7 +615,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
             
             // For email OTP, token is already in localStorage (stored by LoginPage)
             // Clear onboarding flag for new users so modals appear
-            if (provider === 'email') {
+            if (provider === 'email' || provider === 'telegram') {
               localStorage.removeItem('onboarding_completed');
               // Store token for apiClient
               if (userData.token) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, ArrowLeft, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
@@ -51,6 +51,81 @@ export default function LoginPage({ theme, onLogin }) {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // ── Telegram Login Widget ──
+  const TELEGRAM_BOT_ID = Number(process.env.REACT_APP_TELEGRAM_BOT_ID) || 0;
+
+  // Load the Telegram widget script once
+  useEffect(() => {
+    if (!TELEGRAM_BOT_ID) return;
+    const existing = document.querySelector('script[src*="telegram-widget"]');
+    if (!existing) {
+      const script = document.createElement('script');
+      script.src = 'https://telegram.org/js/telegram-widget.js?22';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, [TELEGRAM_BOT_ID]);
+
+  // Global callback for Telegram auth
+  const handleTelegramCallback = useCallback(async (user) => {
+    console.log('Telegram auth callback:', user);
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/auth/telegram`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          first_name: user.first_name,
+          username: user.username || '',
+          photo_url: user.photo_url || '',
+          auth_date: user.auth_date,
+          hash: user.hash,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Ошибка авторизации через Telegram');
+      }
+      const data = await res.json();
+      localStorage.setItem('auth_token', data.access_token);
+      localStorage.setItem('user_id', String(data.user_id));
+      if (onLogin) onLogin('telegram', {
+        user_id: data.user_id,
+        username: data.username,
+        avatar_url: data.avatar_url,
+        token: data.access_token,
+        first_name: data.first_name,
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [onLogin]);
+
+  const handleTelegramLogin = useCallback(() => {
+    if (!TELEGRAM_BOT_ID) {
+      setError('Telegram бот не настроен');
+      return;
+    }
+    // Set global callback
+    window.onTelegramAuth = (user) => {
+      delete window.onTelegramAuth;
+      handleTelegramCallback(user);
+    };
+    // Open Telegram Login Widget via bot_id (must be a number)
+    window.Telegram?.Login?.auth(
+      { bot_id: TELEGRAM_BOT_ID, request_access: true },
+      (user) => {
+        if (user) {
+          handleTelegramCallback(user);
+        }
+      }
+    );
+  }, [handleTelegramCallback]);
 
   // ── Handle OAuth callback redirect ──
   useEffect(() => {
@@ -113,10 +188,6 @@ export default function LoginPage({ theme, onLogin }) {
   // ── Auth handlers ──
   const handleGoogleLogin = () => {
     window.location.href = `${API_URL}/auth/google`;
-  };
-
-  const handleAppleLogin = () => {
-    if (onLogin) onLogin('apple');
   };
 
   const handleYandexLogin = () => {
@@ -376,15 +447,15 @@ export default function LoginPage({ theme, onLogin }) {
               <span className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-200">Войти через Google</span>
             </button>
 
-            {/* Apple */}
+            {/* Telegram */}
             <button
-              onClick={handleAppleLogin}
+              onClick={handleTelegramLogin}
               className="w-full flex items-center justify-center gap-3 px-5 py-3 md:py-3.5 rounded-2xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]"
             >
-              <svg className="w-4 h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <path className="text-gray-900 dark:text-white" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+              <svg className="w-4 h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path className="text-sky-500" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
               </svg>
-              <span className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-200">Войти через Apple</span>
+              <span className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-200">Войти через Telegram</span>
             </button>
 
             {/* Яндекс */}

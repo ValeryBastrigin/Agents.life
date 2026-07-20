@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Time, Date, Float
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Time, Date, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -365,6 +365,29 @@ class DreamGoal(Base):
 
     user = relationship("User", back_populates="dream_goals")
     chat = relationship("Chat")
+
+
+class UserIdentity(Base):
+    """Привязка identity-провайдера к пользователю (Google, Telegram, Яндекс и т.д.).
+
+    Позволяет одному пользователю иметь несколько способов входа.
+    """
+    __tablename__ = "user_identities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    provider = Column(String(50), nullable=False)          # 'google', 'telegram', 'yandex'
+    provider_id = Column(String(255), nullable=False)      # id пользователя у провайдера
+    provider_data = Column(Text, default="{}")             # JSON с дополнительными данными (username, photo_url и т.д.)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", backref="identities")
+
+    __table_args__ = (
+        # Уникальность: один провайдер + один ID — один пользователь
+        # (но у одного пользователя может быть несколько провайдеров)
+        UniqueConstraint("provider", "provider_id", name="uq_provider_identity"),
+    )
 
 
 class OtpChallenge(Base):

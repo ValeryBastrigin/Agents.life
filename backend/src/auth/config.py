@@ -30,5 +30,16 @@ class GoogleOAuthConfig:
         return bool(self.client_id and self.client_secret and self.redirect_uri)
 
 
-# Singleton config
+@dataclass
+class TelegramAuthConfig:
+    """Конфигурация Telegram Login Widget."""
+    bot_token: str = field(default_factory=lambda: os.getenv("TELEGRAM_BOT_TOKEN", ""))
+    bot_username: str = field(default_factory=lambda: os.getenv("TELEGRAM_BOT_USERNAME", ""))
+
+    def is_configured(self) -> bool:
+        return bool(self.bot_token and self.bot_username)
+
+
+# Singleton configs
 google_oauth_config = GoogleOAuthConfig()
+telegram_auth_config = TelegramAuthConfig()
