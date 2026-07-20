@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
     credits_used INTEGER DEFAULT 0,              -- сколько кредитов потрачено сегодня
     last_credit_reset DATE,                      -- дата последнего дневного сброса credits_used
     theme_preference VARCHAR(10) DEFAULT 'light', -- 'light' or 'dark'
+    offer_accepted_at TIMESTAMP WITH TIME ZONE,  -- дата подписания оферты
+    privacy_accepted_at TIMESTAMP WITH TIME ZONE, -- дата подписания политики конфиденциальности
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -181,6 +183,42 @@ BEGIN
         WHERE table_name='users' AND column_name='age'
     ) THEN
         ALTER TABLE users ADD COLUMN age INTEGER;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='offer_accepted_at'
+    ) THEN
+        ALTER TABLE users ADD COLUMN offer_accepted_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='privacy_accepted_at'
+    ) THEN
+        ALTER TABLE users ADD COLUMN privacy_accepted_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='display_name'
+    ) THEN
+        ALTER TABLE users ADD COLUMN display_name VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='birth_date'
+    ) THEN
+        ALTER TABLE users ADD COLUMN birth_date DATE;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='agents_selected'
+    ) THEN
+        ALTER TABLE users ADD COLUMN agents_selected BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='profile_completed'
+    ) THEN
+        ALTER TABLE users ADD COLUMN profile_completed BOOLEAN DEFAULT FALSE;
     END IF;
 END $$;
 

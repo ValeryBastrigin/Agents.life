@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { User, Moon, Sun, Bell, LogOut, ArrowLeft, Globe, Bot } from 'lucide-react';
+import { User, Moon, Sun, Bell, LogOut, ArrowLeft, Globe, Bot, Edit2, Check, X } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient } from '../utils/apiClient';
 import BillingPlans from '../components/BillingPlans';
@@ -18,13 +18,17 @@ function resolveUploadUrl(url) {
   return url;
 }
 
-const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout }) => {
+const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserProfile }) => {
   const { t, language, changeLanguage } = useLanguage();
   const fileInputRef = useRef(null);
   const scrollRef = useRef(null);
   const [upgradePlanOpen, setUpgradePlanOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [agentManagerOpen, setAgentManagerOpen] = useState(false);
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [usernameInput, setUsernameInput] = useState(userProfile?.username || '');
+  const [usernameError, setUsernameError] = useState('');
+  const [savingUsername, setSavingUsername] = useState(false);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -32,6 +36,10 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout }) => {
     scrollRef.current.style.overflow = blocked ? 'hidden' : '';
     scrollRef.current.style.position = blocked ? 'relative' : '';
   }, [upgradePlanOpen, paywallOpen, agentManagerOpen]);
+
+  useEffect(() => {
+    setUsernameInput(userProfile?.username || '');
+  }, [userProfile?.username]);
 
   const handleUpgrade = (planId) => {
     setUpgradePlanOpen(false);
@@ -55,6 +63,40 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout }) => {
     } catch (err) {
       console.error('Failed to upload avatar:', err);
     }
+  };
+
+  const handleUsernameSave = async () => {
+    if (!usernameInput.trim()) {
+      setUsernameError('Имя не может быть пустым');
+      return;
+    }
+
+    try {
+      setSavingUsername(true);
+      const res = await apiClient.put(`/api/user/${userProfile?.id || 1}/username`, {
+        username: usernameInput.trim()
+      });
+      setUsernameError('');
+      setEditingUsername(false);
+      // Update local profile state
+      if (setUserProfile && userProfile) {
+        setUserProfile({
+          ...userProfile,
+          username: usernameInput.trim()
+        });
+      }
+    } catch (err) {
+      console.error('Failed to update username:', err);
+      setUsernameError('Не удалось обновить имя');
+    } finally {
+      setSavingUsername(false);
+    }
+  };
+
+  const handleUsernameCancel = () => {
+    setUsernameInput(userProfile?.username || '');
+    setUsernameError('');
+    setEditingUsername(false);
   };
 
   return (
@@ -106,11 +148,61 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout }) => {
               style={{ display: 'none' }}
               onChange={handleAvatarUpload}
             />
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-1">
-                {userProfile?.display_name || userProfile?.username || 'User'}
-              </h2>
-              <p className="text-gray-500 dark:text-gray-400">
+            <div className="flex-1">
+              {editingUsername ? (
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={usernameInput}
+                      onChange={(e) => { setUsernameInput(e.target.value); setUsernameError(''); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleUsernameSave(); if (e.key === 'Escape') handleUsernameCancel(); }}
+                      className="w-full px-3 py-2 pr-20 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      autoFocus
+                      disabled={savingUsername}
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      <button
+                        onClick={handleUsernameSave}
+                        disabled={savingUsername}
+                        className="p-1.5 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors disabled:opacity-50"
+                        title="Сохранить"
+                      >
+                        {savingUsername ? (
+                          <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Check size={16} className="text-green-600 dark:text-green-400" />
+                        )}
+                      </button>
+                      <button
+                        onClick={handleUsernameCancel}
+                        disabled={savingUsername}
+                        className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
+                        title="Отмена"
+                      >
+                        <X size={16} className="text-red-600 dark:text-red-400" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 dark:text-white">
+                    {userProfile?.display_name || userProfile?.username || 'User'}
+                  </h2>
+                  <button
+                    onClick={() => setEditingUsername(true)}
+                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    title="Изменить имя"
+                  >
+                    <Edit2 size={16} className="text-gray-400 dark:text-gray-500" />
+                  </button>
+                </div>
+              )}
+              {usernameError && (
+                <p className="text-red-500 text-sm mb-1">{usernameError}</p>
+              )}
+              <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">
                 {userProfile?.email || 'user@example.com'}
               </p>
             </div>

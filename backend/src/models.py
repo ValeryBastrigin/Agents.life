@@ -23,6 +23,9 @@ class User(Base):
     profile_completed = Column(Boolean, default=False)   # флаг, что пользователь заполнил профиль
     display_name = Column(String(100), nullable=True)    # имя пользователя для отображения (неуникальное)
     birth_date = Column(Date, nullable=True)             # дата рождения
+    # Terms acceptance
+    offer_accepted_at = Column(DateTime(timezone=True), nullable=True)     # дата подписания оферты
+    privacy_accepted_at = Column(DateTime(timezone=True), nullable=True)   # дата подписания политики конфиденциальности
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

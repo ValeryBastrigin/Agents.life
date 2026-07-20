@@ -2,7 +2,7 @@
 FROM node:20-alpine AS build
 ARG REACT_APP_API_URL
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=4096 --openssl-legacy-provider"
 WORKDIR /app
 COPY package*.json ./
 RUN npm install

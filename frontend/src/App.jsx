@@ -30,6 +30,9 @@ import NoteEditor from './pages/NoteEditor';
 import FinancialAnalyst from './pages/FinancialAnalyst';
 import LoginPage from './pages/LoginPage';
 import LandingPage from './pages/LandingPage';
+import TermsWall from './pages/TermsWall';
+import Offer from './pages/Offer';
+import Privacy from './pages/Privacy';
 import PaywallModal from './components/PaywallModal';
 import UpgradePlanModal from './components/UpgradePlanModal';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
@@ -83,85 +86,6 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
   // ── Paywall state ──
   const [showPaywall, setShowPaywall] = useState(false);
 
-  // Listen for paywall events from apiClient
-  useEffect(() => {
-    const handler = () => setShowPaywall(true);
-    window.addEventListener('paywall:show', handler);
-    return () => window.removeEventListener('paywall:show', handler);
-  }, []);
-
-  // Check authentication and redirect to login if not authenticated
-  useEffect(() => {
-    const publicRoutes = ['/', '/login', '/landing'];
-    if (!isAuthenticated && !publicRoutes.includes(location.pathname)) {
-      navigate('/login', { replace: true });
-    }
-  }, [isAuthenticated, location.pathname, navigate]);
-
-  // Load user profile and agent settings on mount and when userId changes
-  useEffect(() => {
-    loadUserProfile(userId);
-    loadAgentSettings(userId);
-  }, [userId]);
-
-  // Check onboarding status when userProfile changes
-  useEffect(() => {
-    const publicRoutes = ['/', '/login', '/landing'];
-    
-    // Only show modals if authenticated, NOT on public routes, and inside the app
-    if (userProfile && isAuthenticated && !publicRoutes.includes(location.pathname)) {
-      // Show AgentManager if agents_selected is false
-      if (!userProfile.agents_selected) {
-        setShowAgentManager(true);
-      }
-    }
-  }, [userProfile, isAuthenticated, location.pathname]);
-
-
-
-  // Listen for avatar changes from Profile page
-  useEffect(() => {
-    const handleAvatarChange = (e) => {
-      setUserProfile((prev) => {
-        if (!prev) return prev;
-        return { ...prev, avatar_url: e.detail };
-      });
-    };
-    window.addEventListener('avatar-changed', handleAvatarChange);
-    return () => window.removeEventListener('avatar-changed', handleAvatarChange);
-  }, []);
-
-  const handleSelectPlan = (planId) => {
-    setShowPaywall(false);
-    // Navigate to profile with upgrade modal open
-    sessionStorage.setItem('upgradePlan', planId);
-    navigate('/profile');
-  };
-
-  const handleAgentManagerComplete = (activeIds) => {
-    setEnabledAgents(activeIds);
-    setShowAgentManager(false);
-    // Reload user profile to get updated agents_selected flag
-    loadUserProfile(userId);
-    // Reload agent settings to ensure sync with backend (enabled/disabled states)
-    loadAgentSettings(userId);
-  };
-
-  // Wrapper to sync agent settings with backend after any update (from Sidebar or onboarding)
-  const handleSetEnabledAgents = (activeIds) => {
-    setEnabledAgents(activeIds);
-    // Reload from backend to ensure both sidebar and backend are in sync
-    loadAgentSettings(userId);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('google_token');
-    localStorage.removeItem('user');
-    sessionStorage.clear();
-    clearUser();
-    window.location.href = '/login';
-  };
-
   const loadUserProfile = async (currentUserId) => {
     try {
       const response = await axios.get(`${API_URL}/api/user/${currentUserId}`);
@@ -189,6 +113,139 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
     } catch (error) {
       console.error('Failed to load agent settings:', error);
     }
+  };
+
+  const checkSessionStatus = async () => {
+    try {
+      const res = await apiClient.get(`/api/user/${userId}/therapy/active`);
+      if (res.data?.active && res.data?.session) {
+        setActiveSession(res.data.session);
+      } else {
+        setActiveSession(null);
+      }
+    } catch (err) {
+      console.error('Failed to check session:', err);
+    }
+  };
+
+  // Listen for paywall events from apiClient
+  useEffect(() => {
+    const handler = () => setShowPaywall(true);
+    window.addEventListener('paywall:show', handler);
+    return () => window.removeEventListener('paywall:show', handler);
+  }, []);
+
+  // Check authentication and redirect to login if not authenticated
+  useEffect(() => {
+    const publicRoutes = ['/', '/login', '/landing', '/terms', '/terms/offer', '/terms/privacy'];
+    if (!isAuthenticated && !publicRoutes.includes(location.pathname)) {
+      navigate('/login', { replace: true });
+    }
+  }, [isAuthenticated, location.pathname, navigate]);
+
+  // Load user profile and agent settings on mount and when userId changes
+  useEffect(() => {
+    loadUserProfile(userId);
+    loadAgentSettings(userId);
+  }, [userId]);
+
+  // ── Flag to prevent re-opening AgentManager while saving ──
+  const [agentManagerLoading, setAgentManagerLoading] = useState(false);
+
+  // Check onboarding status when userProfile changes — redirect to /terms if needed
+  useEffect(() => {
+    // Routes that are allowed regardless of onboarding status
+    const bypassRoutes = ['/', '/login', '/landing', '/terms/offer', '/terms/privacy'];
+    const termsRoute = '/terms';
+    const currentPath = location.pathname;
+    
+    // Don't redirect away from bypass routes (offer/privacy pages should work freely)
+    if (bypassRoutes.includes(currentPath)) {
+      return;
+    }
+    
+    if (userProfile && isAuthenticated && currentPath !== termsRoute) {
+      // Redirect to /terms if user hasn't accepted the offer/privacy policy
+      if (!userProfile.offer_accepted_at || !userProfile.privacy_accepted_at) {
+        navigate(termsRoute, { replace: true });
+        return;
+      }
+    } else if (userProfile && isAuthenticated && currentPath === termsRoute) {
+      // If user IS on terms page but has already accepted, redirect to chat
+      if (userProfile.offer_accepted_at && userProfile.privacy_accepted_at) {
+        navigate('/chat', { replace: true });
+        return;
+      }
+    }
+    
+    // Show AgentManager if agents_selected is false — only when not in the middle of saving
+    if (userProfile && isAuthenticated && !userProfile.agents_selected && !agentManagerLoading && !bypassRoutes.includes(currentPath) && currentPath !== termsRoute) {
+      setShowAgentManager(true);
+    }
+  }, [userProfile, isAuthenticated, location.pathname, navigate, agentManagerLoading]);
+
+  // ── TermsWall handlers: onDecline → logout, onAccept → reload & redirect ──
+  const handleTermsDecline = useCallback(() => {
+    localStorage.removeItem('google_token');
+    localStorage.removeItem('user');
+    sessionStorage.clear();
+    clearUser();
+    window.location.href = '/login';
+  }, [clearUser]);
+
+  const handleTermsAccept = useCallback(async (updatedProfile) => {
+    // Обновляем состояние пользователя из ответа сервера
+    setUserProfile(updatedProfile);
+    // Перезагружаем профиль пользователя с обновленными данными
+    await loadUserProfile(userId);
+    navigate('/chat', { replace: true });
+  }, [setUserProfile, navigate, userId, loadUserProfile]);
+
+  // Listen for avatar changes from Profile page
+  useEffect(() => {
+    const handleAvatarChange = (e) => {
+      setUserProfile((prev) => {
+        if (!prev) return prev;
+        return { ...prev, avatar_url: e.detail };
+      });
+    };
+    window.addEventListener('avatar-changed', handleAvatarChange);
+    return () => window.removeEventListener('avatar-changed', handleAvatarChange);
+  }, []);
+
+  const handleSelectPlan = (planId) => {
+    setShowPaywall(false);
+    // Navigate to profile with upgrade modal open
+    sessionStorage.setItem('upgradePlan', planId);
+    navigate('/profile');
+  };
+
+  const handleAgentManagerComplete = async (activeIds) => {
+    setAgentManagerLoading(true);
+    setEnabledAgents(activeIds);
+    setShowAgentManager(false);
+    // Принудительно помечаем агентов как выбранных во фронтенде,
+    // чтобы useEffect не открыл модалку снова и не редиректнул на /terms
+    // из-за того что бэкенд может вернуть agents_selected: false
+    setUserProfile(prev => prev ? { ...prev, agents_selected: true } : prev);
+    // Загружаем настройки агентов для синхронизации с боковой панелью
+    await loadAgentSettings(userId);
+    setAgentManagerLoading(false);
+  };
+
+  // Wrapper to sync agent settings with backend after any update (from Sidebar or onboarding)
+  const handleSetEnabledAgents = (activeIds) => {
+    setEnabledAgents(activeIds);
+    // Reload from backend to ensure both sidebar and backend are in sync
+    loadAgentSettings(userId);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('google_token');
+    localStorage.removeItem('user');
+    sessionStorage.clear();
+    clearUser();
+    window.location.href = '/login';
   };
 
   const handleThemeToggle = async () => {
@@ -259,19 +316,6 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
   useEffect(() => {
     checkSessionStatus();
   }, [location.pathname]);
-
-  const checkSessionStatus = async () => {
-    try {
-      const res = await apiClient.get(`/api/user/${userId}/therapy/active`);
-      if (res.data?.active && res.data?.session) {
-        setActiveSession(res.data.session);
-      } else {
-        setActiveSession(null);
-      }
-    } catch (err) {
-      console.error('Failed to check session:', err);
-    }
-  };
 
   const endSession = async () => {
     if (!activeSession) return;
@@ -401,9 +445,9 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
   };
 
   return (
-      <div className={`${location.pathname === '/landing' || location.pathname === '/' ? 'min-h-screen' : 'h-screen'} flex flex-col bg-background-light dark:bg-background-dark ${theme} relative ${location.pathname === '/landing' || location.pathname === '/' ? '' : 'overflow-hidden'}`}>
+      <div className={`${location.pathname === '/landing' || location.pathname === '/' || location.pathname === '/terms' ? 'min-h-screen' : 'h-screen'} flex flex-col bg-background-light dark:bg-background-dark ${theme} relative ${location.pathname === '/landing' || location.pathname === '/' || location.pathname === '/terms' ? '' : 'overflow-hidden'}`}>
       {/* Animated Background - Only visible on chat pages */}
-      {!location.pathname.startsWith('/profile') && !location.pathname.startsWith('/secretary') && !location.pathname.startsWith('/accountant') && !location.pathname.startsWith('/dietitian') && !location.pathname.startsWith('/psychologist') && !location.pathname.startsWith('/mentor') && location.pathname !== '/login' && location.pathname !== '/landing' && location.pathname !== '/' && (
+      {!location.pathname.startsWith('/profile') && !location.pathname.startsWith('/secretary') && !location.pathname.startsWith('/accountant') && !location.pathname.startsWith('/dietitian') && !location.pathname.startsWith('/psychologist') && !location.pathname.startsWith('/mentor') && location.pathname !== '/login' && location.pathname !== '/landing' && location.pathname !== '/' && location.pathname !== '/terms' && (
         <div className="absolute inset-0 pointer-events-none z-0">
           <AnimatedBackground theme={theme} isLoading={false} />
         </div>
@@ -432,8 +476,8 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
         onPinChat={handlePinChat}
       />
 
-      {/* Header */}
-      {location.pathname !== '/landing' && location.pathname !== '/' && location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && location.pathname !== '/login' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
+      {/* Header — hidden on /terms */}
+      {location.pathname !== '/terms' && location.pathname !== '/landing' && location.pathname !== '/' && location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && location.pathname !== '/login' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
           <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
@@ -632,12 +676,23 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
               localStorage.setItem('auth_token', userData.token);
             }
             
-            // Перенаправляем на главную
+            // Перенаправляем на главную (онбординг /terms сработает через checkUserProfile)
             navigate('/chat', { replace: true });
           }
         }} />} />
         <Route path="/" element={<LandingPage />} />
         <Route path="/landing" element={<LandingPage />} />
+        <Route path="/terms" element={
+          <TermsWall
+            theme={theme}
+            userId={userId}
+            userProfile={userProfile}
+            onDecline={handleTermsDecline}
+            onAccept={handleTermsAccept}
+          />
+        } />
+        <Route path="/terms/offer" element={<Offer />} />
+        <Route path="/terms/privacy" element={<Privacy />} />
         <Route path="/chat/:chatId?" element={<Home onChatCreated={loadChats} theme={theme} onScroll={handleScroll} userProfile={userProfile} />} />
         <Route path="/secretary" element={<Secretary theme={theme} />} />
         <Route path="/secretary/logs" element={<ActivityLog theme={theme} />} />
@@ -654,7 +709,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
         <Route path="/mentor/tree" element={<DevelopmentTree />} />
         <Route path="/mentor/habits" element={<HabitTracker />} />
         <Route path="/financial-analyst" element={<FinancialAnalyst />} />
-        <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} theme={theme} onThemeToggle={handleThemeToggle} onLogout={handleLogout} onBack={() => {
+        <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} setUserProfile={setUserProfile} theme={theme} onThemeToggle={handleThemeToggle} onLogout={handleLogout} onBack={() => {
           const lastChatId = sessionStorage.getItem('lastChatId');
           navigate(lastChatId ? `/chat/${lastChatId}` : '/chat');
         }} />} />

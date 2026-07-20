@@ -154,6 +154,53 @@ async def auth_callback(code: str = Query(..., description="Authorization code f
     )
 
 
+# ── Accept Terms endpoint (Offer + Privacy Policy) ──
+
+class AcceptTermsRequest(BaseModel):
+    user_id: int
+    username: str
+
+
+@router.post("/user/{user_id}/accept-terms")
+async def accept_terms(
+    user_id: int,
+    req: AcceptTermsRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Принимает условия Оферты и Политики конфиденциальности для пользователя.
+    Сохраняет дату/время подписания и обновляет username в БД и профиле.
+    """
+    from datetime import datetime, timezone
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    now = datetime.now(timezone.utc)
+
+    # Сохраняем дату подписания
+    user.offer_accepted_at = now
+    user.privacy_accepted_at = now
+
+    # Обновляем username (имя из стены)
+    if req.username and req.username.strip():
+        user.username = req.username.strip()
+
+    await db.commit()
+    await db.refresh(user)
+
+    return {
+        "success": True,
+        "user_id": user.id,
+        "username": user.username,
+        "offer_accepted_at": user.offer_accepted_at.isoformat() if user.offer_accepted_at else None,
+        "privacy_accepted_at": user.privacy_accepted_at.isoformat() if user.privacy_accepted_at else None,
+    }
+
+
 # ---------------------------------------------------------------------------
 #  Telegram Login Widget
 # ---------------------------------------------------------------------------

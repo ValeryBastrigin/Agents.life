@@ -274,6 +274,9 @@ class ChatResponse(BaseModel):
 class UpdateThemeRequest(BaseModel):
     theme: str
 
+class UpdateUsernameRequest(BaseModel):
+    username: str
+
 class UserProfile(BaseModel):
     id: int
     username: str
@@ -292,6 +295,8 @@ class UserProfile(BaseModel):
     profile_completed: bool = False
     display_name: Optional[str] = None
     birth_date: Optional[str] = None
+    offer_accepted_at: Optional[str] = None
+    privacy_accepted_at: Optional[str] = None
 
 # Agent registry
 AGENT_REGISTRY = {}
@@ -966,7 +971,9 @@ async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):
         agents_selected=user.agents_selected or False,
         profile_completed=user.profile_completed or False,
         display_name=user.display_name,
-        birth_date=user.birth_date.isoformat() if user.birth_date else None
+        birth_date=user.birth_date.isoformat() if user.birth_date else None,
+        offer_accepted_at=user.offer_accepted_at.isoformat() if user.offer_accepted_at else None,
+        privacy_accepted_at=user.privacy_accepted_at.isoformat() if user.privacy_accepted_at else None
     )
 
 @router.put("/user/{user_id}/theme")
@@ -984,6 +991,23 @@ async def update_theme(user_id: int, request: UpdateThemeRequest, db: AsyncSessi
     await db.commit()
 
     return {"message": "Theme updated successfully"}
+
+
+@router.put("/user/{user_id}/username")
+async def update_username(user_id: int, request: UpdateUsernameRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not request.username or not request.username.strip():
+        raise HTTPException(status_code=400, detail="Username cannot be empty")
+
+    user.username = request.username.strip()
+    await db.commit()
+
+    return {"message": "Username updated successfully", "username": user.username}
 
 
 class ProfileSetupRequest(BaseModel):
