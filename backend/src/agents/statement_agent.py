@@ -98,7 +98,7 @@ async def _call_llm(chunk_text: str, is_summary: bool = False) -> tuple[dict, in
         {"role": "user", "content": prompt},
     ]
 
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model=STATEMENT_MODEL,
         messages=messages,
         temperature=0.1,

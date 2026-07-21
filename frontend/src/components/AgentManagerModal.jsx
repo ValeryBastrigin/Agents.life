@@ -57,8 +57,8 @@ function AgentManagerModalContent({ userId, onClose, onAgentsChange }) {
       try {
         setLoading(true);
         setError(null);
-        const uid = userId || 1;
-        const res = await apiClient.get(`/api/user/${uid}/agent-settings`);
+        if (!userId) return;
+        const res = await apiClient.get(`/api/user/${userId}/agent-settings`);
         const settings = res.data;
         const enabled = new Set(
           settings.filter(s => s.is_enabled).map(s => s.agent_name)
@@ -91,8 +91,8 @@ function AgentManagerModalContent({ userId, onClose, onAgentsChange }) {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const uid = userId || 1;
-      await apiClient.put(`/api/user/${uid}/agent-settings`, {
+      if (!userId) return;
+      await apiClient.put(`/api/user/${userId}/agent-settings`, {
         enabled_agents: [...activeAgents],
       });
       if (onAgentsChange) onAgentsChange([...activeAgents]);

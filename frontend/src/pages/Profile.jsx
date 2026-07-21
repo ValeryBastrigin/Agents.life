@@ -57,7 +57,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await apiClient.post(`/api/user/${userProfile?.id || 1}/avatar`, formData);
+      const res = await apiClient.post(`/api/user/${userProfile?.id}/avatar`, formData);
       const avatarUrl = res.data.url;
       window.dispatchEvent(new CustomEvent('avatar-changed', { detail: avatarUrl }));
     } catch (err) {
@@ -73,7 +73,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
 
     try {
       setSavingUsername(true);
-      const res = await apiClient.put(`/api/user/${userProfile?.id || 1}/username`, {
+      const res = await apiClient.put(`/api/user/${userProfile?.id}/username`, {
         username: usernameInput.trim()
       });
       setUsernameError('');
@@ -363,7 +363,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
         {agentManagerOpen && (
           <AgentManagerModal
             onClose={() => setAgentManagerOpen(false)}
-            userId={userProfile?.id || 1}
+            userId={userProfile?.id}
           />
         )}
 

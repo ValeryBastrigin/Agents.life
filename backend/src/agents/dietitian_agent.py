@@ -1,8 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from typing import AsyncGenerator
 from src.config import client
 from src.image_utils import build_vision_message_parts, attachment_to_image_url, is_image_attachment
 from src.models import UserDietProfile, FoodConsumption, DietPlan
+from src.agents.streaming import stream_llm_response, StreamEvent
 from datetime import datetime, timedelta, timezone
 import json
 import re
@@ -128,7 +130,7 @@ async def _detect_meal_plan_intent(message: str) -> bool:
 
 Верни ТОЛЬКО одно слово: "да" или "нет"."""
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
@@ -176,7 +178,7 @@ async def _detect_food_intent(message: str) -> bool:
 
 Верни ТОЛЬКО одно слово: "да" или "нет"."""
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
@@ -233,7 +235,7 @@ async def _extract_delete_target(message: str) -> str | None:
 
 Верни ТОЛЬКО название продукта, без лишних слов. Если не можешь определить — верни "null"."""
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
@@ -348,7 +350,7 @@ async def _extract_food_items(message: str) -> list[dict]:
 Верни ТОЛЬКО JSON-массив:
 [{{"product": "...", "grams": 300, "meal_type": "lunch"}}, ...]"""
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
@@ -386,7 +388,7 @@ async def _search_kbju(product_name: str) -> dict | None:
 
 ВАЖНО: все числа должны быть ЦЕЛЫМИ (округляй)."""
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=[{"role": "user", "content": search_prompt}],
             temperature=0.2,
@@ -542,7 +544,7 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
         else:
             llm_messages.append({"role": "user", "content": vision_parts})
 
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=llm_messages,
             temperature=0.5,
@@ -556,6 +558,99 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
     except Exception as e:
         print(f"Error in dietitian agent: {e}")
         return "Извините, произошла ошибка при обработке вашего запроса.", 0
+
+
+async def process_stream(
+    message: str,
+    system_prompt: str,
+    db: AsyncSession,
+    user_id: int,
+    attachments: list[dict] | None = None,
+) -> AsyncGenerator[StreamEvent, None]:
+    """
+    Streaming version of process().
+    Yields StreamEvent tokens in real time instead of returning a full response.
+    """
+    try:
+        # Load user diet profile from DB
+        result = await db.execute(
+            select(UserDietProfile).where(UserDietProfile.user_id == user_id)
+        )
+        profile = result.scalar_one_or_none()
+
+        # Detect if user is asking to generate a meal plan (check FIRST)
+        is_meal_plan = await _detect_meal_plan_intent(message)
+        if is_meal_plan:
+            widget_text, _ = await _handle_meal_plan(message, db, user_id, profile)
+            # Widget responses should be atomic (sent as one token)
+            yield StreamEvent(type="widget", content=widget_text)
+            yield StreamEvent(type="done", content=widget_text, metadata={"tokens_used": 0})
+            return
+
+        # Detect if this is a food DELETE command
+        is_food_delete = await _detect_food_delete_intent(message)
+        if is_food_delete:
+            text, _ = await _handle_food_delete(message, db, user_id)
+            # Stream the response word by word
+            words = text.split(' ')
+            for i, word in enumerate(words):
+                chunk = word + (' ' if i < len(words) - 1 else '')
+                yield StreamEvent(type="token", content=chunk)
+            yield StreamEvent(type="done", content=text, metadata={"tokens_used": 0})
+            return
+
+        # Detect if this is a food consumption log
+        is_food_log = await _detect_food_intent(message)
+
+        # If there are image attachments, always pass them to LLM for analysis
+        has_images = any(
+            str(a.get("type") or a.get("content_type") or "").startswith("image/")
+            or str(a.get("url", "")).startswith("/uploads/")
+            or str(a.get("url", "")).startswith("data:image/")
+            for a in (attachments or [])
+        )
+
+        if is_food_log or has_images:
+            response_text, _ = await _handle_food_log(message, db, user_id, profile, attachments)
+            # Check if response is JSON widget
+            try:
+                parsed = json.loads(response_text)
+                if isinstance(parsed, dict) and "type" in parsed:
+                    yield StreamEvent(type="widget", content=response_text)
+                    yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
+                    return
+            except json.JSONDecodeError:
+                pass
+            # Stream the response word by word
+            words = response_text.split(' ')
+            for i, word in enumerate(words):
+                chunk = word + (' ' if i < len(words) - 1 else '')
+                yield StreamEvent(type="token", content=chunk)
+            yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
+            return
+
+        # Regular dietitian chat — real SSE streaming
+        user_context = _build_profile_context(profile)
+        llm_messages = [{"role": "system", "content": DIETITIAN_SYSTEM_PROMPT + user_context}]
+
+        vision_parts = build_vision_message_parts(message, attachments)
+        if len(vision_parts) == 1 and vision_parts[0]["type"] == "text":
+            llm_messages.append({"role": "user", "content": vision_parts[0]["text"]})
+        else:
+            llm_messages.append({"role": "user", "content": vision_parts})
+
+        async for event in stream_llm_response(
+            client=client,
+            model="google/gemini-3.1-flash-lite",
+            messages=llm_messages,
+            temperature=0.5,
+            max_tokens=1000,
+        ):
+            yield event
+
+    except Exception as e:
+        print(f"Error in dietitian agent stream: {e}")
+        yield StreamEvent(type="error", content=f"Извините, произошла ошибка при обработке вашего запроса: {e}")
 
 
 async def _handle_food_log(message: str, db: AsyncSession, user_id: int, profile: UserDietProfile | None, attachments: list[dict] | None = None) -> tuple[str, int]:
@@ -591,7 +686,7 @@ async def _handle_food_log(message: str, db: AsyncSession, user_id: int, profile
         vision_parts = build_vision_message_parts(image_prompt, attachments)
         
         try:
-            vision_response = client.chat.completions.create(
+            vision_response = await client.chat.completions.create(
                 model="google/gemini-3.1-flash-lite",
                 messages=[{"role": "user", "content": vision_parts}],
                 temperature=0.3,
@@ -777,7 +872,7 @@ async def _estimate_portion(product_name: str) -> int | None:
 
 Верни ТОЛЬКО число (граммы) или null."""
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,

@@ -5,11 +5,11 @@ const UserContext = createContext();
 export const UserProvider = ({ children }) => {
   const [userId, setUserIdState] = useState(() => {
     const saved = localStorage.getItem('user_id');
-    return saved ? parseInt(saved) : 1;
+    return saved ? parseInt(saved) : null;
   });
   const [userProfile, setUserProfile] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('user_id') !== null && localStorage.getItem('user_id') !== '1';
+    return localStorage.getItem('user_id') !== null && localStorage.getItem('user_id') !== 'null';
   });
 
   const updateUserId = (newUserId) => {
@@ -19,7 +19,7 @@ export const UserProvider = ({ children }) => {
   };
 
   const clearUser = () => {
-    setUserIdState(1);
+    setUserIdState(null);
     localStorage.removeItem('user_id');
     setUserProfile(null);
     setIsAuthenticated(false);

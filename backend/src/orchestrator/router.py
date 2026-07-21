@@ -8,8 +8,8 @@ from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietPro
 from datetime import date, datetime, timedelta, timezone
 from src.config import client
 from pydantic import BaseModel, ValidationError
-from typing import Optional, List, Union, Any
-from src.agents import dietitian_agent
+from typing import Optional, List, Union, Any, AsyncGenerator
+from src.agents.streaming import stream_event_to_sse, StreamEvent, stream_llm_response
 from src.billing.calculator import calculate_cost
 from src.billing.dependency import check_billing_limit
 import importlib
@@ -301,6 +301,7 @@ class UserProfile(BaseModel):
 
 # Agent registry
 AGENT_REGISTRY = {}
+AGENT_MODULES = {}
 
 def load_agents():
     agents_dir = os.path.join(os.path.dirname(__file__), '..', 'agents')
@@ -310,9 +311,11 @@ def load_agents():
                 module_name = filename[:-3]
                 try:
                     module = importlib.import_module(f'src.agents.{module_name}')
-                    if hasattr(module, 'process'):
+                    if hasattr(module, 'process') or hasattr(module, 'process_stream'):
                         agent_name = module_name.replace('_agent', '')
-                        AGENT_REGISTRY[agent_name] = module.process
+                        if hasattr(module, 'process'):
+                            AGENT_REGISTRY[agent_name] = module.process
+                        AGENT_MODULES[agent_name] = module
                 except Exception as e:
                     print(f"Failed to load agent {module_name}: {e}")
 
@@ -395,7 +398,7 @@ async def route_to_agent(message: Any) -> str:
         return "secretary"
 
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=[
                 {"role": "system", "content": ORCHESTRATOR_SYSTEM_PROMPT},
@@ -422,7 +425,7 @@ async def generate_chat_title(first_message: Any, client) -> str:
     text, _ = _normalize_user_message_content(first_message)
     title_text = text or "Новое изображение"
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=[
                 {"role": "system", "content": TITLE_GENERATION_PROMPT},
@@ -552,7 +555,7 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
 
             try:
                 max_tokens = calculate_max_tokens(message_text)
-                response = client.chat.completions.create(
+                response = await client.chat.completions.create(
                     model="google/gemini-3.1-flash-lite",
                     messages=messages,
                     temperature=0.7,
@@ -719,15 +722,40 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
             db.add(user_message)
 
-            agent_process = AGENT_REGISTRY[agent_name]
+            agent_module = AGENT_MODULES.get(agent_name)
             enriched_prompt = await _enrich_system_prompt_with_rag(request.user_id, agent_name, message_text, agent.system_prompt, db)
 
-            response_text, tokens_used = await agent_process(message_text, enriched_prompt, db, request.user_id, message_attachments)
+            if agent_module and hasattr(agent_module, 'process_stream'):
+                full_response = ""
+                async for event in agent_module.process_stream(message_text, enriched_prompt, db, request.user_id, message_attachments):
+                    if event.type == "token":
+                        full_response += event.content
+                        yield stream_event_to_sse(event)
+                    elif event.type == "done":
+                        full_response = event.content
+                        # Don't yield the agent's done event - we'll send our own with metadata
+                    elif event.type == "error":
+                        yield stream_event_to_sse(event)
+                tokens_used = 0
+            else:
+                # No agent_module with process_stream — use raw LLM streaming as fallback
+                full_response = ""
+                async for event in _stream_llm_fallback(message_text, enriched_prompt, message_attachments):
+                    if event.type == "token":
+                        full_response += event.content
+                    yield stream_event_to_sse(event)
+                tokens_used = 0
 
-            if response_text is None:
-                response_text = "Извините, произошла ошибка при обработке вашего запроса. Попробуйте ещё раз."
+            # Send final done event with metadata
+            metadata = {
+                'type': 'done',
+                'chat_id': chat.id,
+                'is_new_chat': is_new_chat,
+                'full_content': full_response,
+            }
+            yield f"data: {json.dumps(metadata)}\n\n"
 
-            assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
+            assistant_message = Message(chat_id=chat.id, role="assistant", content=full_response, tokens_used=tokens_used)
             db.add(assistant_message)
 
             # Deduct credits for specialized agent call
@@ -738,9 +766,6 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
             user.last_credit_reset = date.today()
             await db.commit()
-
-            async for event in _stream_final_response(response_text, chat.id, is_new_chat, agent_name):
-                yield event
 
         return StreamingResponse(
             stream_specialized_agent(),
@@ -764,7 +789,11 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         if _is_greeting(message_text):
             greeting = random.choice(GREETING_RESPONSES)
             full_response = greeting
-            yield f"data: {json.dumps({'type': 'token', 'content': greeting})}\n\n"
+            # Stream greeting word by word
+            words = greeting.split(' ')
+            for i, word in enumerate(words):
+                chunk = word + (' ' if i < len(words) - 1 else '')
+                yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
         else:
             enriched_prompt = await _enrich_system_prompt_with_rag(request.user_id, agent_name, message_text, agent.system_prompt, db)
             messages = []
@@ -774,7 +803,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
             try:
                 max_tokens = calculate_max_tokens(message_text)
-                stream = client.chat.completions.create(
+                stream = await client.chat.completions.create(
                     model="google/gemini-3.1-flash-lite",
                     messages=messages,
                     temperature=0.7,
@@ -783,7 +812,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
                     stream=True,
                 )
 
-                for chunk in stream:
+                async for chunk in stream:
                     if chunk.choices and len(chunk.choices) > 0:
                         delta = chunk.choices[0].delta
                         if delta and delta.content:
@@ -793,11 +822,19 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
                 if not full_response.strip():
                     full_response = "Извините, произошла ошибка. Попробуйте ещё раз."
-                    yield f"data: {json.dumps({'type': 'token', 'content': full_response})}\n\n"
+                    # Stream error message word by word
+                    words = full_response.split(' ')
+                    for i, word in enumerate(words):
+                        chunk = word + (' ' if i < len(words) - 1 else '')
+                        yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
 
             except Exception as e:
                 full_response = f"Извините, произошла ошибка при обработке запроса: {str(e)[:100]}..."
-                yield f"data: {json.dumps({'type': 'token', 'content': full_response})}\n\n"
+                # Stream error message word by word
+                words = full_response.split(' ')
+                for i, word in enumerate(words):
+                    chunk = word + (' ' if i < len(words) - 1 else '')
+                    yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
 
         # Save assistant message
         assistant_message = Message(chat_id=chat.id, role="assistant", content=full_response, tokens_used=0)
@@ -835,38 +872,20 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
     )
 
 
-async def _stream_final_response(response_text, chat_id, is_new_chat, agent_name="ixteria"):
-    """Stream a pre-computed response as tokens for specialized agents."""
-    try:
-        parsed = json.loads(response_text)
-        if isinstance(parsed, dict) and ('type' in parsed or 'meals' in parsed):
-            metadata = {
-                'type': 'widget',
-                'content': response_text,
-                'chat_id': chat_id,
-                'is_new_chat': is_new_chat,
-                'agent_name': agent_name,
-            }
-            yield f"data: {json.dumps(metadata)}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'chat_id': chat_id, 'is_new_chat': is_new_chat, 'full_content': response_text, 'agent_name': agent_name})}\n\n"
-            return
-    except json.JSONDecodeError:
-        pass
-
-    words = response_text.split(' ')
-    for i, word in enumerate(words):
-        chunk = word + (' ' if i < len(words) - 1 else '')
-        yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
-        await asyncio.sleep(0.03)
-
-    metadata = {
-        'type': 'done',
-        'chat_id': chat_id,
-        'is_new_chat': is_new_chat,
-        'full_content': response_text,
-        'agent_name': agent_name,
-    }
-    yield f"data: {json.dumps(metadata)}\n\n"
+async def _stream_llm_fallback(message_text: str, system_prompt: str, attachments: list[dict] | None = None) -> AsyncGenerator[StreamEvent, None]:
+    """Fallback: stream directly from LLM when agent has no process_stream. Real streaming, no emulation."""
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": _build_user_llm_content(message_text, attachments)},
+    ]
+    async for event in stream_llm_response(
+        client=client,
+        model="google/gemini-3.1-flash-lite",
+        messages=messages,
+        temperature=0.7,
+        max_tokens=3000,
+    ):
+        yield event
 
 
 # ======================== CHAT CREATION ENDPOINT ========================
@@ -1560,7 +1579,7 @@ async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):
         response_text, tokens_used = await agent_process(user_message, agent.system_prompt, db, chat.user_id)
     else:
         try:
-            response = client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model="google/gemini-3.1-flash-lite",
                 messages=[
                     {"role": "system", "content": agent.system_prompt},

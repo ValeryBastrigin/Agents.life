@@ -4,7 +4,7 @@ import { apiClient } from '../utils/apiClient';
 import AttachMenu from './AttachMenu';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light', onOptimisticMessage, onAttachmentsUploaded, onFinalSend, isStreaming = false, onStopStreaming, userId = 1 }) => {
+const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light', onOptimisticMessage, onAttachmentsUploaded, onFinalSend, isStreaming = false, onStopStreaming, userId }) => {
   const { language } = useLanguage();
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);

@@ -1,7 +1,10 @@
 import json
+from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.config import client
 from src.image_utils import build_llm_user_message
+from src.agents.streaming import stream_llm_response, StreamEvent
+
 
 async def process(message: str, system_prompt: str, db: AsyncSession, user_id: int, attachments: list[dict] | None = None) -> tuple[str, int]:
     """
@@ -19,7 +22,7 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
             {"role": "system", "content": accountant_prompt},
             user_msg if isinstance(user_msg, dict) else {"role": "user", "content": str(user_msg)},
         ]
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=messages,
             temperature=0.7,
@@ -34,6 +37,34 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
         response = "Извините, произошла ошибка при обработке вашего запроса."
         tokens_used = 0  # Disabled for development
         return response, tokens_used
+
+
+async def process_stream(
+    message: str, system_prompt: str, db: AsyncSession, user_id: int, attachments: list[dict] | None = None
+) -> AsyncGenerator[StreamEvent, None]:
+    """Streaming version — yields tokens in real time."""
+    text_content = message
+    if isinstance(message, dict):
+        text_content = str(message.get("text", message.get("content", message.get("message", ""))))
+    elif isinstance(message, str):
+        text_content = message
+    else:
+        text_content = str(message)
+
+    user_msg = build_llm_user_message(text_content, attachments)
+    messages = [
+        {"role": "system", "content": system_prompt},
+        user_msg if isinstance(user_msg, dict) else {"role": "user", "content": str(user_msg)},
+    ]
+
+    async for event in stream_llm_response(
+        client=client,
+        model="google/gemini-3.1-flash-lite",
+        messages=messages,
+        temperature=0.7,
+        max_tokens=3000,
+    ):
+        yield event
 
 
 async def analyze_portfolio(image_urls: list[str]) -> dict:
@@ -84,7 +115,7 @@ async def analyze_portfolio(image_urls: list[str]) -> dict:
             {"role": "user", "content": user_content},
         ]
 
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="google/gemini-3.1-flash-lite",
             messages=messages,
             temperature=0.3,

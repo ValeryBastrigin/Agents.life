@@ -668,7 +668,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
           console.log('Login with', provider, userData);
           if (userData) {
             // Set user ID from OAuth / OTP response
-            const newUserId = userData.user_id ? parseInt(userData.user_id) : 1;
+            const newUserId = userData.user_id ? parseInt(userData.user_id) : null;
             setUserId(newUserId);
             
             // Store token for apiClient

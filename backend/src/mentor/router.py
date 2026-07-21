@@ -10,8 +10,7 @@ from src.database import get_db
 from src.models import User
 from src.billing.dependency import check_billing_limit
 from src.agents.mentor_agent import (
-    analyze_dream, add_active_goal, get_active_goals, update_goal_status,
-    analyze_dream_steps, save_dream_goal, select_dream_steps
+    analyze_dream, add_active_goal, get_active_goals, update_goal_status
 )
 from src.config import client
 from src.rag.extractor import KnowledgeExtractor
