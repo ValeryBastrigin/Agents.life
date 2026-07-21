@@ -736,7 +736,8 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
                         # Don't yield the agent's done event - we'll send our own with metadata
                     elif event.type == "error":
                         yield stream_event_to_sse(event)
-                tokens_used = 0
+                # Estimate tokens from response length
+                tokens_used = len(full_response) // 4
             else:
                 # No agent_module with process_stream — use raw LLM streaming as fallback
                 full_response = ""
@@ -744,7 +745,8 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
                     if event.type == "token":
                         full_response += event.content
                     yield stream_event_to_sse(event)
-                tokens_used = 0
+                # Estimate tokens from response length
+                tokens_used = len(full_response) // 4
 
             # Send final done event with metadata
             metadata = {
@@ -758,9 +760,13 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             assistant_message = Message(chat_id=chat.id, role="assistant", content=full_response, tokens_used=tokens_used)
             db.add(assistant_message)
 
-            # Deduct credits for specialized agent call
-            credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=0, output_tokens=tokens_used)
-            if credits_cost == 0:
+            # Calculate credits: estimate input tokens from message length + output tokens
+            input_token_est = len(message_text) // 4  # rough estimate: ~4 chars per token
+            output_token_est = len(full_response) // 4
+            credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_token_est, output_tokens=output_token_est)
+            if credits_cost == 0 and (input_token_est > 0 or output_token_est > 0):
+                credits_cost = 1
+            elif credits_cost == 0:
                 credits_cost = 1
             user.credits_used = (user.credits_used or 0) + credits_cost
             user.token_balance = max((user.token_balance or 0) - credits_cost, 0)

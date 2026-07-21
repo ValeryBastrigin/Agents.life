@@ -140,10 +140,26 @@ async def stream_llm_response(
             full_response += chunk
             yield StreamEvent(type="token", content=chunk)
 
+        # Get usage data from the final chunk
+        usage = getattr(stream, 'usage', None)
+        if usage:
+            input_tokens = getattr(usage, 'prompt_tokens', 0)
+            output_tokens = getattr(usage, 'completion_tokens', 0)
+            total_tokens = getattr(usage, 'total_tokens', 0)
+        else:
+            # Fallback to estimation if usage not available
+            input_tokens = 0
+            output_tokens = len(full_response) // 4
+            total_tokens = input_tokens + output_tokens
+
         yield StreamEvent(
             type="done",
             content=full_response,
-            metadata={"tokens_used": 0},
+            metadata={
+                "tokens_used": total_tokens,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+            },
         )
     except Exception as e:
         print(f"[streaming] LLM stream error: {e}")
@@ -224,7 +240,7 @@ async def agent_stream_wrapper(
 async def stream_text_with_delay(
     text: str,
     chunk_size: int = 1,
-    delay_ms: int = 30,
+    delay_ms: int = 50,
 ) -> AsyncGenerator[str, None]:
     """
     Stream text in chunks with a small delay between chunks.
@@ -233,7 +249,7 @@ async def stream_text_with_delay(
     Args:
         text: The full text to stream
         chunk_size: Number of characters per chunk (default: 1 for character-by-character)
-        delay_ms: Delay between chunks in milliseconds (default: 30ms)
+        delay_ms: Delay between chunks in milliseconds (default: 50ms for typewriter effect)
     
     Yields:
         str: Each chunk of text

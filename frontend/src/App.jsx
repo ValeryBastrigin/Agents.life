@@ -11,7 +11,7 @@ import AnimatedBackground from './components/AnimatedBackground';
 import ChatWidgetRenderer from './components/ui/widgets/ChatWidgetRenderer';
 import MarkdownRenderer from './components/MarkdownRenderer';
 import AgentManagerModal from './components/AgentManagerModal';
-import { User, Menu, ArrowLeft, Bot, User as UserIcon, Clock, XCircle } from 'lucide-react';
+import { User, Menu, ArrowLeft, Bot, User as UserIcon, Clock, XCircle, Copy, RefreshCw, Check } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Dietitian from './pages/Dietitian';
@@ -828,6 +828,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
   const abortControllerRef = useRef(null);
   const streamingStartRef = useRef(null);
   const pendingWidgetRef = useRef(null);
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState(null);
 
   // ── Rotating greeting (Gemini-style) ──
   const greetings = {
@@ -1108,6 +1109,26 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
     );
   }, [userId, navigate, onChatCreated]);
 
+  // ── Copy text to clipboard ──
+  const handleCopyText = useCallback((text, index) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedMessageIndex(index);
+      setTimeout(() => setCopiedMessageIndex(null), 2000);
+    }).catch(err => {
+      console.error('Failed to copy text:', err);
+    });
+  }, []);
+
+  // ── Regenerate AI response ──
+  const handleRegenerate = useCallback((messageIndex) => {
+    // Удаляем последнее сообщение ассистента и перезапускаем генерацию
+    const userMessage = messages[messageIndex - 1];
+    if (userMessage && userMessage.role === 'user') {
+      setMessages(prev => prev.slice(0, messageIndex));
+      startAIStreaming(userMessage.content, messages.slice(0, messageIndex));
+    }
+  }, [messages, startAIStreaming]);
+
   // ── Send message with streaming (adds user message + starts AI) ──
   const handleSendMessage = useCallback((message) => {
     const userMessage = { role: 'user', content: message };
@@ -1196,7 +1217,46 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
     if (!isUser && isWidgetContent(content)) {
       return (
         <div key={index} className="flex justify-start my-2">
-          <ChatWidgetRenderer content={content} />
+          <div className="max-w-[85%] sm:max-w-[75%]">
+            <div className="flex items-start gap-3">
+              {/* AI Avatar indicator */}
+              <div className="flex-shrink-0 mt-1">
+                <img
+                  src={getAgentAvatar(message.agent_name || 'ixteria')}
+                  alt={message.agent_name || 'ixteria'}
+                  className="w-8 h-8 rounded-full object-cover shadow-sm"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              </div>
+              {/* Content */}
+              <div className="min-w-0 flex-1 pt-1">
+                <ChatWidgetRenderer content={content} />
+                {/* Action buttons - always visible */}
+                <div className="flex items-center gap-2 mt-2 transition-opacity">
+                  <button
+                    onClick={() => handleCopyText(content, index)}
+                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    title="Копировать"
+                  >
+                    {copiedMessageIndex === index ? (
+                      <Check size={14} className="text-green-500" />
+                    ) : (
+                      <Copy size={14} className="text-gray-500 dark:text-gray-400" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleRegenerate(index)}
+                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    title="Перегенерировать"
+                  >
+                    <RefreshCw size={14} className="text-gray-500 dark:text-gray-400" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       );
     }
@@ -1206,7 +1266,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
       const agentName = message.agent_name || 'ixteria';
       const avatarSrc = getAgentAvatar(agentName);
       return (
-        <div key={index} className="flex justify-start my-2 group">
+        <div key={index} className="flex justify-start my-2">
           <div className="max-w-[85%] sm:max-w-[75%]">
             <div className="flex items-start gap-3">
               {/* AI Avatar indicator */}
@@ -1229,6 +1289,27 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
                     {content}
                   </div>
                 )}
+                {/* Action buttons - always visible */}
+                <div className="flex items-center gap-2 mt-2 transition-opacity">
+                  <button
+                    onClick={() => handleCopyText(content, index)}
+                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    title="Копировать"
+                  >
+                    {copiedMessageIndex === index ? (
+                      <Check size={14} className="text-green-500" />
+                    ) : (
+                      <Copy size={14} className="text-gray-500 dark:text-gray-400" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleRegenerate(index)}
+                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    title="Перегенерировать"
+                  >
+                    <RefreshCw size={14} className="text-gray-500 dark:text-gray-400" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>

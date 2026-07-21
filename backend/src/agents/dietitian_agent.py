@@ -592,7 +592,7 @@ async def process_stream(
         if is_food_delete:
             text, _ = await _handle_food_delete(message, db, user_id)
             # Stream the response with delay for natural feel
-            async for chunk in stream_text_with_delay(text, chunk_size=1, delay_ms=20):
+            async for chunk in stream_text_with_delay(text, chunk_size=1, delay_ms=50):
                 yield StreamEvent(type="token", content=chunk)
             yield StreamEvent(type="done", content=text, metadata={"tokens_used": 0})
             return
