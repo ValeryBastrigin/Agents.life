@@ -3,7 +3,6 @@ import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../utils/apiClient';
 
-const STORAGE_HIDDEN_ALL = 'suggestion_pills_hidden_all';
 const STORAGE_DISMISS_PREFIX = 'suggestion_pill_dismissed_';
 const AGENTS_CHANGED_EVENT = 'agents-changed';
 
@@ -106,7 +105,7 @@ const PILLS_CONFIG = [
   },
 ];
 
-const SuggestionPills = ({ onSendMessage, userId }) => {
+const SuggestionPills = ({ onSendMessage, userId, isNewChat }) => {
   const navigate = useNavigate();
   const [activeAgents, setActiveAgents] = useState(new Set());
   const [dismissedPills, setDismissedPills] = useState(() => {
@@ -120,14 +119,6 @@ const SuggestionPills = ({ onSendMessage, userId }) => {
     });
     return dismissed;
   });
-  const [allHidden, setAllHidden] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_HIDDEN_ALL) === 'true';
-    } catch (e) {
-      return false;
-    }
-  });
-
   const loadActiveAgents = useCallback(async () => {
     if (!userId) return;
     try {
@@ -155,13 +146,6 @@ const SuggestionPills = ({ onSendMessage, userId }) => {
     return () => window.removeEventListener(AGENTS_CHANGED_EVENT, handleAgentsChanged);
   }, [loadActiveAgents]);
 
-  const hideAllPermanently = useCallback(() => {
-    try {
-      localStorage.setItem(STORAGE_HIDDEN_ALL, 'true');
-    } catch (e) {}
-    setAllHidden(true);
-  }, []);
-
   const dismissPill = useCallback((pillId, e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -172,7 +156,11 @@ const SuggestionPills = ({ onSendMessage, userId }) => {
   }, []);
 
   const handlePillClick = useCallback((pill) => {
-    hideAllPermanently();
+    // Dismiss this single pill when clicked (одноразовые)
+    try {
+      localStorage.setItem(STORAGE_DISMISS_PREFIX + pill.id, 'true');
+    } catch (e) {}
+    setDismissedPills(prev => ({ ...prev, [pill.id]: true }));
     switch (pill.action) {
       case 'send_message':
         if (onSendMessage) onSendMessage(pill.text);
@@ -186,9 +174,9 @@ const SuggestionPills = ({ onSendMessage, userId }) => {
       default:
         break;
     }
-  }, [onSendMessage, navigate, hideAllPermanently]);
+  }, [onSendMessage, navigate]);
 
-  if (allHidden) return null;
+  if (!isNewChat) return null;
 
   const visiblePills = PILLS_CONFIG
     .filter(pill => !dismissedPills[pill.id])

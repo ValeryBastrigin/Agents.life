@@ -1560,6 +1560,7 @@ function Home({ onChatCreated, theme, onScroll, userProfile }) {
           onStopStreaming={handleStopStreaming}
           disabled={isLoading || isStreaming}
           theme={theme}
+          isNewChat={messages.length === 0}
         />
       </div>
     </div>

@@ -5,7 +5,7 @@ import AttachMenu from './AttachMenu';
 import SuggestionPills from './SuggestionPills';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light', onOptimisticMessage, onAttachmentsUploaded, onFinalSend, isStreaming = false, onStopStreaming, userId }) => {
+const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light', onOptimisticMessage, onAttachmentsUploaded, onFinalSend, isStreaming = false, onStopStreaming, userId, isNewChat }) => {
   const { language } = useLanguage();
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -524,7 +524,7 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
       )}
 
       {/* ═══ Suggestion Pills — над полем ввода (только для новых пользователей) ═══ */}
-      <SuggestionPills onSendMessage={onSendMessage} userId={userId} />
+      <SuggestionPills onSendMessage={onSendMessage} userId={userId} isNewChat={isNewChat} />
 
       {/* ═══ Gemini-style: превью выбранных файлов НАД полем ввода ═══ */}
       {pendingFiles.length > 0 && (
