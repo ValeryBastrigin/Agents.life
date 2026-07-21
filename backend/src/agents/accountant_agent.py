@@ -30,12 +30,19 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
             timeout=60.0
         )
         response_text = response.choices[0].message.content
-        tokens_used = 0  # Disabled for development
+        
+        # Get real token usage from API response
+        usage = getattr(response, 'usage', None)
+        if usage:
+            tokens_used = getattr(usage, 'total_tokens', 0)
+        else:
+            tokens_used = 0
+        
         return response_text, tokens_used
     except Exception as e:
         print(f"Error in accountant agent: {e}")
         response = "Извините, произошла ошибка при обработке вашего запроса."
-        tokens_used = 0  # Disabled for development
+        tokens_used = 0
         return response, tokens_used
 
 
@@ -67,11 +74,11 @@ async def process_stream(
         yield event
 
 
-async def analyze_portfolio(image_urls: list[str]) -> dict:
+async def analyze_portfolio(image_urls: list[str]) -> tuple[dict, int, int]:
     """
     Analyze investment portfolio screenshots using LLM.
     image_urls: list of base64 data URIs or file URLs of screenshots
-    Returns: dict with overall_score, strengths, weaknesses, recommendations, asset_allocation
+    Returns: (result_dict, input_tokens, output_tokens)
     """
     portfolio_prompt = """Ты — финансовый аналитик и инвестиционный консультант. Проанализируй предоставленные скриншоты инвестиционного портфеля.
 
@@ -125,6 +132,16 @@ async def analyze_portfolio(image_urls: list[str]) -> dict:
         response_text = response.choices[0].message.content.strip()
         print(f"[Portfolio Analysis] Raw response: {response_text[:200]}...")
 
+        # Get real token usage from API response
+        usage = getattr(response, 'usage', None)
+        if usage:
+            input_tokens = getattr(usage, 'prompt_tokens', 0)
+            output_tokens = getattr(usage, 'completion_tokens', 0)
+        else:
+            # Fallback to estimation
+            input_tokens = 0
+            output_tokens = 0
+
         # Parse JSON response
         # Handle potential markdown code fence wrapping
         if response_text.startswith("```"):
@@ -137,7 +154,7 @@ async def analyze_portfolio(image_urls: list[str]) -> dict:
                 response_text = response_text[4:].strip()
 
         result = json.loads(response_text)
-        return result
+        return result, input_tokens, output_tokens
 
     except json.JSONDecodeError as e:
         print(f"[Portfolio Analysis] JSON parse error: {e}")
@@ -148,7 +165,7 @@ async def analyze_portfolio(image_urls: list[str]) -> dict:
             "weaknesses": ["Не удалось детально проанализировать портфель по скриншотам"],
             "recommendations": ["Загрузите более качественные скриншоты для детального анализа"],
             "asset_allocation": {"Акции": 50, "Облигации": 20, "Наличные/Депозиты": 20, "Другое": 10}
-        }
+        }, 0, 0
     except Exception as e:
         print(f"[Portfolio Analysis] Error: {e}")
         return {
@@ -157,4 +174,4 @@ async def analyze_portfolio(image_urls: list[str]) -> dict:
             "weaknesses": [f"Ошибка анализа: {str(e)[:100]}"],
             "recommendations": ["Попробуйте повторить анализ позже"],
             "asset_allocation": {"Акции": 40, "Облигации": 30, "Наличные/Депозиты": 20, "Другое": 10}
-        }
+        }, 0, 0

@@ -490,21 +490,29 @@ async def analyze_portfolio(
         image_urls.append(data_uri)
 
     # Analyze with LLM
-    result = await analyze_portfolio(image_urls)
+    result, input_tokens, output_tokens = await analyze_portfolio(image_urls)
 
     # Deduct credits for LLM processing (gemini_3_1_flash with images)
     portfolio_user_result = await db.execute(select(User).where(User.id == user_id))
     portfolio_user = portfolio_user_result.scalar_one_or_none()
     if portfolio_user:
-        input_token_est = len(str(result)) // 4  # rough estimate of analysis text
-        output_token_est = 2000  # approximate output size
         image_count = len(screenshots)
         credits_cost = calculate_cost(
             "gemini_3_1_flash",
-            input_tokens=input_token_est,
-            output_tokens=output_token_est,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
             image_count=image_count,
         )
+        # Fallback to estimation if no token data available
+        if credits_cost == 0 and (input_tokens == 0 and output_tokens == 0):
+            input_token_est = len(str(result)) // 4
+            output_token_est = 2000
+            credits_cost = calculate_cost(
+                "gemini_3_1_flash",
+                input_tokens=input_token_est,
+                output_tokens=output_token_est,
+                image_count=image_count,
+            )
         if credits_cost == 0:
             credits_cost = 1
         portfolio_user.credits_used = (portfolio_user.credits_used or 0) + credits_cost

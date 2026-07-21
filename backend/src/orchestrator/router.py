@@ -563,7 +563,13 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
                     timeout=60.0
                 )
                 response_text = response.choices[0].message.content
-                tokens_used = 0
+                
+                # Get real token usage from API response
+                usage = getattr(response, 'usage', None)
+                if usage:
+                    tokens_used = getattr(usage, 'total_tokens', 0)
+                else:
+                    tokens_used = 0
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"API error: {str(e)}")
 
@@ -841,6 +847,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         db.add(assistant_message)
 
         # Calculate credits: estimate input tokens from message length + output tokens
+        # Note: For default agent we don't have real token data from streaming, so we estimate
         input_token_est = len(request.message) // 4  # rough estimate: ~4 chars per token
         output_token_est = len(full_response) // 4
         credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_token_est, output_tokens=output_token_est)
@@ -1590,7 +1597,13 @@ async def send_food_query(chat_id: int, db: AsyncSession = Depends(get_db)):
                 timeout=60.0,
             )
             response_text = response.choices[0].message.content or "Привет! Я твой диетолог. Расскажи, что ты съел сегодня — помогу посчитать калории и БЖУ."
-            tokens_used = 0
+            
+            # Get real token usage from API response
+            usage = getattr(response, 'usage', None)
+            if usage:
+                tokens_used = getattr(usage, 'total_tokens', 0)
+            else:
+                tokens_used = 0
         except Exception as e:
             response_text = "Привет! Я твой диетолог. Расскажи, что ты съел сегодня — помогу посчитать калории и БЖУ."
             tokens_used = 0

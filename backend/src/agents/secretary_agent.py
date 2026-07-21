@@ -546,10 +546,17 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
                 if delta and delta.content:
                     response_text += delta.content
         
+        # Get real token usage from API response
+        usage = getattr(stream, 'usage', None)
+        if usage:
+            tokens_used = getattr(usage, 'total_tokens', 0)
+        else:
+            tokens_used = 0
+        
         if "интерфейс" in response_text.lower() or "календарь" in response_text.lower():
-            return "Пожалуйста, уточните детали встречи или напоминания, чтобы я мог их создать.", 0
+            return "Пожалуйста, уточните детали встречи или напоминания, чтобы я мог их создать.", tokens_used
             
-        return response_text, 0
+        return response_text, tokens_used
     except Exception as e:
         print(f"Error in secretary agent: {e}")
         return "Извините, произошла ошибка при обработке вашего запроса.", 0

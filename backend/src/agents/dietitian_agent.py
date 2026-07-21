@@ -554,7 +554,15 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
         response_text = response.choices[0].message.content
         if response_text is None:
             response_text = "Извините, произошла ошибка. Попробуйте ещё раз."
-        return response_text, 0
+        
+        # Get real token usage from API response
+        usage = getattr(response, 'usage', None)
+        if usage:
+            tokens_used = getattr(usage, 'total_tokens', 0)
+        else:
+            tokens_used = 0
+        
+        return response_text, tokens_used
     except Exception as e:
         print(f"Error in dietitian agent: {e}")
         return "Извините, произошла ошибка при обработке вашего запроса.", 0
