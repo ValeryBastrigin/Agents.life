@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../utils/apiClient';
 
+// userId добавляется к ключу, чтобы изолировать dismissed-состояние между аккаунтами
 const STORAGE_DISMISS_PREFIX = 'suggestion_pill_dismissed_';
 const AGENTS_CHANGED_EVENT = 'agents-changed';
 
@@ -108,16 +109,13 @@ const PILLS_CONFIG = [
 const SuggestionPills = ({ onSendMessage, userId, isNewChat }) => {
   const navigate = useNavigate();
   const [activeAgents, setActiveAgents] = useState(new Set());
+  const getStorageKey = useCallback((pillId) => {
+    return `${STORAGE_DISMISS_PREFIX}${pillId}_user_${userId || 'anonymous'}`;
+  }, [userId]);
+
   const [dismissedPills, setDismissedPills] = useState(() => {
-    const dismissed = {};
-    PILLS_CONFIG.forEach(pill => {
-      try {
-        if (localStorage.getItem(STORAGE_DISMISS_PREFIX + pill.id)) {
-          dismissed[pill.id] = true;
-        }
-      } catch (e) {}
-    });
-    return dismissed;
+    // Начальное состояние будет заполнено в useEffect после загрузки userId
+    return {};
   });
   const loadActiveAgents = useCallback(async () => {
     if (!userId) return;
@@ -133,6 +131,19 @@ const SuggestionPills = ({ onSendMessage, userId, isNewChat }) => {
       setActiveAgents(new Set(['secretary', 'accountant', 'dietitian', 'psychologist', 'mentor']));
     }
   }, [userId]);
+
+  // Загружаем dismissed состояние после того, как userId известен
+  useEffect(() => {
+    const dismissed = {};
+    PILLS_CONFIG.forEach(pill => {
+      try {
+        if (localStorage.getItem(getStorageKey(pill.id))) {
+          dismissed[pill.id] = true;
+        }
+      } catch (e) {}
+    });
+    setDismissedPills(dismissed);
+  }, [getStorageKey]);
 
   useEffect(() => {
     loadActiveAgents();
@@ -150,15 +161,15 @@ const SuggestionPills = ({ onSendMessage, userId, isNewChat }) => {
     e.stopPropagation();
     e.preventDefault();
     try {
-      localStorage.setItem(STORAGE_DISMISS_PREFIX + pillId, 'true');
+      localStorage.setItem(getStorageKey(pillId), 'true');
     } catch (e) {}
     setDismissedPills(prev => ({ ...prev, [pillId]: true }));
-  }, []);
+  }, [getStorageKey]);
 
   const handlePillClick = useCallback((pill) => {
     // Dismiss this single pill when clicked (одноразовые)
     try {
-      localStorage.setItem(STORAGE_DISMISS_PREFIX + pill.id, 'true');
+      localStorage.setItem(getStorageKey(pill.id), 'true');
     } catch (e) {}
     setDismissedPills(prev => ({ ...prev, [pill.id]: true }));
     switch (pill.action) {
@@ -174,7 +185,7 @@ const SuggestionPills = ({ onSendMessage, userId, isNewChat }) => {
       default:
         break;
     }
-  }, [onSendMessage, navigate]);
+  }, [onSendMessage, navigate, getStorageKey]);
 
   if (!isNewChat) return null;
 
