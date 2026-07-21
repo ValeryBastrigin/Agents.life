@@ -4,7 +4,7 @@ from typing import AsyncGenerator
 from src.config import client
 from src.image_utils import build_vision_message_parts, attachment_to_image_url, is_image_attachment
 from src.models import UserDietProfile, FoodConsumption, DietPlan
-from src.agents.streaming import stream_llm_response, StreamEvent
+from src.agents.streaming import stream_llm_response, StreamEvent, stream_text_with_delay
 from datetime import datetime, timedelta, timezone
 import json
 import re
@@ -591,10 +591,8 @@ async def process_stream(
         is_food_delete = await _detect_food_delete_intent(message)
         if is_food_delete:
             text, _ = await _handle_food_delete(message, db, user_id)
-            # Stream the response word by word
-            words = text.split(' ')
-            for i, word in enumerate(words):
-                chunk = word + (' ' if i < len(words) - 1 else '')
+            # Stream the response with delay for natural feel
+            async for chunk in stream_text_with_delay(text, chunk_size=1, delay_ms=20):
                 yield StreamEvent(type="token", content=chunk)
             yield StreamEvent(type="done", content=text, metadata={"tokens_used": 0})
             return
@@ -621,10 +619,8 @@ async def process_stream(
                     return
             except json.JSONDecodeError:
                 pass
-            # Stream the response word by word
-            words = response_text.split(' ')
-            for i, word in enumerate(words):
-                chunk = word + (' ' if i < len(words) - 1 else '')
+            # Stream the response with delay for natural feel
+            async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                 yield StreamEvent(type="token", content=chunk)
             yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
             return

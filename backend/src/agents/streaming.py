@@ -219,6 +219,32 @@ async def agent_stream_wrapper(
     yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
 
 
+# ─── Text streaming with delay (for emulating real-time streaming) ─────────────
+
+async def stream_text_with_delay(
+    text: str,
+    chunk_size: int = 1,
+    delay_ms: int = 30,
+) -> AsyncGenerator[str, None]:
+    """
+    Stream text in chunks with a small delay between chunks.
+    Used to emulate real-time streaming when we have pre-generated text.
+    
+    Args:
+        text: The full text to stream
+        chunk_size: Number of characters per chunk (default: 1 for character-by-character)
+        delay_ms: Delay between chunks in milliseconds (default: 30ms)
+    
+    Yields:
+        str: Each chunk of text
+    """
+    for i in range(0, len(text), chunk_size):
+        chunk = text[i:i + chunk_size]
+        yield chunk
+        if i + chunk_size < len(text):  # Don't delay after the last chunk
+            await asyncio.sleep(delay_ms / 1000)
+
+
 # ─── SSE Formatting ─────────────────────────────────────────────────────────────
 
 def stream_event_to_sse(event: StreamEvent) -> str:

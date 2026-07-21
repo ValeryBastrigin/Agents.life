@@ -4,7 +4,7 @@ from typing import AsyncGenerator
 from src.models import CalendarEvent, Reminder, Note
 from src.config import client
 from src.image_utils import build_llm_user_message
-from src.agents.streaming import stream_llm_response, StreamEvent
+from src.agents.streaming import stream_llm_response, StreamEvent, stream_text_with_delay
 from datetime import datetime, timedelta, time, date
 import re
 import json
@@ -625,9 +625,7 @@ async def process_stream(
                 elif any(kw in msg_lower for kw in approval_keywords_no):
                     _clear_session(user_id)
                     response_text = "Понял! Расскажите, что именно нужно изменить в расписании, и я переделаю."
-                    words = response_text.split(' ')
-                    for i, word in enumerate(words):
-                        chunk = word + (' ' if i < len(words) - 1 else '')
+                    async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                         yield StreamEvent(type="token", content=chunk)
                     yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
                     return
@@ -638,9 +636,7 @@ async def process_stream(
                         session = None
                     else:
                         response_text = "Я вас не совсем понял. Вы согласны с предложенным расписанием? Скажите «да» чтобы создать, или опишите что изменить."
-                        words = response_text.split(' ')
-                        for i, word in enumerate(words):
-                            chunk = word + (' ' if i < len(words) - 1 else '')
+                        async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                             yield StreamEvent(type="token", content=chunk)
                         yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
                         return
@@ -694,9 +690,7 @@ async def process_stream(
                 else:
                     _clear_session(user_id)
                     response_text = "Хорошо, не буду добавлять это расписание. Если захотите — просто скажите."
-                    words = response_text.split(' ')
-                    for i, word in enumerate(words):
-                        chunk = word + (' ' if i < len(words) - 1 else '')
+                    async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                         yield StreamEvent(type="token", content=chunk)
                     yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
                     return
@@ -748,9 +742,7 @@ async def process_stream(
             except Exception as e:
                 print(f"Error querying schedule: {e}")
                 response_text = "Не удалось получить расписание. Попробуйте ещё раз."
-                words = response_text.split(' ')
-                for i, word in enumerate(words):
-                    chunk = word + (' ' if i < len(words) - 1 else '')
+                async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                     yield StreamEvent(type="token", content=chunk)
                 yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
             return
@@ -784,9 +776,7 @@ async def process_stream(
             except Exception as e:
                 print(f"Error creating note: {e}")
                 response_text = "Не удалось создать заметку. Попробуйте ещё раз."
-                words = response_text.split(' ')
-                for i, word in enumerate(words):
-                    chunk = word + (' ' if i < len(words) - 1 else '')
+                async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                     yield StreamEvent(type="token", content=chunk)
                 yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
             return
@@ -825,9 +815,7 @@ async def process_stream(
                         end_time_str = data.get("end_time")
                         if not start_time_str and not end_time_str:
                             response_text = "Укажите время для события в расписании."
-                            words = response_text.split(' ')
-                            for i, word in enumerate(words):
-                                chunk = word + (' ' if i < len(words) - 1 else '')
+                            async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                                 yield StreamEvent(type="token", content=chunk)
                             yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
                             return
@@ -851,9 +839,7 @@ async def process_stream(
                         date_str = data.get("date")
                         if not date_str:
                             response_text = "Укажите дату для напоминания."
-                            words = response_text.split(' ')
-                            for i, word in enumerate(words):
-                                chunk = word + (' ' if i < len(words) - 1 else '')
+                            async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                                 yield StreamEvent(type="token", content=chunk)
                             yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
                             return
@@ -871,17 +857,13 @@ async def process_stream(
                         yield StreamEvent(type="done", content=json.dumps(widget), metadata={"tokens_used": 0})
                 else:
                     response_text = "Не удалось создать запись. Уточните дату и время."
-                    words = response_text.split(' ')
-                    for i, word in enumerate(words):
-                        chunk = word + (' ' if i < len(words) - 1 else '')
+                    async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                         yield StreamEvent(type="token", content=chunk)
                     yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
             except Exception as e:
                 print(f"Error in event extraction: {e}")
                 response_text = "Не удалось создать запись. Уточните дату и время."
-                words = response_text.split(' ')
-                for i, word in enumerate(words):
-                    chunk = word + (' ' if i < len(words) - 1 else '')
+                async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                     yield StreamEvent(type="token", content=chunk)
                 yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
             return
@@ -915,9 +897,7 @@ async def process_stream(
                 tasks = schedule_data.get("tasks", [])
                 if not tasks:
                     response_text = "Я не смог найти дела с временем в вашем сообщении. Опишите, пожалуйста, ваш день с указанием времени."
-                    words = response_text.split(' ')
-                    for i, word in enumerate(words):
-                        chunk = word + (' ' if i < len(words) - 1 else '')
+                    async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                         yield StreamEvent(type="token", content=chunk)
                     yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
                     return
@@ -960,9 +940,7 @@ async def process_stream(
             except Exception as e:
                 print(f"Error extracting schedule: {e}")
                 response_text = "Не удалось составить расписание. Опишите, пожалуйста, ваши дела подробнее."
-                words = response_text.split(' ')
-                for i, word in enumerate(words):
-                    chunk = word + (' ' if i < len(words) - 1 else '')
+                async for chunk in stream_text_with_delay(response_text, chunk_size=1, delay_ms=20):
                     yield StreamEvent(type="token", content=chunk)
                 yield StreamEvent(type="done", content=response_text, metadata={"tokens_used": 0})
             return

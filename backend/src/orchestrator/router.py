@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta, timezone
 from src.config import client
 from pydantic import BaseModel, ValidationError
 from typing import Optional, List, Union, Any, AsyncGenerator
-from src.agents.streaming import stream_event_to_sse, StreamEvent, stream_llm_response
+from src.agents.streaming import stream_event_to_sse, StreamEvent, stream_llm_response, stream_text_with_delay
 from src.billing.calculator import calculate_cost
 from src.billing.dependency import check_billing_limit
 import importlib
@@ -789,10 +789,8 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         if _is_greeting(message_text):
             greeting = random.choice(GREETING_RESPONSES)
             full_response = greeting
-            # Stream greeting word by word
-            words = greeting.split(' ')
-            for i, word in enumerate(words):
-                chunk = word + (' ' if i < len(words) - 1 else '')
+            # Stream greeting with delay for natural feel
+            async for chunk in stream_text_with_delay(greeting, chunk_size=1, delay_ms=20):
                 yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
         else:
             enriched_prompt = await _enrich_system_prompt_with_rag(request.user_id, agent_name, message_text, agent.system_prompt, db)
@@ -822,18 +820,14 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
                 if not full_response.strip():
                     full_response = "Извините, произошла ошибка. Попробуйте ещё раз."
-                    # Stream error message word by word
-                    words = full_response.split(' ')
-                    for i, word in enumerate(words):
-                        chunk = word + (' ' if i < len(words) - 1 else '')
+                    # Stream error message with delay for natural feel
+                    async for chunk in stream_text_with_delay(full_response, chunk_size=1, delay_ms=20):
                         yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
 
             except Exception as e:
                 full_response = f"Извините, произошла ошибка при обработке запроса: {str(e)[:100]}..."
-                # Stream error message word by word
-                words = full_response.split(' ')
-                for i, word in enumerate(words):
-                    chunk = word + (' ' if i < len(words) - 1 else '')
+                # Stream error message with delay for natural feel
+                async for chunk in stream_text_with_delay(full_response, chunk_size=1, delay_ms=20):
                     yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
 
         # Save assistant message
