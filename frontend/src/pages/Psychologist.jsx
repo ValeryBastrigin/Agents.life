@@ -169,6 +169,21 @@ const { language, changeLanguage, t } = useLanguage();
   }, [location.state]);
 
 
+  // Handle navigation from suggestion pill "Начать сеанс психотерапии"
+
+  useEffect(() => {
+
+    if (location.state?.showStartSession) {
+
+      window.history.replaceState({}, document.title);
+
+      setShowStartSession(true);
+
+    }
+
+  }, [location.state]);
+
+
 
   // ─── Check active session ─────────────
 

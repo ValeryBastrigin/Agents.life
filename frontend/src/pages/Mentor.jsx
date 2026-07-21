@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Target, BookOpen, Calendar, Zap, Sparkles, Plus, MessageSquare, GitBranch, CheckCircle2, Wand2, X, Trash2, ChevronDown, Search, Loader2 } from 'lucide-react';
 import MentorBackground from '../components/MentorBackground';
 import DreamInputModal from '../components/DreamInputModal';
@@ -43,6 +43,7 @@ const categoryLabels = {
 
 const Mentor = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { userId } = useUser();
   const [habitData, setHabitData] = useState({ habits: [], xp: 0, level: 1, unlockedAchievements: [] });
   const [loading, setLoading] = useState(false);
@@ -115,6 +116,14 @@ const Mentor = () => {
     }
     setDeleteConfirm(null);
   };
+
+  // Handle navigation from suggestion pill "Создайте путь к своей мечте"
+  useEffect(() => {
+    if (location.state?.showDreamModal) {
+      window.history.replaceState({}, document.title);
+      setDreamModalOpen(true);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (!dreamModalOpen) {

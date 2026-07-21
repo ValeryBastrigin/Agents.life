@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Paperclip, Mic, StopCircle, X, Loader2, Square } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
 import AttachMenu from './AttachMenu';
+import SuggestionPills from './SuggestionPills';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light', onOptimisticMessage, onAttachmentsUploaded, onFinalSend, isStreaming = false, onStopStreaming, userId }) => {
@@ -521,6 +522,9 @@ const ChatInput = ({ onSendMessage, onSendAttachment, disabled, theme = 'light',
           </div>
         </div>
       )}
+
+      {/* ═══ Suggestion Pills — над полем ввода (только для новых пользователей) ═══ */}
+      <SuggestionPills onSendMessage={onSendMessage} userId={userId} />
 
       {/* ═══ Gemini-style: превью выбранных файлов НАД полем ввода ═══ */}
       {pendingFiles.length > 0 && (

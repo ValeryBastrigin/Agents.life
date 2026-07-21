@@ -96,6 +96,7 @@ function AgentManagerModalContent({ userId, onClose, onAgentsChange }) {
         enabled_agents: [...activeAgents],
       });
       if (onAgentsChange) onAgentsChange([...activeAgents]);
+      window.dispatchEvent(new Event('agents-changed'));
       onClose();
     } catch (err) {
       console.error('Failed to save agent settings:', err);
