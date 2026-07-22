@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, ChefHat, Sparkles, Loader2, Trash2, X, UserCircle, Settings } from 'lucide-react';
+import { ArrowLeft, ChefHat, Sparkles, Loader2, Trash2, X } from 'lucide-react';
 import { getDietPlan, saveDietPlan, createChat, deleteDietPlan } from '../utils/apiClient';
 import DietitianBackground from '../components/DietitianBackground';
 import MealPlanRequestModal from '../components/MealPlanRequestModal';
@@ -9,80 +9,6 @@ import MealPlanWidget from '../components/ui/widgets/MealPlanWidget';
 import { useUser } from '../contexts/UserContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
-
-// ---------- Profile Setup Card ----------
-const ProfileSetupCard = ({ profile, onContinue, onConfigure, onSkip }) => {
-  const hasEssentialData = profile && profile.height && profile.weight && profile.age && profile.gender && profile.goal;
-
-  return (
-    <div className="bg-gradient-to-br from-green-50/90 via-emerald-50/90 to-white/90 dark:from-green-900/30 dark:via-emerald-900/25 dark:to-gray-800/30 backdrop-blur rounded-[2.5rem] p-8 max-w-md w-full shadow-lg border border-green-200/50 dark:border-green-700/30">
-      <div className="flex flex-col items-center text-center">
-        <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
-          <UserCircle size={32} className="text-white" />
-        </div>
-        
-        {hasEssentialData ? (
-          <>
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Профиль уже настроен!</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
-              Ваш персональный профиль готов:<br />
-              Рост: {profile.height} см · Вес: {profile.weight} кг · Возраст: {profile.age} лет<br />
-              Цель: {profile.goal === 'lose' ? 'похудение' : profile.goal === 'gain' ? 'набор массы' : 'поддержание веса'}
-            </p>
-            {profile.calorie_target && (
-              <p className="text-sm font-semibold text-green-600 dark:text-green-400 mb-2">
-                🎯 Ваша норма: {profile.calorie_target} ккал/день
-              </p>
-            )}
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-              Диетолог учтёт все ваши данные при составлении рациона.
-            </p>
-            <button
-              onClick={onContinue}
-              className="w-full py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-[2rem] transition-all duration-300 shadow-lg shadow-green-500/25 flex items-center justify-center gap-2 mb-3"
-            >
-              <Sparkles size={20} />
-              Сгенерировать рацион
-            </button>
-            <button
-              onClick={onConfigure}
-              className="w-full py-2 px-4 bg-white/50 dark:bg-gray-700/50 hover:bg-white/80 dark:hover:bg-gray-700/80 text-gray-600 dark:text-gray-300 font-medium rounded-[2rem] transition-all duration-300 flex items-center justify-center gap-2 text-sm"
-            >
-              <Settings size={16} />
-              Изменить параметры
-            </button>
-          </>
-        ) : (
-          <>
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Нужно заполнить профиль</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2 leading-relaxed">
-              Для составления персонального рациона нам нужны ваши параметры.
-            </p>
-            <div className="bg-white/50 dark:bg-gray-700/50 rounded-xl p-4 mb-4 w-full text-left text-xs text-gray-500 dark:text-gray-400 space-y-1">
-              <p>• Рост и вес — для расчёта КБЖУ</p>
-              <p>• Возраст и пол — для точности формулы</p>
-              <p>• Цель — похудение, набор массы или поддержание</p>
-              <p>• Уровень активности — для учёта расхода калорий</p>
-            </div>
-            <button
-              onClick={onConfigure}
-              className="w-full py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-[2rem] transition-all duration-300 shadow-lg shadow-green-500/25 flex items-center justify-center gap-2 mb-3"
-            >
-              <Settings size={20} />
-              Настроить профиль
-            </button>
-            <button
-              onClick={onSkip}
-              className="w-full py-2 px-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm transition-colors"
-            >
-              Пропустить (без персональных данных)
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
 
 // ---------- Main Component ----------
 const DietPlanPage = () => {
@@ -397,8 +323,8 @@ const DietPlanPage = () => {
   // ── Handler for "Сгенерировать рацион" button ──
   const handleStartGeneration = async () => {
     if (!isProfileComplete) {
-      // Profile not complete — redirect to Dietitian page for onboarding
-      navigate('/dietitian');
+      // Profile not complete — redirect to dietitian with configure flag
+      navigate('/dietitian?configure=true');
       return;
     }
 
@@ -597,64 +523,54 @@ const DietPlanPage = () => {
 
         {/* Center content */}
         <div className="flex flex-col items-center justify-center min-h-[70vh] px-4">
-          {/* If profile exists but is incomplete, show ProfileSetupCard */}
-          {!isProfileComplete ? (
-            <ProfileSetupCard
-              profile={userProfile}
-              onContinue={() => startDietitianChatWithPreferences()}
-              onConfigure={() => navigate('/dietitian')}
-              onSkip={() => startDietitianChatWithPreferences()}
-            />
-          ) : (
-            <div className="bg-gradient-to-br from-green-50/90 via-emerald-50/90 to-white/90 dark:from-green-900/30 dark:via-emerald-900/25 dark:to-gray-800/30 backdrop-blur rounded-[2.5rem] p-10 max-w-md w-full shadow-lg border border-green-200/50 dark:border-green-700/30 text-center">
-              <div className="w-20 h-20 mx-auto mb-5 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-md shadow-green-500/30">
-                <ChefHat size={40} className="text-white" />
-              </div>
-              
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-3">Персональный рацион</h2>
-              
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
-                Сгенерируйте персональный рацион вместе с Ixteria. Она учтёт все ваши пожелания и параметры, и составит рацион, который вы сможете приготовить вместе!
-              </p>
-
-              {/* Tags */}
-              <div className="flex flex-wrap justify-center gap-3 mb-8">
-                <span className="px-4 py-2 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-sm font-medium rounded-full shadow-sm">
-                  🥗 Рецепты
-                </span>
-                <span className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-sm font-medium rounded-full shadow-sm">
-                  📊 КБЖУ
-                </span>
-                <span className="px-4 py-2 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-sm font-medium rounded-full shadow-sm">
-                  🎯 Цели
-                </span>
-              </div>
-              
-              <button
-                onClick={handleStartGeneration}
-                disabled={creatingChat || generating}
-                className="w-full py-4 px-8 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-[2rem] transition-all duration-300 shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 flex items-center justify-center gap-2 text-lg disabled:opacity-70"
-              >
-                {(creatingChat || generating) ? (
-                  <>
-                    <Loader2 size={22} className="animate-spin" />
-                    Генерируем рацион...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={22} />
-                    Сгенерировать рацион
-                  </>
-                )}
-              </button>
-              
-              {generationError && (
-                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-2xl text-red-600 dark:text-red-400 text-sm text-center">
-                  {generationError}
-                </div>
-              )}
+          <div className="bg-gradient-to-br from-green-50/90 via-emerald-50/90 to-white/90 dark:from-green-900/30 dark:via-emerald-900/25 dark:to-gray-800/30 backdrop-blur rounded-[2.5rem] p-10 max-w-md w-full shadow-lg border border-green-200/50 dark:border-green-700/30 text-center">
+            <div className="w-20 h-20 mx-auto mb-5 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-md shadow-green-500/30">
+              <ChefHat size={40} className="text-white" />
             </div>
-          )}
+            
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-3">Персональный рацион</h2>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
+              Сгенерируйте персональный рацион вместе с Ixteria. Она учтёт все ваши пожелания и параметры, и составит рацион, который вы сможете приготовить вместе!
+            </p>
+
+            {/* Tags */}
+            <div className="flex flex-wrap justify-center gap-3 mb-8">
+              <span className="px-4 py-2 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-sm font-medium rounded-full shadow-sm">
+                🥗 Рецепты
+              </span>
+              <span className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-sm font-medium rounded-full shadow-sm">
+                📊 КБЖУ
+              </span>
+              <span className="px-4 py-2 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-sm font-medium rounded-full shadow-sm">
+                🎯 Цели
+              </span>
+            </div>
+            
+            <button
+              onClick={handleStartGeneration}
+              disabled={creatingChat || generating}
+              className="w-full py-4 px-8 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-[2rem] transition-all duration-300 shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 flex items-center justify-center gap-2 text-lg disabled:opacity-70"
+            >
+              {(creatingChat || generating) ? (
+                <>
+                  <Loader2 size={22} className="animate-spin" />
+                  Генерируем рацион...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={22} />
+                  Сгенерировать рацион
+                </>
+              )}
+            </button>
+            
+            {generationError && (
+              <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-2xl text-red-600 dark:text-red-400 text-sm text-center">
+                {generationError}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

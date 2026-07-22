@@ -67,6 +67,66 @@ GREETING_RESPONSES = [
     "Привет-привет! Всё готово к работе. С чего начнём? 😊",
 ]
 
+WHAT_CAN_YOU_DO_QUESTIONS = {
+    "что ты умеешь",
+    "что ты умеешь делать",
+    "что ты умеешь делать расскажи о возможностях агентов",
+    "расскажи о возможностях агентов",
+    "что вы умеете",
+    "что ты можешь",
+}
+
+WHAT_CAN_YOU_DO_RESPONSE = """Привет!
+
+Я ixteria — это ваш персональный мультиагентский сервис для жизни и работы.
+
+Наша команда ИИ-агентов поможет вам навести порядок в делах, заботиться о здоровье, эффективно управлять финансами и уверенно двигаться к своим мечтам и ментальному благополучию.
+
+Знакомьтесь с вашими помощниками:
+
+**1. Тайм-менеджер** 📅
+
+Ваш личный эксперт по времени и продуктивности.
+*Что умеет:* Помогает составлять индивидуальное расписание, планировать задачи на день и фиксировать важные заметки.
+*Как помогает:* Вы можете обсуждать свои планы с агентом для их оптимизации. Он всегда напомнит о запланированных делах, держит под контролем ваш график и помогает высвободить время для главного — ваших целей.
+
+**2. Агент-диетолог** 🥗
+
+Ваш персональный проводник к здоровому телу.
+*Что умеет:* Помогает составить индивидуальный рацион, анализирует КБЖУ и предлагает рецепты для совместной готовки.
+*Как помогает:* Вы можете обсуждать свое меню, легко сбрасывать вес или набирать мышечную массу. Агент будет рядом на каждом этапе вашего пути к здоровому и сбалансированному питанию.
+
+**3. Финансовый ассистент** 💰
+
+Ваш умный советник по деньгам и инвестициям.
+*Что умеет:* Анализирует ваши траты, банковские выписки и инвестиционные портфели.
+*Как помогает:* Подскажет, как оптимизировать расходы и накопить на мечту. А благодаря встроенному расчётному календарю вы сможете внести все регулярные платежи — ассистент заранее напомнит, когда и за что нужно заплатить.
+
+**4. Агент-психолог** 🧠
+
+Ваша безопасная и поддерживающая среда.
+*Что умеет:* Начинает с вами сеансы психотерапии, внимательно выслушивает то, что для вас важно, и помогает разобраться с внутренними проблемами.
+*Как помогает:* После окончания сеанса формирует краткое саммари, как настоящий терапевт, и сохраняет его в специальный раздел. Там вы всегда сможете узнать, как прошёл сеанс, ознакомиться с рекомендациями для продолжения беседы и получить полезные материалы.
+*Конфиденциальность:* Все сеансы строго конфиденциальны — никто, кроме вас, не имеет к ним доступа.
+
+**5. Агент-ментор** 🎯
+
+Ваш проводник к главным целям и саморазвитию.
+*Что умеет:* Помогает превратить мечту в реальность, разбивая её на понятные и доступные шаги, которые вы проходите вместе.
+*Как помогает:* Подбирает обучающие материалы, которые помогут конкретно вам в достижении вашей цели. Помогает избавиться от вредных привычек и привить полезные.
+
+Всё это вы можете сделать вместе с Ixteria уже сейчас!"""
+
+
+def _is_what_can_you_do(text: str) -> bool:
+    """Check if the user is asking 'what can you do'."""
+    text_clean = re.sub(r'[^\w\s]', '', text.strip().lower())
+    words = text_clean.split()
+    # Check full cleaned text against known questions
+    return text_clean in WHAT_CAN_YOU_DO_QUESTIONS or any(
+        q in text_clean for q in WHAT_CAN_YOU_DO_QUESTIONS
+    )
+
 
 def _is_greeting(text: str) -> bool:
     """Check if the user message is just a greeting (no actual question/task)."""
@@ -542,8 +602,12 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
             )
             tokens_used = 0
     else:
+        # --- WHAT CAN YOU DO CHECK for default agent ---
+        if _is_what_can_you_do(message_text):
+            response_text = WHAT_CAN_YOU_DO_RESPONSE
+            tokens_used = 0
         # --- GREETING CHECK for default agent ---
-        if _is_greeting(message_text):
+        elif _is_greeting(message_text):
             response_text = random.choice(GREETING_RESPONSES)
             tokens_used = 0
         else:
@@ -580,15 +644,17 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
     assistant_message = Message(chat_id=chat.id, role="assistant", content=response_text, tokens_used=tokens_used)
     db.add(assistant_message)
 
-    # Deduct credits based on tokens used
-    credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=0, output_tokens=tokens_used)
-    if credits_cost == 0 and tokens_used > 0:
-        credits_cost = 1  # minimum cost for non-zero response
-    elif credits_cost == 0:
-        credits_cost = 1  # minimum cost for any AI interaction
-    user.credits_used = (user.credits_used or 0) + credits_cost
-    user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
-    user.last_credit_reset = date.today()
+    # Deduct credits only for LLM-generated responses (tokens_used > 0), not for pre-canned ones
+    if tokens_used > 0:
+        credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=0, output_tokens=tokens_used)
+        if credits_cost == 0:
+            credits_cost = 1  # minimum cost for any AI interaction
+        user.credits_used = (user.credits_used or 0) + credits_cost
+        user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+        user.last_credit_reset = date.today()
+    else:
+        # Pre-canned responses (greeting, what_can_you_do) — no cost
+        user.last_credit_reset = date.today()
 
     await db.commit()
     await db.refresh(user)
@@ -766,17 +832,18 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             assistant_message = Message(chat_id=chat.id, role="assistant", content=full_response, tokens_used=tokens_used)
             db.add(assistant_message)
 
-            # Calculate credits: estimate input tokens from message length + output tokens
-            input_token_est = len(message_text) // 4  # rough estimate: ~4 chars per token
-            output_token_est = len(full_response) // 4
-            credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_token_est, output_tokens=output_token_est)
-            if credits_cost == 0 and (input_token_est > 0 or output_token_est > 0):
-                credits_cost = 1
-            elif credits_cost == 0:
-                credits_cost = 1
-            user.credits_used = (user.credits_used or 0) + credits_cost
-            user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
-            user.last_credit_reset = date.today()
+            # Deduct credits only for LLM-generated responses (tokens_used > 0), not for pre-canned ones
+            if tokens_used > 0:
+                input_token_est = len(message_text) // 4
+                output_token_est = len(full_response) // 4
+                credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_token_est, output_tokens=output_token_est)
+                if credits_cost == 0:
+                    credits_cost = 1  # minimum cost for any AI interaction
+                user.credits_used = (user.credits_used or 0) + credits_cost
+                user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+                user.last_credit_reset = date.today()
+            else:
+                user.last_credit_reset = date.today()
             await db.commit()
 
         return StreamingResponse(
@@ -797,12 +864,16 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         user_message = Message(chat_id=chat.id, role="user", content=request.message, tokens_used=0)
         db.add(user_message)
 
+        # --- WHAT CAN YOU DO CHECK for default agent ---
+        if _is_what_can_you_do(message_text):
+            full_response = WHAT_CAN_YOU_DO_RESPONSE
+            async for chunk in stream_text_with_delay(full_response, chunk_size=5, delay_ms=5):
+                yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
         # --- GREETING CHECK for default agent ---
-        if _is_greeting(message_text):
+        elif _is_greeting(message_text):
             greeting = random.choice(GREETING_RESPONSES)
             full_response = greeting
-            # Stream greeting with delay for natural feel
-            async for chunk in stream_text_with_delay(greeting, chunk_size=1, delay_ms=20):
+            async for chunk in stream_text_with_delay(greeting, chunk_size=5, delay_ms=5):
                 yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
         else:
             enriched_prompt = await _enrich_system_prompt_with_rag(request.user_id, agent_name, message_text, agent.system_prompt, db)
@@ -832,31 +903,31 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
 
                 if not full_response.strip():
                     full_response = "Извините, произошла ошибка. Попробуйте ещё раз."
-                    # Stream error message with delay for natural feel
-                    async for chunk in stream_text_with_delay(full_response, chunk_size=1, delay_ms=20):
+                    async for chunk in stream_text_with_delay(full_response, chunk_size=5, delay_ms=5):
                         yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
 
             except Exception as e:
                 full_response = f"Извините, произошла ошибка при обработке запроса: {str(e)[:100]}..."
-                # Stream error message with delay for natural feel
-                async for chunk in stream_text_with_delay(full_response, chunk_size=1, delay_ms=20):
+                async for chunk in stream_text_with_delay(full_response, chunk_size=5, delay_ms=5):
                     yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
 
         # Save assistant message
         assistant_message = Message(chat_id=chat.id, role="assistant", content=full_response, tokens_used=0)
         db.add(assistant_message)
 
-        # Calculate credits: estimate input tokens from message length + output tokens
-        # Note: For default agent we don't have real token data from streaming, so we estimate
-        input_token_est = len(request.message) // 4  # rough estimate: ~4 chars per token
-        output_token_est = len(full_response) // 4
-        credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_token_est, output_tokens=output_token_est)
-        if credits_cost == 0 and (input_token_est > 0 or output_token_est > 0):
-            credits_cost = 1
-        elif credits_cost == 0:
-            credits_cost = 1
-        user.credits_used = (user.credits_used or 0) + credits_cost
-        user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+        # Deduct credits only for LLM-generated responses, not for pre-canned ones
+        # For default agent streaming, check if we had a pre-canned response (short messages without LLM call)
+        is_pre_canned = _is_what_can_you_do(request.message) or _is_greeting(request.message)
+        if not is_pre_canned:
+            input_token_est = len(request.message) // 4
+            output_token_est = len(full_response) // 4
+            credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_token_est, output_tokens=output_token_est)
+            if credits_cost == 0 and (input_token_est > 0 or output_token_est > 0):
+                credits_cost = 1
+            elif credits_cost == 0:
+                credits_cost = 1
+            user.credits_used = (user.credits_used or 0) + credits_cost
+            user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
         user.last_credit_reset = date.today()
         await db.commit()
 

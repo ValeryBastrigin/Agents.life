@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2, Plus, Sparkles, ArrowRight, ChefHat } from 'lucide-react';
 import DietitianBackground from '../components/DietitianBackground';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
 import { apiClient } from '../utils/apiClient';
@@ -986,9 +986,11 @@ const getInitialNutrition = () => {
 const Dietitian = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const { userId } = useUser();
 
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [initialParamsHandled, setInitialParamsHandled] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [showDiary, setShowDiary] = useState(false);
@@ -1141,6 +1143,16 @@ const Dietitian = () => {
       window.removeEventListener('focus', handleFocus);
     };
   }, [loadFoodToday]);
+
+  // Handle ?configure=true query parameter — redirect to dietitian page and open onboarding modal
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('configure') === 'true' && !initialParamsHandled) {
+      setInitialParamsHandled(true);
+      navigate('/dietitian', { replace: true });
+      setShowOnboarding(true);
+    }
+  }, [location.search, navigate, initialParamsHandled]);
 
   const handleOnboardingComplete = useCallback(async ({ profile, goal, speed, activity, nutrition: calcNutrition }) => {
     const data = { profile, goal, speed, activity, nutrition: calcNutrition };
