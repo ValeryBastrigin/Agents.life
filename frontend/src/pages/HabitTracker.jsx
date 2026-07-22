@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
 import HabitTrackerModal from '../components/HabitTrackerModal';
 import {
   Plus, Zap, Flame, Trophy, Star, Heart, AlertTriangle,
@@ -33,7 +34,9 @@ const LEVEL_TITLES = [
   { level: 20, title: 'Легенда' },
 ];
 
-const STORAGE_KEY = 'habit_tracker_data';
+function getStorageKey(userId) {
+  return `habit_tracker_data_user_${userId || 'anonymous'}`;
+}
 
 function generateId() {
   return `habit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -43,16 +46,16 @@ function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function loadData() {
+function loadData(userId) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey(userId));
     if (raw) return JSON.parse(raw);
   } catch (e) { /* ignore */ }
   return { habits: [], xp: 0, level: 1, unlockedAchievements: [], lastResetDate: getTodayKey() };
 }
 
-function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+function saveData(data, userId) {
+  localStorage.setItem(getStorageKey(userId), JSON.stringify(data));
 }
 
 function getLevelTitle(level) {
@@ -65,14 +68,17 @@ function getLevelTitle(level) {
 
 const HabitTracker = ({ theme }) => {
   const navigate = useNavigate();
-  const [data, setData] = useState(() => loadData());
+  const { userId } = useUser();
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
+  const [data, setData] = useState(() => loadData(userId));
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [expandedHabit, setExpandedHabit] = useState(null);
   const [showAchievements, setShowAchievements] = useState(false);
 
   // Save on change
-  useEffect(() => { saveData(data); }, [data]);
+  useEffect(() => { saveData(data, userIdRef.current); }, [data]);
 
   // Daily reset check
   useEffect(() => {

@@ -962,7 +962,8 @@ const FoodDiaryModal = ({ isOpen, onClose, nutritionGoal, userId }) => {
 };
 
 // ========== Main Dietitian Page ==========
-const FOOD_CHAT_STORAGE_KEY = 'dietitian_food_chat_id';
+// Изолированный ключ localStorage для chat_id дневника питания, привязанный к userId
+const getFoodChatStorageKey = (userId) => userId ? `dietitian_food_chat_id_${userId}` : null;
 
 // Изолированный ключ localStorage, привязанный к userId
 const getDietitianProfileKey = (userId) => userId ? `dietitian_profile_${userId}` : null;

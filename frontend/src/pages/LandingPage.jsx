@@ -401,33 +401,37 @@ function AgentsOverviewSection() {
     <motion.section
       ref={sectionRef}
       style={{ opacity: bgOpacity, y: bgY }}
-      className="min-h-screen flex items-center justify-center py-4 px-4 relative z-10"
+      className="min-h-[80vh] flex items-center justify-center py-3 px-4 relative z-10"
     >
       <div className="max-w-6xl mx-auto w-full">
-        <motion.h2
-          className="text-2xl lg:text-4xl font-bold text-white mb-1 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6 }}
-        >
-          Ваши{' '}
-          <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            AI-агенты
-          </span>
-        </motion.h2>
+        <div className="lg:grid lg:grid-cols-5 lg:gap-12 lg:items-start">
+          <div className="lg:col-span-2 text-left mb-6 lg:mb-0 lg:sticky lg:top-24">
+            <motion.h2
+              className="text-4xl lg:text-5xl font-bold text-white"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ duration: 0.6 }}
+            >
+              Ваши{' '}
+              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                AI-агенты
+              </span>
+            </motion.h2>
 
-        <motion.p
-          className="text-gray-400 text-xs lg:text-sm max-w-xl mx-auto mb-3 text-center"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ delay: 0.15, duration: 0.6 }}
-        >
-          Каждый — эксперт в своей области. Нажмите, чтобы узнать больше.
-        </motion.p>
+            <motion.p
+              className="text-gray-400 text-base lg:text-lg mt-3 leading-relaxed"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ delay: 0.15, duration: 0.6 }}
+            >
+              Каждый — эксперт в своей области.<br className="hidden lg:block" />
+              Нажмите, чтобы узнать больше.
+            </motion.p>
+          </div>
 
-        <div className="flex flex-col gap-3 lg:gap-4 max-w-2xl mx-auto mb-10">
+          <div className="lg:col-span-3 flex flex-col gap-3 lg:gap-4 mb-10">
           {AGENTS.map((agent) => (
             <motion.div
               key={agent.id}
@@ -480,89 +484,133 @@ function AgentsOverviewSection() {
               </div>
             </motion.div>
           ))}
-        </div>
+        </div> {/* lg:col-span-3 */}
+        </div> {/* lg:grid */}
+      </div> {/* max-w-6xl */}
+    </motion.section>
+  );
+}
 
-        {/* Сравнение: LLM vs Ixteria Agents */}
-        <motion.div
-          className="max-w-2xl mx-auto px-4 py-6 rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 backdrop-blur-sm"
+// ── ═══ СЕКЦИЯ "НЕ ПРОСТО LLM, А Ж
+function LLMComparisonSection() {
+  const sectionRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start end', 'end start'],
+  });
+
+  const bgOpacity = useTransform(scrollYProgress, [0, 0.15, 0.85, 1], [0.3, 1, 1, 0.3]);
+  const bgY = useTransform(scrollYProgress, [0, 0.15, 0.85, 1], [40, 0, 0, -20]);
+
+  return (
+    <motion.section
+      ref={sectionRef}
+      style={{ opacity: bgOpacity, y: bgY }}
+      className="min-h-[70vh] flex items-center justify-center py-4 px-4 relative z-10"
+    >
+      <div className="max-w-6xl mx-auto w-full">
+        <div className="lg:grid lg:grid-cols-5 lg:gap-12 lg:items-start">
+          <div className="lg:col-span-2 text-left mb-6 lg:mb-0 lg:sticky lg:top-24">
+            <motion.h3
+              className="text-3xl lg:text-5xl font-bold text-white leading-snug"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-60px' }}
+              transition={{ duration: 0.5 }}
+            >
+              Не просто{' '}
+              <span className="bg-gradient-to-r from-gray-400 to-gray-300 bg-clip-text text-transparent line-through decoration-2 decoration-gray-600">
+                LLM
+              </span>
+              , а{' '}
+              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                живые помощники
+              </span>
+            </motion.h3>
+
+            <motion.p
+              className="text-gray-500 text-sm lg:text-base mt-4 leading-relaxed hidden lg:block"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true, margin: '-60px' }}
+              transition={{ delay: 0.2 }}
+            >
+              Мы создали не просто чат-ботов, а команду цифровых сотрудников,
+              которые действительно понимают вашу жизнь.
+            </motion.p>
+          </div>
+
+          <div className="lg:col-span-3">
+            <motion.div
+              className="w-full px-5 py-8 lg:px-8 lg:py-10 rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 backdrop-blur-sm"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-60px' }}
           transition={{ delay: 0.3, duration: 0.7 }}
         >
-          <h3 className="text-base lg:text-xl font-bold text-white mb-4 text-center">
-            Не просто{' '}
-            <span className="bg-gradient-to-r from-gray-400 to-gray-300 bg-clip-text text-transparent line-through decoration-2 decoration-gray-600">
-              LLM
-            </span>
-            , а{' '}
-            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              живые помощники
-            </span>
-          </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-            <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-3.5 h-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5 text-left">
+            <div className="p-4 lg:p-5 rounded-xl bg-red-500/5 border border-red-500/10">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
-                <span className="text-red-400 font-semibold text-xs">Обычный LLM-чат</span>
+                <span className="text-red-400 font-semibold text-sm">Обычный LLM-чат</span>
               </div>
-              <ul className="space-y-1.5 text-gray-400 text-[10px] lg:text-xs">
-                <li className="flex items-start gap-1">
-                  <span className="text-red-400/60 mt-0.5">•</span>
-                  Не знает, кто вы и что для вас важно
+              <ul className="space-y-2 text-gray-400 text-xs lg:text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="text-red-400/60 mt-1 flex-shrink-0">•</span>
+                  <span>Не знает, кто вы и что для вас важно</span>
                 </li>
-                <li className="flex items-start gap-1">
-                  <span className="text-red-400/60 mt-0.5">•</span>
-                  Каждый раз начинает с чистого листа
+                <li className="flex items-start gap-2">
+                  <span className="text-red-400/60 mt-1 flex-shrink-0">•</span>
+                  <span>Каждый раз начинает с чистого листа</span>
                 </li>
-                <li className="flex items-start gap-1">
-                  <span className="text-red-400/60 mt-0.5">•</span>
-                  Не помнит ваши дела, финансы и цели
+                <li className="flex items-start gap-2">
+                  <span className="text-red-400/60 mt-1 flex-shrink-0">•</span>
+                  <span>Не помнит ваши дела, финансы и цели</span>
                 </li>
-                <li className="flex items-start gap-1">
-                  <span className="text-red-400/60 mt-0.5">•</span>
-                  Работает в одиночку, без связи с другими
+                <li className="flex items-start gap-2">
+                  <span className="text-red-400/60 mt-1 flex-shrink-0">•</span>
+                  <span>Работает в одиночку, без связи с другими</span>
                 </li>
               </ul>
             </div>
 
-            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="p-4 lg:p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="text-emerald-400 font-semibold text-xs">AI-агенты Ixteria</span>
+                <span className="text-emerald-400 font-semibold text-sm">AI-агенты Ixteria</span>
               </div>
-              <ul className="space-y-1.5 text-gray-300 text-[10px] lg:text-xs">
-                <li className="flex items-start gap-1">
-                  <span className="text-emerald-400/60 mt-0.5">•</span>
-                  Знают контекст вашей жизни, привычек и целей
+              <ul className="space-y-2 text-gray-300 text-xs lg:text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400/60 mt-1 flex-shrink-0">•</span>
+                  <span>Знают контекст вашей жизни, привычек и целей</span>
                 </li>
-                <li className="flex items-start gap-1">
-                  <span className="text-emerald-400/60 mt-0.5">•</span>
-                  Общаются друг с другом для комплексной автоматизации
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400/60 mt-1 flex-shrink-0">•</span>
+                  <span>Общаются друг с другом для комплексной автоматизации</span>
                 </li>
-                <li className="flex items-start gap-1">
-                  <span className="text-emerald-400/60 mt-0.5">•</span>
-                  Каждый — эксперт в своей сфере, но работают как команда
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400/60 mt-1 flex-shrink-0">•</span>
+                  <span>Каждый — эксперт в своей сфере, но работают как команда</span>
                 </li>
-                <li className="flex items-start gap-1">
-                  <span className="text-emerald-400/60 mt-0.5">•</span>
-                  Постоянно учатся на ваших данных и становятся точнее
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400/60 mt-1 flex-shrink-0">•</span>
+                  <span>Постоянно учатся на ваших данных и становятся точнее</span>
                 </li>
               </ul>
             </div>
           </div>
 
           <motion.p
-            className="text-gray-500 italic text-[10px] lg:text-xs mt-4 text-center max-w-md mx-auto"
+            className="text-gray-500 italic text-xs lg:text-sm mt-5 text-center max-w-lg mx-auto leading-relaxed"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true, margin: '-60px' }}
@@ -573,7 +621,9 @@ function AgentsOverviewSection() {
             чтобы вы могли заниматься тем, что действительно важно.»
           </motion.p>
         </motion.div>
-      </div>
+          </div> {/* lg:col-span-3 */}
+        </div> {/* lg:grid */}
+      </div> {/* max-w-6xl */}
     </motion.section>
   );
 }
@@ -597,7 +647,7 @@ function AgentSection({ agent, index }) {
       id={`agent-${agent.id}`}
       ref={sectionRef}
       style={{ opacity, scale, y }}
-      className="min-h-screen flex items-center justify-center py-20 px-6 relative z-10"
+      className="min-h-screen flex items-center justify-center py-12 px-6 relative z-10"
     >
       <div className="max-w-6xl mx-auto w-full">
         <div className={`flex flex-col ${isEven ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-12 lg:gap-20`}>
@@ -617,12 +667,12 @@ function AgentSection({ agent, index }) {
             />
           </motion.div>
 
-          <div className="flex-1 space-y-8">
+          <div className="flex-1 space-y-8" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>
             <div>
               <span className={`text-sm font-semibold uppercase tracking-widest ${agent.textColor}`}>
                 AI-агент
               </span>
-              <h2 className="text-4xl lg:text-5xl font-bold text-white mt-2">
+              <h2 className="text-4xl lg:text-5xl font-bold text-white mt-2 drop-shadow-lg">
                 {agent.name}
               </h2>
             </div>
@@ -631,7 +681,7 @@ function AgentSection({ agent, index }) {
               <p className="text-red-400/80 text-sm font-medium uppercase tracking-wide">
                 С чем вы сталкиваетесь
               </p>
-              <p className="text-gray-300 text-lg leading-relaxed">
+              <p className="text-gray-200 text-lg leading-relaxed drop-shadow-md">
                 {agent.problem}
               </p>
               <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 space-y-3">
@@ -653,15 +703,30 @@ function AgentSection({ agent, index }) {
               <p className="text-white text-xl font-semibold leading-relaxed">
                 {agent.solution}
               </p>
-              <div className={`bg-gradient-to-r ${agent.color} bg-opacity-10 border ${agent.borderColor} rounded-2xl p-5`}>
-                <p className="text-white/80 text-sm font-medium mb-3">План действий:</p>
-                <ol className="space-y-2">
+              <div
+                className="rounded-2xl p-5 relative overflow-hidden"
+                style={{
+                  backgroundColor: agent.bgColor.replace(/0\.[0-9]+/, '0.12'),
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: '1px solid',
+                  borderColor: agent.borderColor.replace('/30', '/25'),
+                  boxShadow: `0 0 30px ${agent.bgColor.replace(/0\.[0-9]+/, '0.08')}, inset 0 1px 0 rgba(255,255,255,0.08)`,
+                }}
+              >
+                {/* Фирменный градиентный отблеск сверху */}
+                <div
+                  className="absolute inset-0 opacity-[0.07] rounded-2xl pointer-events-none"
+                  style={{ background: `linear-gradient(135deg, ${agent.borderColor.replace('/30', '')} 0%, transparent 60%)` }}
+                />
+                <p className="text-white/90 text-sm font-medium mb-3 relative z-10">План действий:</p>
+                <ol className="space-y-2 relative z-10">
                   {agent.plan.map((step, i) => (
-                    <li key={i} className="flex items-start gap-3 text-gray-300 text-sm">
-                      <span className={`flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br ${agent.color} flex items-center justify-center text-white text-xs font-bold mt-0.5`}>
+                    <li key={i} className="flex items-start gap-3 text-gray-200 text-sm drop-shadow-sm">
+                      <span className={`flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br ${agent.color} flex items-center justify-center text-white text-xs font-bold mt-0.5 shadow-lg`}>
                         {i + 1}
                       </span>
-                      {step}
+                      <span className="drop-shadow-sm">{step}</span>
                     </li>
                   ))}
                 </ol>
@@ -807,6 +872,11 @@ export default function LandingPage() {
               </span>
             </span>
             <span className="block">для работы и жизни</span>
+            <span className="block">
+              <span className="bg-gradient-to-r from-pink-400 via-fuchsia-400 to-purple-400 bg-clip-text text-transparent">
+                в едином чате!
+              </span>
+            </span>
           </motion.h1>
 
           {/* Описание — расширен на ПК */}
@@ -915,6 +985,9 @@ export default function LandingPage() {
 
       {/* ── СЕКЦИЯ "ОБЗОР АГЕНТОВ" ── */}
       <AgentsOverviewSection />
+
+      {/* ── СЕКЦИЯ "НЕ ПРОСТО LLM, А ЖИВЫЕ ПОМОЩНИКИ" ── */}
+      <LLMComparisonSection />
 
       {/* ── СЕКЦИИ АГЕНТОВ ── */}
       <div className="relative z-10">
