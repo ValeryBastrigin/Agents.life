@@ -928,8 +928,11 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
                 credits_cost = 1
             user.credits_used = (user.credits_used or 0) + credits_cost
             user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+        else:
+            print(f"DEBUG: Pre-canned response detected in streaming for message '{request.message}'. No credits deducted.")
         user.last_credit_reset = date.today()
         await db.commit()
+
 
         metadata = {
             'type': 'done',
