@@ -254,8 +254,25 @@ const OnboardingModal = ({ isOpen, onClose, onComplete, editData }) => {
 };
 
 // ---------- Profile Modal (when user already has data) ----------
-const ProfileModal = ({ isOpen, onClose, userProfile, nutrition, onDelete }) => {
+const ProfileModal = ({ isOpen, onClose, userProfile, nutrition, onUpdateNutrition, onDelete }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditingKbju, setIsEditingKbju] = useState(false);
+  const [editCalories, setEditCalories] = useState(nutrition.calories.goal);
+  const [editProtein, setEditProtein] = useState(nutrition.protein.goal);
+  const [editFats, setEditFats] = useState(nutrition.fats.goal);
+  const [editCarbs, setEditCarbs] = useState(nutrition.carbs.goal);
+  const [editWater, setEditWater] = useState(nutrition.water.goal);
+
+  useEffect(() => {
+    if (isOpen) {
+      setEditCalories(nutrition.calories.goal);
+      setEditProtein(nutrition.protein.goal);
+      setEditFats(nutrition.fats.goal);
+      setEditCarbs(nutrition.carbs.goal);
+      setEditWater(nutrition.water.goal);
+      setIsEditingKbju(false);
+    }
+  }, [isOpen, nutrition]);
 
   if (!isOpen) return null;
 
@@ -329,34 +346,133 @@ const ProfileModal = ({ isOpen, onClose, userProfile, nutrition, onDelete }) => 
 
           {/* KBJU result */}
           <div className="bg-amber-50 dark:bg-amber-900/20 rounded-[2rem] p-4">
-            <p className="text-sm font-semibold text-gray-800 dark:text-white mb-2">📊 Рассчитанный КБЖУ</p>
-            <div className="text-center mb-3">
-              <span className="text-2xl font-bold text-gray-800 dark:text-white">{nutrition.calories.goal}</span>
-              <span className="text-sm text-gray-500 dark:text-gray-400"> ккал/день</span>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-gray-800 dark:text-white">📊 Рассчитанный КБЖУ</p>
+              <button
+                onClick={() => setIsEditingKbju(!isEditingKbju)}
+                className="p-1.5 hover:bg-amber-200/50 dark:hover:bg-amber-800/30 rounded-full transition-colors"
+                title="Изменить значения КБЖУ"
+              >
+                <Settings size={18} className={`text-amber-600 dark:text-amber-400 transition-transform ${isEditingKbju ? 'rotate-90' : ''}`} />
+              </button>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-sm">
-              <div>
-                <p className="font-bold text-gray-800 dark:text-white">{nutrition.protein.goal} г</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Белки</p>
+            
+            {isEditingKbju ? (
+              <div className="space-y-3">
+                {/* Calories input */}
+                <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-3 shadow-sm flex items-center justify-between">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Калории (ккал)</span>
+                  <input
+                    type="number"
+                    value={editCalories}
+                    onChange={(e) => setEditCalories(e.target.value)}
+                    className="w-24 px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-[1rem] text-right font-bold text-gray-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-green-400"
+                  />
+                </div>
+
+                {/* Protein, Fats, Carbs inputs */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-2.5 shadow-sm text-center">
+                    <p className="text-[10px] text-gray-400 mb-1">Белки (г)</p>
+                    <input
+                      type="number"
+                      value={editProtein}
+                      onChange={(e) => setEditProtein(e.target.value)}
+                      className="w-full px-1 py-1 bg-gray-100 dark:bg-gray-700 rounded-[0.75rem] text-center font-bold text-gray-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-green-400"
+                    />
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-2.5 shadow-sm text-center">
+                    <p className="text-[10px] text-gray-400 mb-1">Жиры (г)</p>
+                    <input
+                      type="number"
+                      value={editFats}
+                      onChange={(e) => setEditFats(e.target.value)}
+                      className="w-full px-1 py-1 bg-gray-100 dark:bg-gray-700 rounded-[0.75rem] text-center font-bold text-gray-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-green-400"
+                    />
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-2.5 shadow-sm text-center">
+                    <p className="text-[10px] text-gray-400 mb-1">Углеводы (г)</p>
+                    <input
+                      type="number"
+                      value={editCarbs}
+                      onChange={(e) => setEditCarbs(e.target.value)}
+                      className="w-full px-1 py-1 bg-gray-100 dark:bg-gray-700 rounded-[0.75rem] text-center font-bold text-gray-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-green-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Water input */}
+                <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-3 shadow-sm flex items-center justify-between">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">💧 Вода (ст.)</span>
+                  <input
+                    type="number"
+                    value={editWater}
+                    onChange={(e) => setEditWater(e.target.value)}
+                    className="w-24 px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-[1rem] text-right font-bold text-gray-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-green-400"
+                  />
+                </div>
+
+                {/* Save / Cancel buttons */}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => setIsEditingKbju(false)}
+                    className="flex-1 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-300 font-medium rounded-[1.25rem] text-xs transition-colors"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={() => {
+                      onUpdateNutrition({
+                        calories: { goal: Number(editCalories) || 2000, current: nutrition.calories.current },
+                        protein: { goal: Number(editProtein) || 100, current: nutrition.protein.current },
+                        fats: { goal: Number(editFats) || 70, current: nutrition.fats.current },
+                        carbs: { goal: Number(editCarbs) || 250, current: nutrition.carbs.current },
+                        water: { goal: Number(editWater) || 8, current: nutrition.water.current },
+                      });
+                      setIsEditingKbju(false);
+                    }}
+                    className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-[1.25rem] text-xs transition-colors shadow-sm"
+                  >
+                    Сохранить
+                  </button>
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-gray-800 dark:text-white">{nutrition.fats.goal} г</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Жиры</p>
-              </div>
-              <div>
-                <p className="font-bold text-gray-800 dark:text-white">{nutrition.carbs.goal} г</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Углеводы</p>
-              </div>
-            </div>
-            <div className="text-center mt-2 text-sm text-gray-600 dark:text-gray-400">
-              💧 Вода: <span className="font-semibold text-gray-800 dark:text-white">{nutrition.water.goal} ст.</span> в день
-            </div>
+            ) : (
+              <>
+                {/* Calories container */}
+                <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-3 text-center mb-2 shadow-sm">
+                  <span className="text-2xl font-bold text-gray-800 dark:text-white">{nutrition.calories.goal}</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400"> ккал/день</span>
+                </div>
+
+                {/* Protein, Fats, Carbs container */}
+                <div className="grid grid-cols-3 gap-2 text-center text-sm mb-2">
+                  <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-2.5 shadow-sm">
+                    <p className="font-bold text-gray-800 dark:text-white">{nutrition.protein.goal} г</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Белки</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-2.5 shadow-sm">
+                    <p className="font-bold text-gray-800 dark:text-white">{nutrition.fats.goal} г</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Жиры</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-2.5 shadow-sm">
+                    <p className="font-bold text-gray-800 dark:text-white">{nutrition.carbs.goal} г</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Углеводы</p>
+                  </div>
+                </div>
+
+                {/* Water container */}
+                <div className="bg-white dark:bg-gray-800 rounded-[1.25rem] p-3 text-center text-sm text-gray-600 dark:text-gray-400 shadow-sm">
+                  💧 Вода: <span className="font-semibold text-gray-800 dark:text-white">{nutrition.water.goal} ст.</span> в день
+                </div>
+              </>
+            )}
           </div>
 
           {/* Info text */}
           <div className="bg-gray-100 dark:bg-gray-800 rounded-[2rem] p-4 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Для изменения параметров пройдите воронку заново через кнопку «Укажите параметры»
+              Для изменения всех параметров пройдите воронку заново через кнопку «Укажите параметры»
             </p>
           </div>
         </div>
@@ -1612,7 +1728,35 @@ const Dietitian = () => {
 
       {/* Modals */}
       {showOnboarding && <OnboardingModal key={Date.now()} isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} onComplete={handleOnboardingComplete} editData={userProfile} />}
-      <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} userProfile={userProfile} nutrition={nutrition} onDelete={handleDeleteProfile} />
+      <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} userProfile={userProfile} nutrition={nutrition} onUpdateNutrition={(newNutr) => {
+        setNutrition(newNutr);
+        try {
+          const lsKey = getDietitianProfileKey(userId);
+          if (lsKey) {
+            const saved = localStorage.getItem(lsKey);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              parsed.nutrition = newNutr;
+              localStorage.setItem(lsKey, JSON.stringify(parsed));
+            }
+          }
+        } catch (e) {}
+        try {
+          apiClient.put(`/api/user/${userId}/diet-profile`, {
+            height: Number(userProfile?.profile?.height || 175),
+            weight: Number(userProfile?.profile?.weight || 70),
+            age: Number(userProfile?.profile?.age || 30),
+            gender: userProfile?.profile?.gender || 'male',
+            goal: userProfile?.goal || 'lose',
+            activity_level: userProfile?.activity || 'moderate',
+            calorie_target: newNutr.calories.goal,
+            protein_target: newNutr.protein.goal,
+            fats_target: newNutr.fats.goal,
+            carbs_target: newNutr.carbs.goal,
+            water_target: newNutr.water.goal,
+          });
+        } catch (e) {}
+      }} onDelete={handleDeleteProfile} />
       <ManualModal isOpen={showManual} onClose={() => setShowManual(false)} />
       <FoodDiaryModal isOpen={showDiary} onClose={() => setShowDiary(false)} nutritionGoal={nutrition.calories.goal} userId={userId} />
     </div>

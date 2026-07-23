@@ -161,11 +161,12 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
                       autoFocus
                       disabled={savingUsername}
                     />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-20">
                       <button
-                        onClick={handleUsernameSave}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); handleUsernameSave(); }}
                         disabled={savingUsername}
-                        className="p-1.5 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors disabled:opacity-50"
+                        className="p-1.5 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                         title="Сохранить"
                       >
                         {savingUsername ? (
@@ -175,9 +176,10 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
                         )}
                       </button>
                       <button
-                        onClick={handleUsernameCancel}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); handleUsernameCancel(); }}
                         disabled={savingUsername}
-                        className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
+                        className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                         title="Отмена"
                       >
                         <X size={16} className="text-red-600 dark:text-red-400" />
