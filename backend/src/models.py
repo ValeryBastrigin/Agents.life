@@ -414,3 +414,17 @@ class OtpChallenge(Base):
     blocked_until = Column(DateTime(timezone=True), nullable=True)  # блокировка на 15 мин
     verified = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class DailyFoodAnalysis(Base):
+    """Хранит сгенерированный ИИ анализ питания за день для пользователя."""
+    __tablename__ = "daily_food_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    analysis_date = Column(Date, nullable=False, index=True)
+    analysis_text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")

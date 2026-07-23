@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func
 from sqlalchemy.orm import selectinload
 from src.database import get_db
-from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, DietPlan, UserAgentSettings
+from src.models import User, Agent, Chat, Message, TokenTransaction, UserDietProfile, FoodConsumption, DietPlan, UserAgentSettings, DailyFoodAnalysis
 from datetime import date, datetime, timedelta, timezone
 from src.config import client
 from pydantic import BaseModel, ValidationError
@@ -1445,11 +1445,27 @@ async def get_food_today(user_id: int, db: AsyncSession = Depends(get_db)):
         "fats_target": profile.fats_target if profile else 65,
         "carbs_target": profile.carbs_target if profile else 250,
         "water_target": profile.water_target if profile else 8,
+        "height": profile.height if profile else None,
+        "weight": profile.weight if profile else None,
+        "age": profile.age if profile else None,
+        "gender": profile.gender if profile else None,
+        "goal": profile.goal if profile else None,
+        "activity_level": profile.activity_level if profile else None,
     }
+
+    # Fetch existing saved analysis for today if any
+    analysis_result = await db.execute(
+        select(DailyFoodAnalysis)
+        .where(DailyFoodAnalysis.user_id == user_id)
+        .where(DailyFoodAnalysis.analysis_date == today)
+    )
+    saved_analysis = analysis_result.scalar_one_or_none()
+    ai_analysis = saved_analysis.analysis_text if saved_analysis else None
 
     return {
         "totals": totals,
         "profile": profile_data,
+        "ai_analysis": ai_analysis,
         "items": [
             {
                 "id": item.id,
@@ -1466,6 +1482,134 @@ async def get_food_today(user_id: int, db: AsyncSession = Depends(get_db)):
             for item in items
         ],
     }
+
+@router.post("/user/{user_id}/food-analysis")
+async def generate_food_analysis(user_id: int, db: AsyncSession = Depends(get_db)):
+    today = datetime.now(timezone.utc).date()
+    result = await db.execute(
+        select(FoodConsumption)
+        .where(FoodConsumption.user_id == user_id)
+        .where(func.date(FoodConsumption.consumed_at) == today)
+        .order_by(FoodConsumption.consumed_at.desc())
+    )
+    items = result.scalars().all()
+
+    if not items:
+        return {"ai_analysis": "Сегодня пока не записано ни одного продукта."}
+
+    totals = {"calories": 0, "protein": 0, "fats": 0, "carbs": 0}
+    for item in items:
+        totals["calories"] += item.calories or 0
+        totals["protein"] += item.protein or 0
+        totals["fats"] += item.fats or 0
+        totals["carbs"] += item.carbs or 0
+
+    profile_result = await db.execute(select(UserDietProfile).where(UserDietProfile.user_id == user_id))
+    profile = profile_result.scalar_one_or_none()
+    
+    has_profile = profile is not None and profile.height and profile.weight and profile.goal
+    goal = profile.goal if profile else 'не указана'
+    calorie_target = profile.calorie_target if profile else 2000
+    protein_target = profile.protein_target if profile else 120
+    fats_target = profile.fats_target if profile else 65
+    carbs_target = profile.carbs_target if profile else 250
+
+    try:
+        food_summary_str = "\n".join(
+            [f"- {it.product_name} ({it.grams}г, {it.calories} ккал, Б:{it.protein} Ж:{it.fats} У:{it.carbs})" for it in items]
+        )
+        
+        if has_profile:
+            prompt = f"""Ты — ИИ-диетолог. На основе записанных за сегодня продуктов пользователя, его параметров и КБЖУ-норм составь краткую экспертную выжимку (анализ питания за день).
+
+Параметры пользователя:
+- Цель: {goal}
+- Норма КБЖУ: {calorie_target} ккал (Белки: {protein_target}г, Жиры: {fats_target}г, Углеводы: {carbs_target}г)
+
+Съедено за сегодня ({totals['calories']} ккал | Б:{totals['protein']}г Ж:{totals['fats']}г У:{totals['carbs']}г):
+{food_summary_str}
+
+Дай краткую выжимку в 3-4 абзацах на русском языке:
+1. Краткая оценка нутриентов и баланса КБЖУ на текущий момент.
+2. Оценка качества съеденной еды.
+3. Четкие рекомендации по соблюдению режима и корректировке оставшегося рациона до конца дня с учетом целей пользователя.
+Пиши профессионально, поддерживающе и лаконично."""
+        else:
+            prompt = f"""Ты — ИИ-диетолог. На основе записанных за сегодня продуктов пользователя составь общую оценку питания за день (без персональных целей и жестких норм КБЖУ, так как параметры не заполнены).
+
+Съедено за сегодня ({totals['calories']} ккал | Б:{totals['protein']}г Ж:{totals['fats']}г У:{totals['carbs']}г):
+{food_summary_str}
+
+Дай краткую общую оценку в 2-3 абзацах на русском языке по качеству съеденной еды и общим нутриентам, а в самом конце обязательно добавь фразу:
+«Для персональной оценки заполните пожалуйста ваши параметры и цель».
+Пиши профессионально и лаконично."""
+
+        response = await client.chat.completions.create(
+            model="google/gemini-3.1-flash-lite",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=800,
+            timeout=15.0
+        )
+        ai_analysis = (response.choices[0].message.content or "").strip()
+        
+        # Calculate and deduct credits for the analysis
+        input_tokens = response.usage.prompt_tokens if response.usage else len(prompt) // 4
+        output_tokens = response.usage.completion_tokens if response.usage else len(ai_analysis) // 4
+        credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_tokens, output_tokens=output_tokens)
+        if credits_cost == 0:
+            credits_cost = 1  # minimum cost for any AI interaction
+        
+        # Deduct credits from user
+        user_result = await db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if user:
+            user.credits_used = (user.credits_used or 0) + credits_cost
+        
+        if not has_profile and "Для персональной оценки заполните пожалуйста ваши параметры и цель" not in ai_analysis:
+            ai_analysis += "\n\nДля персональной оценки заполните пожалуйста ваши параметры и цель."
+    except Exception as e:
+        logger.error(f"Error generating AI food analysis: {e}")
+        if has_profile:
+            ai_analysis = f"Сегодня вы употребили {totals['calories']} из {calorie_target} ккал. Продолжайте следить за балансом белков, жиров и углеводов."
+        else:
+            ai_analysis = f"Сегодня вы употребили {totals['calories']} ккал. Общий анализ питания показывает умеренное потребление.\n\nДля персональной оценки заполните пожалуйста ваши параметры и цель."
+
+    # Save or replace analysis in database for today
+    existing_res = await db.execute(
+        select(DailyFoodAnalysis)
+        .where(DailyFoodAnalysis.user_id == user_id)
+        .where(DailyFoodAnalysis.analysis_date == today)
+    )
+    existing_analysis = existing_res.scalar_one_or_none()
+
+    if existing_analysis:
+        existing_analysis.analysis_text = ai_analysis
+    else:
+        new_analysis = DailyFoodAnalysis(
+            user_id=user_id,
+            analysis_date=today,
+            analysis_text=ai_analysis
+        )
+        db.add(new_analysis)
+
+    await db.commit()
+
+    return {"ai_analysis": ai_analysis}
+
+@router.get("/user/{user_id}/food-analysis")
+async def get_food_analysis(user_id: int, db: AsyncSession = Depends(get_db)):
+    today = datetime.now(timezone.utc).date()
+    result = await db.execute(
+        select(DailyFoodAnalysis)
+        .where(DailyFoodAnalysis.user_id == user_id)
+        .where(DailyFoodAnalysis.analysis_date == today)
+    )
+    analysis = result.scalar_one_or_none()
+    
+    if analysis:
+        return {"ai_analysis": analysis.analysis_text}
+    return {"ai_analysis": None}
 
 @router.get("/user/{user_id}/food-by-date")
 async def get_food_by_date(user_id: int, date: str, db: AsyncSession = Depends(get_db)):

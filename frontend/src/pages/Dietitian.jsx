@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Settings, BookOpen, Calendar, BarChart3, MessageCircle, Coffee, UtensilsCrossed, Clock, Trash2, Plus, Sparkles, ArrowRight, ChefHat } from 'lucide-react';
 import DietitianBackground from '../components/DietitianBackground';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
@@ -1114,6 +1115,7 @@ const Dietitian = () => {
   const [todayMeals, setTodayMeals] = useState([]);
   const [deleteState, setDeleteState] = useState(null); // 'confirming' | null
   const [dietPlan, setDietPlan] = useState(null); // today's diet plan
+  const [aiAnalysis, setAiAnalysis] = useState('');
 
   const [nutrition, setNutrition] = useState(getInitialNutrition());
 
@@ -1198,6 +1200,21 @@ const Dietitian = () => {
   useEffect(() => {
     loadDietPlan();
   }, [loadDietPlan]);
+
+  // Load saved food analysis from database on mount
+  useEffect(() => {
+    const loadSavedAnalysis = async () => {
+      try {
+        const { data } = await apiClient.get(`/api/user/${userId}/food-analysis`);
+        if (data && data.ai_analysis) {
+          setAiAnalysis(data.ai_analysis);
+        }
+      } catch (e) {
+        console.warn('Failed to load saved food analysis:', e);
+      }
+    };
+    loadSavedAnalysis();
+  }, [userId]);
 
   // Load today's food consumption from API
   const loadFoodToday = useCallback(async () => {
@@ -1684,42 +1701,41 @@ const Dietitian = () => {
           )}
         </div>
 
-        {/* ===== Анализ рациона за день ===== */}
+        {/* ===== Анализ питания за день ===== */}
         <div className="bg-white/95 dark:bg-surface-dark rounded-[3rem] p-6 mb-6 shadow-sm border border-gray-100 dark:border-transparent backdrop-blur-lg">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">📊 Анализ рациона за день</h2>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">📊 Анализ питания за день</h2>
           {todayMeals.length === 0 && nutrition.calories.current === 0 ? (
             <div className="bg-gray-100/90 dark:bg-gray-700/50 rounded-[1.5rem] p-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">Информации пока нет — добавьте приёмы пищи через чат, чтобы увидеть анализ рациона за сегодня.</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                Информации пока нет — добавьте приёмы пищи через чат, чтобы увидеть анализ рациона за сегодня.
+              </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="bg-gray-100/90 dark:bg-gray-700/50 rounded-[1.5rem] p-4">
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                  Сегодня вы употребили <span className="font-bold text-gray-800 dark:text-white">{nutrition.calories.current}</span> из <span className="font-bold text-gray-800 dark:text-white">{nutrition.calories.goal}</span> ккал.
-                  {nutrition.calories.current < nutrition.calories.goal
-                    ? ` Осталось ${nutrition.calories.goal - nutrition.calories.current} ккал.`
-                    : nutrition.calories.current > nutrition.calories.goal
-                      ? ` Перебор на ${nutrition.calories.current - nutrition.calories.goal} ккал.`
-                      : ` Норма выполнена точно!`}
-                </p>
-              </div>
-              <div className="bg-gray-100/90 dark:bg-gray-700/50 rounded-[1.5rem] p-4">
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                  Белки: <span className="font-bold text-gray-800 dark:text-white">{nutrition.protein.current}/{nutrition.protein.goal} г</span>
-                  {nutrition.protein.current < nutrition.protein.goal ? ` (недобор ${nutrition.protein.goal - nutrition.protein.current} г)` : ` (норма)`}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mt-1">
-                  Жиры: <span className="font-bold text-gray-800 dark:text-white">{nutrition.fats.current}/{nutrition.fats.goal} г</span>
-                  {nutrition.fats.current < nutrition.fats.goal ? ` (недобор ${nutrition.fats.goal - nutrition.fats.current} г)` : ` (норма)`}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mt-1">
-                  Углеводы: <span className="font-bold text-gray-800 dark:text-white">{nutrition.carbs.current}/{nutrition.carbs.goal} г</span>
-                  {nutrition.carbs.current < nutrition.carbs.goal ? ` (недобор ${nutrition.carbs.goal - nutrition.carbs.current} г)` : ` (норма)`}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mt-1">
-                  Вода: <span className="font-bold text-gray-800 dark:text-white">{nutrition.water.current}/{nutrition.water.goal} ст.</span>
-                  {nutrition.water.current < nutrition.water.goal ? ` (недобор ${nutrition.water.goal - nutrition.water.current} ст.)` : ` (норма)`}
-                </p>
+            <div className="space-y-4">
+              {aiAnalysis && (
+                <div className="bg-gradient-to-br from-green-50/85 to-emerald-50/85 dark:from-green-900/20 dark:to-emerald-900/20 rounded-[1.5rem] p-4 border border-green-200/40 dark:border-green-800/30">
+                  <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+                    <MarkdownRenderer content={aiAnalysis} />
+                  </div>
+                </div>
+              )}
+              <div className="text-center">
+                <button
+                  onClick={async () => {
+                    try {
+                      setAiAnalysis("⏳ Анализируем рацион...");
+                      const { data } = await apiClient.post(`/api/user/${userId}/food-analysis`);
+                      setAiAnalysis(data.ai_analysis || "Не удалось получить анализ.");
+                    } catch (e) {
+                      console.warn("Failed to generate food analysis:", e);
+                      setAiAnalysis("Ошибка при генерации анализа.");
+                    }
+                  }}
+                  className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-[2rem] transition-colors shadow-md text-sm inline-flex items-center gap-2"
+                >
+                  <Sparkles size={16} />
+                  Сделать анализ съеденного на сегодня
+                </button>
               </div>
             </div>
           )}
