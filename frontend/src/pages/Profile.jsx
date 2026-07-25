@@ -25,8 +25,9 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
   const [upgradePlanOpen, setUpgradePlanOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [agentManagerOpen, setAgentManagerOpen] = useState(false);
+  const currentName = userProfile?.display_name || userProfile?.username || '';
   const [editingUsername, setEditingUsername] = useState(false);
-  const [usernameInput, setUsernameInput] = useState(userProfile?.username || '');
+  const [usernameInput, setUsernameInput] = useState(currentName);
   const [usernameError, setUsernameError] = useState('');
   const [savingUsername, setSavingUsername] = useState(false);
 
@@ -38,8 +39,8 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
   }, [upgradePlanOpen, paywallOpen, agentManagerOpen]);
 
   useEffect(() => {
-    setUsernameInput(userProfile?.username || '');
-  }, [userProfile?.username]);
+    setUsernameInput(userProfile?.display_name || userProfile?.username || '');
+  }, [userProfile?.display_name, userProfile?.username]);
 
   const handleUpgrade = (planId) => {
     setUpgradePlanOpen(false);
@@ -73,7 +74,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
 
     try {
       setSavingUsername(true);
-      const res = await apiClient.put(`/api/user/${userProfile?.id}/username`, {
+      const res = await apiClient.put(`/api/user/${userProfile?.id}/display-name`, {
         username: usernameInput.trim()
       });
       setUsernameError('');
@@ -82,7 +83,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
       if (setUserProfile && userProfile) {
         setUserProfile({
           ...userProfile,
-          username: usernameInput.trim()
+          display_name: usernameInput.trim()
         });
       }
     } catch (err) {
@@ -94,7 +95,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
   };
 
   const handleUsernameCancel = () => {
-    setUsernameInput(userProfile?.username || '');
+    setUsernameInput(userProfile?.display_name || userProfile?.username || '');
     setUsernameError('');
     setEditingUsername(false);
   };

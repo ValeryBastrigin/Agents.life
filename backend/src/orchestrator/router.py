@@ -1097,8 +1097,8 @@ async def update_theme(user_id: int, request: UpdateThemeRequest, db: AsyncSessi
     return {"message": "Theme updated successfully"}
 
 
-@router.put("/user/{user_id}/username")
-async def update_username(user_id: int, request: UpdateUsernameRequest, db: AsyncSession = Depends(get_db)):
+@router.put("/user/{user_id}/display-name")
+async def update_display_name(user_id: int, request: UpdateUsernameRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
@@ -1106,12 +1106,13 @@ async def update_username(user_id: int, request: UpdateUsernameRequest, db: Asyn
         raise HTTPException(status_code=404, detail="User not found")
 
     if not request.username or not request.username.strip():
-        raise HTTPException(status_code=400, detail="Username cannot be empty")
+        raise HTTPException(status_code=400, detail="Display name cannot be empty")
 
-    user.username = request.username.strip()
+    new_name = request.username.strip()
+    user.display_name = new_name
     await db.commit()
 
-    return {"message": "Username updated successfully", "username": user.username}
+    return {"message": "Display name updated successfully", "username": user.username, "display_name": user.display_name}
 
 
 class ProfileSetupRequest(BaseModel):
