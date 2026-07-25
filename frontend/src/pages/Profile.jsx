@@ -243,48 +243,50 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
               {t('general')}
             </h4>
 
-            {/* Dark Mode Toggle */}
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-3">
-                {theme === 'light' ? (
-                  <Sun size={20} className="text-gray-600 dark:text-gray-400" />
-                ) : (
-                  <Moon size={20} className="text-gray-600 dark:text-gray-400" />
-                )}
-                <span className="text-gray-700 dark:text-gray-300">
-                  {theme === 'light' ? t('lightMode') : t('darkMode')}
-                </span>
-              </div>
-              <button
-                onClick={onThemeToggle}
-                className={`relative w-14 h-7 rounded-full transition-colors ${
-                  theme === 'dark' ? 'bg-blue-500' : 'bg-gray-300'
-                }`}
-              >
-                <div
-                  className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${
-                    theme === 'dark' ? 'left-8' : 'left-1'
+            <div className="space-y-3">
+              {/* Dark Mode Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-100/60 dark:bg-gray-800/40 rounded-3xl border border-gray-200/60 dark:border-gray-700/50">
+                <div className="flex items-center gap-3">
+                  {theme === 'light' ? (
+                    <Sun size={20} className="text-gray-600 dark:text-gray-400" />
+                  ) : (
+                    <Moon size={20} className="text-gray-600 dark:text-gray-400" />
+                  )}
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">
+                    {theme === 'light' ? t('lightMode') : t('darkMode')}
+                  </span>
+                </div>
+                <button
+                  onClick={onThemeToggle}
+                  className={`relative w-14 h-7 rounded-full transition-colors ${
+                    theme === 'dark' ? 'bg-blue-500' : 'bg-gray-300'
                   }`}
-                />
-              </button>
-            </div>
-
-            {/* Language Toggle */}
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-3">
-                <Globe size={20} className="text-gray-600 dark:text-gray-400" />
-                <span className="text-gray-700 dark:text-gray-300">
-                  {t('language')}
-                </span>
+                >
+                  <div
+                    className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${
+                      theme === 'dark' ? 'left-8' : 'left-1'
+                    }`}
+                  />
+                </button>
               </div>
-              <button
-                onClick={() => changeLanguage(language === 'ru' ? 'en' : 'ru')}
-                className="flex items-center gap-2 px-4 py-2 rounded-[3rem] bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-              >
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {language === 'ru' ? 'RU' : 'EN'}
-                </span>
-              </button>
+
+              {/* Language Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-100/60 dark:bg-gray-800/40 rounded-3xl border border-gray-200/60 dark:border-gray-700/50">
+                <div className="flex items-center gap-3">
+                  <Globe size={20} className="text-gray-600 dark:text-gray-400" />
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">
+                    {t('language')}
+                  </span>
+                </div>
+                <button
+                  onClick={() => changeLanguage(language === 'ru' ? 'en' : 'ru')}
+                  className="flex items-center gap-2 px-4 py-2 rounded-[3rem] bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                >
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {language === 'ru' ? 'RU' : 'EN'}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -296,11 +298,11 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
 
             <button
               onClick={() => setAgentManagerOpen(true)}
-              className="w-full flex items-center justify-between py-3 px-4 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors group"
+              className="w-full flex items-center justify-between p-4 bg-gray-100/60 dark:bg-gray-800/40 rounded-3xl border border-gray-200/60 dark:border-gray-700/50 hover:bg-gray-200/60 dark:hover:bg-gray-800/70 transition-colors group"
             >
               <div className="flex items-center gap-3">
                 <Bot size={20} className="text-gray-600 dark:text-gray-400" />
-                <span className="text-gray-700 dark:text-gray-300">
+                <span className="text-gray-700 dark:text-gray-300 font-medium">
                   Настроить агентов
                 </span>
               </div>
@@ -317,10 +319,10 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
             </h4>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between py-3">
+              <div className="flex items-center justify-between p-4 bg-gray-100/60 dark:bg-gray-800/40 rounded-3xl border border-gray-200/60 dark:border-gray-700/50">
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-gray-600 dark:text-gray-400" />
-                  <span className="text-gray-700 dark:text-gray-300">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">
                     {t('emailNotifications')}
                   </span>
                 </div>
@@ -331,10 +333,10 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
                 </button>
               </div>
 
-              <div className="flex items-center justify-between py-3">
+              <div className="flex items-center justify-between p-4 bg-gray-100/60 dark:bg-gray-800/40 rounded-3xl border border-gray-200/60 dark:border-gray-700/50">
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-gray-600 dark:text-gray-400" />
-                  <span className="text-gray-700 dark:text-gray-300">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">
                     {t('pushNotifications')}
                   </span>
                 </div>
@@ -345,10 +347,10 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
                 </button>
               </div>
 
-              <div className="flex items-center justify-between py-3">
+              <div className="flex items-center justify-between p-4 bg-gray-100/60 dark:bg-gray-800/40 rounded-3xl border border-gray-200/60 dark:border-gray-700/50">
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-gray-600 dark:text-gray-400" />
-                  <span className="text-gray-700 dark:text-gray-300">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">
                     {t('taskReminders')}
                   </span>
                 </div>

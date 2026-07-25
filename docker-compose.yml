@@ -68,6 +68,24 @@ services:
       db:
         condition: service_healthy
 
+  db-backup:
+    build:
+      context: ./backup_service
+      dockerfile: Dockerfile
+    container_name: lifeagent-backup
+    env_file:
+      - backend/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: lifeagent
+      DB_USER: lifeagent
+      DB_PASSWORD: lifeagent_password
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
 volumes:
   postgres_data:
   pgadmin_data:
