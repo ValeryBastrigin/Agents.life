@@ -11,7 +11,7 @@ import AnimatedBackground from './components/AnimatedBackground';
 import ChatWidgetRenderer from './components/ui/widgets/ChatWidgetRenderer';
 import MarkdownRenderer from './components/MarkdownRenderer';
 import AgentManagerModal from './components/AgentManagerModal';
-import { User, Menu, ArrowLeft, Bot, User as UserIcon, Clock, XCircle, Copy, RefreshCw, Check } from 'lucide-react';
+import { User, Menu, ArrowLeft, Bot, User as UserIcon, Clock, XCircle, Copy, RefreshCw, Check, Bell } from 'lucide-react';
 import Secretary from './pages/Secretary';
 import Accountant from './pages/Accountant';
 import Dietitian from './pages/Dietitian';
@@ -35,6 +35,7 @@ import Offer from './pages/Offer';
 import Privacy from './pages/Privacy';
 import PaywallModal from './components/PaywallModal';
 import UpgradePlanModal from './components/UpgradePlanModal';
+import NotificationModal from './components/NotificationModal';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { UserProvider, useUser } from './contexts/UserContext';
 import axios from 'axios';
@@ -85,6 +86,47 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
 
   // ── Paywall state ──
   const [showPaywall, setShowPaywall] = useState(false);
+
+  // ── Notifications state ──
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      agent: 'secretary',
+      title: 'Встреча через 15 минут',
+      message: 'Запланировано обсуждение проекта с командой в 21:00.',
+      time: 'Только что'
+    },
+    {
+      id: 2,
+      agent: 'accountant',
+      title: 'Анализ расходов за неделю',
+      message: 'Ваши расходы по карте составили 14,500 ₽. Превышение лимита на 5%.',
+      time: '1 час назад'
+    },
+    {
+      id: 3,
+      agent: 'dietitian',
+      title: 'Время выпить воды',
+      message: 'Вы выпили 1.2л воды из нормы 2.5л. Осталось еще 1.3л.',
+      time: '2 часа назад'
+    },
+    {
+      id: 4,
+      agent: 'psychologist',
+      title: 'Итоги рефлексии',
+      message: 'Завершился сеанс эмоциональной разгрузки. Резюме доступно в дневнике.',
+      time: 'Вчера'
+    }
+  ]);
+
+  const handleClearAllNotifications = () => {
+    setNotifications([]);
+  };
+
+  const handleDeleteNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
 
   const loadUserProfile = async (currentUserId) => {
     try {
@@ -650,6 +692,19 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
               </span>
             )}
           </span>
+          {/* Notification Bell Button */}
+          <span className={`px-1 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+            <button
+              onClick={() => setShowNotificationModal(true)}
+              className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors relative"
+              title="Уведомления"
+            >
+              <Bell size={22} className="text-gray-700 dark:text-gray-300" />
+              {notifications.length > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900 animate-pulse" />
+              )}
+            </button>
+          </span>
           <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
           <button
             onClick={() => navigate('/profile')}
@@ -714,6 +769,15 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
           navigate(lastChatId ? `/chat/${lastChatId}` : '/chat');
         }} />} />
       </Routes>
+
+      {/* ═══ Global Notification Modal ═══ */}
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        notifications={notifications}
+        onClearAll={handleClearAllNotifications}
+        onDeleteNotification={handleDeleteNotification}
+      />
 
       {/* ═══ Global Paywall Modal ═══ */}
       <PaywallModal
