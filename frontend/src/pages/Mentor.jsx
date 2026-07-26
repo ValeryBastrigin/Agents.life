@@ -9,15 +9,17 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
-const STORAGE_KEY = 'habit_tracker_data';
-
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function loadHabitData() {
+function getStorageKey(userId) {
+  return `habit_tracker_data_user_${userId || 'anonymous'}`;
+}
+
+function loadHabitData(userId) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey(userId));
     if (raw) return JSON.parse(raw);
   } catch (e) { /* ignore */ }
   return { habits: [], xp: 0, level: 1, unlockedAchievements: [], lastResetDate: getTodayKey() };
@@ -132,7 +134,7 @@ const Mentor = () => {
   }, [dreamModalOpen, loadDreamGoals]);
 
   const toggleHabitComplete = (habitId) => {
-    const data = loadHabitData();
+    const data = loadHabitData(userId);
     const todayKey = getTodayKey();
     const idx = data.habits.findIndex(h => h.id === habitId);
     if (idx === -1) return;
@@ -151,20 +153,21 @@ const Mentor = () => {
       }
     }
     data.habits[idx] = habit;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(getStorageKey(userId), JSON.stringify(data));
     setHabitData(data);
   };
 
   useEffect(() => {
-    setHabitData(loadHabitData());
-    const handleStorage = () => setHabitData(loadHabitData());
+    if (!userId) return;
+    setHabitData(loadHabitData(userId));
+    const handleStorage = () => setHabitData(loadHabitData(userId));
     window.addEventListener('storage', handleStorage);
-    const interval = setInterval(() => setHabitData(loadHabitData()), 2000);
+    const interval = setInterval(() => setHabitData(loadHabitData(userId)), 2000);
     return () => {
       window.removeEventListener('storage', handleStorage);
       clearInterval(interval);
     };
-  }, []);
+  }, [userId]);
 
   const todayKey = getTodayKey();
   const habits = useMemo(() => {

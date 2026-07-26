@@ -12,11 +12,11 @@ const AnimatedBackground = ({ theme, isLoading }) => {
   ];
 
   const lightColors = [
-    'rgba(191, 219, 254, 0.35)',   // Secretary light
-    'rgba(187, 247, 208, 0.35)',   // Dietitian light
-    'rgba(252, 231, 243, 0.35)',   // Psychologist light
-    'rgba(243, 232, 255, 0.35)',   // Accountant light
-    'rgba(254, 243, 199, 0.4)',    // Mentor light
+    'rgba(147, 197, 253, 0.65)',   // Secretary light - более насыщенный синий
+    'rgba(134, 239, 172, 0.65)',   // Dietitian light - более насыщенный зеленый
+    'rgba(244, 114, 182, 0.55)',   // Psychologist light - более насыщенный розовый
+    'rgba(192, 132, 252, 0.55)',   // Accountant light - более насыщенный фиолетовый
+    'rgba(251, 191, 36, 0.6)',     // Mentor light - более насыщенный янтарный
   ];
 
   const colors = theme === 'dark' ? darkColors : lightColors;
@@ -125,7 +125,7 @@ const AnimatedBackground = ({ theme, isLoading }) => {
             width: blob.size,
             height: blob.size,
             backgroundColor: blob.color,
-            filter: theme === 'dark' ? 'blur(48px)' : 'blur(32px)',
+            filter: theme === 'dark' ? 'blur(48px)' : 'blur(56px)',
           }}
           initial={blob.initial}
           animate={blob.animate}

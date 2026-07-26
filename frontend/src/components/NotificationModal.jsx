@@ -102,7 +102,7 @@ export default function NotificationModal({ isOpen, onClose, notifications, onCl
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -100, scale: 0.9 }}
                     transition={{ duration: 0.2 }}
-                    className="flex items-start gap-4 p-4 rounded-[2rem] bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/40 hover:shadow-md transition-shadow relative group"
+                    className="flex items-start gap-4 p-4 rounded-[2rem] bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/50 shadow-sm hover:shadow-md transition-shadow relative group"
                   >
                     {/* Agent Icon: doubled size (w-20 h-20), no container, rocking animation */}
                     <div className="shrink-0 flex items-center justify-center pt-1">
