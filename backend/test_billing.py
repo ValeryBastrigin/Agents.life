@@ -33,8 +33,8 @@ def main():
     cost_3 = calculate_cost("openai_embedding", input_tokens=1000)
     print(f"[openai_embedding] 1000 in -> {cost_3} credits")
 
-    cost_4 = calculate_cost("mistral_audio", audio_minutes=2.5)
-    print(f"[mistral_audio] 2.5 min -> {cost_4} credits")
+    cost_4 = calculate_cost("x-ai/grok-stt-1.0", audio_minutes=2.5)
+    print(f"[x-ai/grok-stt-1.0] 2.5 min -> {cost_4} credits")
 
     # With cache & images
     cost_5 = calculate_cost(

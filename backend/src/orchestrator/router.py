@@ -1272,7 +1272,7 @@ async def transcribe_audio(
 
     # Проверка кредитов перед транскрибацией
     audio_minutes = duration_seconds / 60.0
-    credits_cost = calculate_cost("mistral_audio", audio_minutes=audio_minutes)
+    credits_cost = calculate_cost("x-ai/grok-stt-1.0", audio_minutes=audio_minutes)
     credits_cost = max(credits_cost, 1)  # minimum cost for any paid transcription
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -1298,7 +1298,7 @@ async def transcribe_audio(
         api_key = os.getenv("ROUTER_API_KEY")
 
         payload = {
-            "model": "mistralai/voxtral-mini-transcribe",
+            "model": "x-ai/grok-stt-1.0",
             "input_audio": {
                 "data": audio_base64,
                 "format": audio_format,

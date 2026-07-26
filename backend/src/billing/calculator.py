@@ -2,7 +2,7 @@
 Billing Service — расчёт стоимости запросов к AI-моделям.
 
 Функция calculate_cost принимает model_id, количество входных/выходных токенов,
-минуты аудио (для mistral_audio) и возвращает стоимость в кредитах.
+минуты аудио (для x-ai/grok-stt-1.0) и возвращает стоимость в кредитах.
 """
 
 from decimal import Decimal, ROUND_HALF_UP
@@ -50,7 +50,7 @@ def calculate_cost(
         model_id: Идентификатор модели (из MODELS_PRICING).
         input_tokens: Количество входных токенов.
         output_tokens: Количество выходных токенов.
-        audio_minutes: Длительность аудио в минутах (только mistral_audio).
+        audio_minutes: Длительность аудио в минутах (только x-ai/grok-stt-1.0).
         cache_read_tokens: Токены чтения из кэша (для Gemin-моделей).
         cache_write_tokens: Токены записи в кэш (для Gemini-моделей).
         image_count: Количество обработанных изображений.
@@ -86,10 +86,10 @@ def calculate_cost(
     if image_count > 0 and "image" in pricing:
         total_usd += _price_per_token(pricing["image"]) * Decimal(str(image_count))
 
-    # --- Аудио (Gemini или mistral_audio) ---
+    # --- Аудио (Gemini или x-ai/grok-stt-1.0) ---
     if audio_minutes > 0.0:
         if "per_minute" in pricing:
-            # mistral_audio: цена за минуту напрямую
+            # x-ai/grok-stt-1.0: цена за минуту напрямую
             total_usd += Decimal(str(pricing["per_minute"])) * Decimal(str(audio_minutes))
         elif "audio" in pricing:
             # Gemini: audio price per 1M units — считаем по токенам

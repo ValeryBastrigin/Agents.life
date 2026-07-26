@@ -1451,7 +1451,7 @@ const Dietitian = () => {
             animation: dietitian-bounce 2.5s ease-in-out infinite;
           }
         `}</style>
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto">
         {/* ===== Блок "Ваши параметры / Укажите параметры" ===== */}
         <div
           onClick={handleTopButtonClick}

@@ -47,8 +47,8 @@ MODELS_PRICING: Dict[str, ModelPricing] = {
     "openai_embedding": {
         "input_price": 0.026,
     },
-    "mistral_audio": {
-        "per_minute": 0.003915,
+    "x-ai/grok-stt-1.0": {
+        "per_minute": 0.00227,
     },
 }
 
@@ -57,7 +57,7 @@ ModelId = Literal[
     "gemini_3_1_flash",
     "gemini_2_5_flash",
     "openai_embedding",
-    "mistral_audio",
+    "x-ai/grok-stt-1.0",
 ]
 
 SUPPORTED_MODELS = tuple(MODELS_PRICING.keys())
