@@ -128,6 +128,25 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
+  // Global listener for custom notifications:add events (e.g. from Accountant or Mentor)
+  const [toasts, setToasts] = useState([]);
+  
+  useEffect(() => {
+    const handleAddNotification = (e) => {
+      const newItems = e.detail;
+      if (Array.isArray(newItems)) {
+        setNotifications(prev => [...newItems, ...prev]);
+        setToasts(prev => [...prev, ...newItems]);
+      }
+    };
+    window.addEventListener('notifications:add', handleAddNotification);
+    return () => window.removeEventListener('notifications:add', handleAddNotification);
+  }, []);
+
+  const handleDismissToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
   const loadUserProfile = async (currentUserId) => {
     try {
       const response = await axios.get(`${API_URL}/api/user/${currentUserId}`);

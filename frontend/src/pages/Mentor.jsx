@@ -159,7 +159,26 @@ const Mentor = () => {
 
   useEffect(() => {
     if (!userId) return;
-    setHabitData(loadHabitData(userId));
+    const data = loadHabitData(userId);
+    setHabitData(data);
+
+    // Проверяем, есть ли привычки и есть ли невыполненные на сегодня — отправляем пуш от Ментора
+    if (data.habits && data.habits.length > 0) {
+      const todayKey = getTodayKey();
+      const hasPending = data.habits.some(h => !(h.log && h.log[todayKey]));
+      if (hasPending) {
+        const notif = [{
+          id: `mentor-habits-${todayKey}`,
+          agent: 'mentor',
+          title: 'Время заняться привычками!',
+          message: 'У вас есть запланированные задачи и привычки на сегодня. Уделите им время, чтобы продвинуться к своим целям!',
+          time: 'Только что',
+          type: 'push'
+        }];
+        window.dispatchEvent(new CustomEvent('notifications:add', { detail: notif }));
+      }
+    }
+
     const handleStorage = () => setHabitData(loadHabitData(userId));
     window.addEventListener('storage', handleStorage);
     const interval = setInterval(() => setHabitData(loadHabitData(userId)), 2000);

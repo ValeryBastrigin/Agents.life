@@ -827,18 +827,24 @@ const Accountant = () => {
     }
   };
 
-  // Загрузка обязательств из БД
+  // Загрузка обязательств из БД и проверка пуш-уведомлений
   useEffect(() => {
-    const loadObligations = async () => {
+    const loadObligationsAndNotifications = async () => {
       try {
-        const res = await apiClient.get('/api/accountant/obligations/1');
+        const res = await apiClient.get(`/api/accountant/obligations/${userId || 1}`);
         setObligations(res.data);
+
+        // Проверяем пуш-уведомления по календарю обязательств на сегодня
+        const notifRes = await apiClient.get(`/api/accountant/obligations/notifications/${userId || 1}`);
+        if (notifRes.data && notifRes.data.length > 0) {
+          window.dispatchEvent(new CustomEvent('notifications:add', { detail: notifRes.data }));
+        }
       } catch (err) {
-        console.error('Ошибка загрузки обязательств:', err);
+        console.error('Ошибка загрузки обязательств или уведомлений:', err);
       }
     };
-    loadObligations();
-  }, []);
+    loadObligationsAndNotifications();
+  }, [userId]);
 
   // Добавление обязательства
   const addObligation = useCallback(async (obligation) => {

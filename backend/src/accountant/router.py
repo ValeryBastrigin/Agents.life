@@ -137,6 +137,62 @@ async def delete_obligation(obligation_id: int, db: AsyncSession = Depends(get_d
     await db.commit()
 
 
+@router.get("/obligations/notifications/{user_id}")
+async def check_obligation_notifications(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Check if today is the day for any financial obligations or bank statement renewal and return push notifications."""
+    today = date.today()
+    current_day = today.day
+    
+    result = await db.execute(
+        select(FinancialObligation).where(FinancialObligation.user_id == user_id)
+    )
+    obligations = result.scalars().all()
+    
+    notifications = []
+    
+    # 1. Financial obligations check for today
+    for o in obligations:
+        if o.date == current_day:
+            is_expense = o.type == 'expense'
+            action_name = "списание" if is_expense else "поступление"
+            title = f"Сегодня {action_name}: {o.title}"
+            message = f"По расписанию на сегодня ({o.date}-е число) запланировано {action_name} '{o.title}' на сумму {o.amount:,.0f} ₽."
+            notifications.append({
+                "id": f"obligation-{o.id}-{today.isoformat()}",
+                "agent": "accountant",
+                "title": title,
+                "message": message,
+                "time": "Только что",
+                "type": "push"
+            })
+            
+    # 2. Bank statement monthly check: exactly 1 calendar month since last statement
+    stmt_result = await db.execute(
+        select(BankStatement)
+        .where(BankStatement.user_id == user_id)
+        .order_by(BankStatement.created_at.desc())
+        .limit(1)
+    )
+    latest_stmt = stmt_result.scalar_one_or_none()
+    if latest_stmt and latest_stmt.created_at:
+        stmt_date = latest_stmt.created_at.date() if hasattr(latest_stmt.created_at, 'date') else latest_stmt.created_at
+        # Calculate month difference
+        month_diff = (today.year - stmt_date.year) * 12 + (today.month - stmt_date.month)
+        # If exactly 1 month has passed (and it's the same day or later, or exactly 30 days)
+        days_diff = (today - stmt_date).days
+        if month_diff >= 1 and days_diff >= 30:
+            notifications.append({
+                "id": f"statement-monthly-{latest_stmt.id}-{today.isoformat()}",
+                "agent": "accountant",
+                "title": "Время обновить банковскую выписку",
+                "message": "Прошел ровно месяц с момента загрузки последней выписки. Загрузите свежую выписку, чтобы финансовый ассистент обновил анализ расходов и бюджета.",
+                "time": "Только что",
+                "type": "push"
+            })
+            
+    return notifications
+
+
 # ===== Bank Statements =====
 
 class TransactionOut(BaseModel):
