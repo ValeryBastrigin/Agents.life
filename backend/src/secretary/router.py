@@ -155,6 +155,30 @@ async def toggle_event_completed(event_id: int, db: AsyncSession = Depends(get_d
         "completed": event.completed
     }
 
+@router.put("/events/{event_id}/toggle-push")
+async def toggle_event_push(event_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(CalendarEvent).where(CalendarEvent.id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    event.push_enabled = not event.push_enabled
+    await db.commit()
+    await db.refresh(event)
+    return {"status": "success", "push_enabled": event.push_enabled}
+
+@router.put("/reminders/{reminder_id}/toggle-push")
+async def toggle_reminder_push(reminder_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Reminder).where(Reminder.id == reminder_id))
+    reminder = result.scalar_one_or_none()
+    if not reminder:
+        raise HTTPException(status_code=404, detail="Reminder not found")
+    
+    reminder.push_enabled = not reminder.push_enabled
+    await db.commit()
+    await db.refresh(reminder)
+    return {"status": "success", "push_enabled": reminder.push_enabled}
+
 @router.delete("/events/{event_id}")
 async def delete_calendar_event(event_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CalendarEvent).where(CalendarEvent.id == event_id))

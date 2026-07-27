@@ -7,6 +7,7 @@ import PaywallModal from '../components/PaywallModal';
 import UpgradePlanModal from '../components/UpgradePlanModal';
 import AnimatedBackground from '../components/AnimatedBackground';
 import AgentManagerModal from '../components/AgentManagerModal';
+import AgentNotificationSettingsModal from '../components/AgentNotificationSettingsModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
 
@@ -25,6 +26,7 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
   const [upgradePlanOpen, setUpgradePlanOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [agentManagerOpen, setAgentManagerOpen] = useState(false);
+  const [agentNotifModalOpen, setAgentNotifModalOpen] = useState(false);
   const currentName = userProfile?.display_name || userProfile?.username || '';
   const [editingUsername, setEditingUsername] = useState(false);
   const [usernameInput, setUsernameInput] = useState(currentName);
@@ -33,10 +35,10 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
 
   useEffect(() => {
     if (!scrollRef.current) return;
-    const blocked = upgradePlanOpen || paywallOpen || agentManagerOpen;
+    const blocked = upgradePlanOpen || paywallOpen || agentManagerOpen || agentNotifModalOpen;
     scrollRef.current.style.overflow = blocked ? 'hidden' : '';
     scrollRef.current.style.position = blocked ? 'relative' : '';
-  }, [upgradePlanOpen, paywallOpen, agentManagerOpen]);
+  }, [upgradePlanOpen, paywallOpen, agentManagerOpen, agentNotifModalOpen]);
 
   useEffect(() => {
     setUsernameInput(userProfile?.display_name || userProfile?.username || '');
@@ -319,47 +321,20 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
             </h4>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-4 bg-gray-100/60 dark:bg-gray-800/40 rounded-3xl border border-gray-200/60 dark:border-gray-700/50">
+              <button
+                onClick={() => setAgentNotifModalOpen(true)}
+                className="w-full flex items-center justify-between p-4 bg-gray-100/60 dark:bg-gray-800/40 rounded-3xl border border-gray-200/60 dark:border-gray-700/50 hover:bg-gray-200/60 dark:hover:bg-gray-800/70 transition-colors group"
+              >
                 <div className="flex items-center gap-3">
                   <Bell size={20} className="text-gray-600 dark:text-gray-400" />
                   <span className="text-gray-700 dark:text-gray-300 font-medium">
-                    {t('emailNotifications')}
+                    Уведомления агентов
                   </span>
                 </div>
-                <button
-                  className={`relative w-14 h-7 rounded-full transition-colors bg-gray-300`}
-                >
-                  <div className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform" />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-100/60 dark:bg-gray-800/40 rounded-3xl border border-gray-200/60 dark:border-gray-700/50">
-                <div className="flex items-center gap-3">
-                  <Bell size={20} className="text-gray-600 dark:text-gray-400" />
-                  <span className="text-gray-700 dark:text-gray-300 font-medium">
-                    {t('pushNotifications')}
-                  </span>
-                </div>
-                <button
-                  className={`relative w-14 h-7 rounded-full transition-colors bg-gray-300`}
-                >
-                  <div className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform" />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-100/60 dark:bg-gray-800/40 rounded-3xl border border-gray-200/60 dark:border-gray-700/50">
-                <div className="flex items-center gap-3">
-                  <Bell size={20} className="text-gray-600 dark:text-gray-400" />
-                  <span className="text-gray-700 dark:text-gray-300 font-medium">
-                    {t('taskReminders')}
-                  </span>
-                </div>
-                <button
-                  className={`relative w-14 h-7 rounded-full transition-colors bg-blue-500`}
-                >
-                  <div className="absolute top-1 left-8 w-5 h-5 bg-white rounded-full shadow-md transition-transform" />
-                </button>
-              </div>
+                <span className="text-sm text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                  Настроить свитчи →
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -368,6 +343,15 @@ const Profile = ({ userProfile, theme, onThemeToggle, onBack, onLogout, setUserP
         {agentManagerOpen && (
           <AgentManagerModal
             onClose={() => setAgentManagerOpen(false)}
+            userId={userProfile?.id}
+          />
+        )}
+
+        {/* Agent Notification Settings Modal */}
+        {agentNotifModalOpen && (
+          <AgentNotificationSettingsModal
+            isOpen={agentNotifModalOpen}
+            onClose={() => setAgentNotifModalOpen(false)}
             userId={userProfile?.id}
           />
         )}
