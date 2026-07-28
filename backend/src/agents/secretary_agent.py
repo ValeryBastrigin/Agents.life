@@ -865,7 +865,7 @@ async def process_stream(
                             description=desc,
                             push_enabled=push_on
                         )
->>>>>>>
+
 
                         db.add(new_event)
                         await db.commit()

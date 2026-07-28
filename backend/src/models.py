@@ -119,7 +119,7 @@ class Reminder(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     text = Column(Text, nullable=False)
     title = Column(String(255))
-    time = Column(String(5), nullable=False)
+    time = Column(Time, nullable=False)
     date = Column(Date, nullable=True)
     completed = Column(Boolean, default=False)
     push_enabled = Column(Boolean, default=False)

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, Clock, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Check, X, Bell, Sparkles, BookOpen, ListTodo, Zap, ArrowLeft, ArrowRight, Layers } from 'lucide-react';
 import SecretaryBackground from '../components/SecretaryBackground';
@@ -186,18 +186,26 @@ const Secretary = ({ theme }) => {
     }
   }, [selectedDate]);
 
-  const handleSaveEvent = useCallback(async () => {
+  const handleSaveEvent = async () => {
     await handleSaveEventWithNotification(notificationHours, notificationMinutes);
-  }, [notificationHours, notificationMinutes]);
+  };
 
   const handleSaveEventWithNotification = useCallback(async (hours, minutes) => {
-    if (newEventTitle && tempSlotInfo) {
+    if (newEventTitle) {
       try {
-        const startDate = new Date(tempSlotInfo.start);
-        startDate.setHours(startDate.getHours() + 3);
+        let startDate, endDate;
+        if (tempSlotInfo && tempSlotInfo.start && tempSlotInfo.end) {
+          startDate = new Date(tempSlotInfo.start);
+          startDate.setHours(startDate.getHours() + 3);
 
-        const endDate = new Date(tempSlotInfo.end);
-        endDate.setHours(endDate.getHours() + 3);
+          endDate = new Date(tempSlotInfo.end);
+          endDate.setHours(endDate.getHours() + 3);
+        } else {
+          startDate = selectedDate ? new Date(selectedDate) : new Date();
+          startDate.setHours(9, 0, 0, 0);
+          endDate = new Date(startDate);
+          endDate.setHours(10, 0, 0, 0);
+        }
 
         // Create event
         const response = await axios.post(`${API_URL}/api/events/${userId}`, {
@@ -246,7 +254,7 @@ const Secretary = ({ theme }) => {
         console.error('Failed to create event or reminder:', error);
       }
     }
-  }, [newEventTitle, tempSlotInfo, events, userId, selectedColor, language]);
+  }, [newEventTitle, tempSlotInfo, selectedDate, events, userId, selectedColor, language]);
 
   const handleCancelEvent = useCallback(() => {
     setShowEventModal(false);
@@ -422,13 +430,13 @@ const Secretary = ({ theme }) => {
                   </h2>
                 </div>
 
-                <div className="h-[480px] sm:h-[550px] lg:h-[650px] rounded-[2rem] overflow-hidden bg-background-light dark:bg-background-dark">
+                <div className="h-[480px] sm:h-[550px] lg:h-[650px] rounded-[2rem] overflow-hidden bg-background-light dark:bg-background-dark touch-none">
                   <BigCalendar
                     localizer={localizer}
                     events={events.filter(event => moment(event.start).isSame(selectedDate, 'day'))}
                     startAccessor="start"
                     endAccessor="end"
-                    style={{ height: '100%' }}
+                    style={{ height: '100%', touchAction: 'none' }}
                     views={[Views.DAY]}
                     defaultView={Views.DAY}
                     date={selectedDate}
@@ -467,8 +475,8 @@ const Secretary = ({ theme }) => {
                       dayRangeHeaderFormat: ({ start, end }, culture, localizer) =>
                         `${localizer.format(start, 'DD MMM', culture)} - ${localizer.format(end, 'DD MMM', culture)}`
                     }}
-                    step={60}
-                    timeslots={1}
+                    step={30}
+                    timeslots={2}
                   />
                 </div>
               </div>
@@ -641,79 +649,94 @@ const Secretary = ({ theme }) => {
                 ))}
               </div>
 
-              {/* Notification Button */}
-              <button
-                type="button"
-                onClick={() => setShowNotificationPicker(!showNotificationPicker)}
-                className="w-full px-4 py-3 bg-purple-100 dark:bg-purple-900/30 rounded-[2rem] text-purple-700 dark:text-purple-300 font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors mb-4 flex items-center justify-center gap-2"
-              >
-                <Bell size={16} />
-                {language === 'ru' ? 'Создайте уведомление для события' : 'Create notification for event'}
-              </button>
-
-              {/* Notification Time Picker */}
-              {showNotificationPicker && (
-                <div className="mb-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 text-center">
-                    {language === 'ru' ? 'Выберите время за сколько вас оповестить о начале события' : 'Select notification time before event'}
-                  </p>
-                  <div className="flex gap-4">
-                    {/* Hours Picker */}
-                    <div className="flex-1">
-                      <label className="text-xs text-gray-500 dark:text-gray-400 mb-2 block text-center">
-                        {language === 'ru' ? 'Часы' : 'Hours'}
-                      </label>
-                      <div className="bg-gray-100 dark:bg-gray-800 rounded-[2rem] p-2">
-                        <div className="flex flex-col items-center gap-1 max-h-32 overflow-y-auto">
-                          {[...Array(24)].map((_, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => setNotificationHours(i)}
-                              className={`w-full py-2 rounded-[1.5rem] text-center transition-colors ${
-                                notificationHours === i
-                                  ? 'bg-purple-500 text-white'
-                                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                              }`}
-                            >
-                              {i.toString().padStart(2, '0')}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Minutes Picker */}
-                    <div className="flex-1">
-                      <label className="text-xs text-gray-500 dark:text-gray-400 mb-2 block text-center">
-                        {language === 'ru' ? 'Минуты' : 'Minutes'}
-                      </label>
-                      <div className="bg-gray-100 dark:bg-gray-800 rounded-[2rem] p-2">
-                        <div className="flex flex-col items-center gap-1 max-h-32 overflow-y-auto">
-                          {[0, 5, 10, 15, 30, 45].map((i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => setNotificationMinutes(i)}
-                              className={`w-full py-2 rounded-[1.5rem] text-center transition-colors ${
-                                notificationMinutes === i
-                                  ? 'bg-purple-500 text-white'
-                                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                              }`}
-                            >
-                              {i.toString().padStart(2, '0')}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
-                    {language === 'ru' ? 'Выбрано:' : 'Selected:'} {notificationHours.toString().padStart(2, '0')}:{notificationMinutes.toString().padStart(2, '0')}
-                  </p>
+              {/* Optional Notification Toggle & Picker */}
+              <div className="mb-4 bg-gray-50 dark:bg-gray-800/50 rounded-[2rem] p-3 border border-gray-200/40 dark:border-gray-700/40">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+                    <Bell size={14} className="text-purple-500" />
+                    {language === 'ru' ? 'Уведомление (опционально)' : 'Notification (optional)'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (showNotificationPicker) {
+                        setNotificationHours(0);
+                        setNotificationMinutes(0);
+                      } else {
+                        if (notificationHours === 0 && notificationMinutes === 0) {
+                          setNotificationMinutes(15);
+                        }
+                      }
+                      setShowNotificationPicker(!showNotificationPicker);
+                    }}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${showNotificationPicker ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-700'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${showNotificationPicker ? 'translate-x-5' : 'translate-x-1'}`} />
+                  </button>
                 </div>
-              )}
 
+                {showNotificationPicker && (
+                  <div className="mt-3 pt-3 border-t border-gray-200/50 dark:border-gray-700/50">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 text-center">
+                      {language === 'ru' ? 'Время напоминания до начала события' : 'Reminder time before event'}
+                    </p>
+                    <div className="flex gap-3">
+                      {/* Hours Picker */}
+                      <div className="flex-1">
+                        <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-1 block text-center">
+                          {language === 'ru' ? 'Часы' : 'Hours'}
+                        </label>
+                        <div className="bg-white dark:bg-gray-800 rounded-[1.5rem] p-1.5 border border-gray-200/30 dark:border-gray-700/30">
+                          <div className="flex flex-col items-center gap-1 max-h-28 overflow-y-auto">
+                            {[...Array(24)].map((_, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setNotificationHours(i)}
+                                className={`w-full py-1.5 rounded-[1.2rem] text-xs text-center transition-colors ${
+                                  notificationHours === i
+                                    ? 'bg-purple-500 text-white font-medium'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                }`}
+                              >
+                                {i.toString().padStart(2, '0')}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Minutes Picker */}
+                      <div className="flex-1">
+                        <label className="text-[10px] text-gray-400 dark:text-gray-500 mb-1 block text-center">
+                          {language === 'ru' ? 'Минуты' : 'Minutes'}
+                        </label>
+                        <div className="bg-white dark:bg-gray-800 rounded-[1.5rem] p-1.5 border border-gray-200/30 dark:border-gray-700/30">
+                          <div className="flex flex-col items-center gap-1 max-h-28 overflow-y-auto">
+                            {[0, 5, 10, 15, 30, 45].map((i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setNotificationMinutes(i)}
+                                className={`w-full py-1.5 rounded-[1.2rem] text-xs text-center transition-colors ${
+                                  notificationMinutes === i
+                                    ? 'bg-purple-500 text-white font-medium'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                }`}
+                              >
+                                {i.toString().padStart(2, '0')}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-purple-600 dark:text-purple-400 mt-2 text-center font-medium">
+                      {language === 'ru' ? 'Оповестить за:' : 'Remind before:'} {notificationHours.toString().padStart(2, '0')}:{notificationMinutes.toString().padStart(2, '0')}
+                    </p>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelEvent}
