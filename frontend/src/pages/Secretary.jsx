@@ -106,7 +106,9 @@ const Secretary = ({ theme }) => {
         start: new Date(event.start),
         end: new Date(event.end),
         color: event.color,
-        completed: event.completed
+        completed: event.completed,
+        push_enabled: event.push_enabled,
+        description: event.description
       }));
       setEvents(formattedEvents);
     } catch (error) {
@@ -186,11 +188,7 @@ const Secretary = ({ theme }) => {
     }
   }, [selectedDate]);
 
-  const handleSaveEvent = async () => {
-    await handleSaveEventWithNotification(notificationHours, notificationMinutes);
-  };
-
-  const handleSaveEventWithNotification = useCallback(async (hours, minutes) => {
+  const handleSaveEvent = useCallback(async () => {
     if (newEventTitle) {
       try {
         let startDate, endDate;
@@ -207,12 +205,23 @@ const Secretary = ({ theme }) => {
           endDate.setHours(10, 0, 0, 0);
         }
 
-        // Create event
+        // Build description with notification info if enabled
+        let description = '';
+        if (showNotificationPicker && (notificationHours > 0 || notificationMinutes > 0)) {
+          const offsetText = notificationHours > 0 
+            ? `${notificationHours}ч ${notificationMinutes}мин` 
+            : `${notificationMinutes}мин`;
+          description = `🔔 Уведомление за ${offsetText}`;
+        }
+
+        // Create event with push_enabled if notification is set
         const response = await axios.post(`${API_URL}/api/events/${userId}`, {
           title: newEventTitle,
           start_time: startDate.toISOString(),
           end_time: endDate.toISOString(),
-          color: selectedColor
+          color: selectedColor,
+          description: description,
+          push_enabled: showNotificationPicker && (notificationHours > 0 || notificationMinutes > 0)
         });
 
         const newEvent = {
@@ -221,28 +230,11 @@ const Secretary = ({ theme }) => {
           start: new Date(response.data.start),
           end: new Date(response.data.end),
           color: response.data.color,
-          completed: false
+          completed: false,
+          push_enabled: showNotificationPicker && (notificationHours > 0 || notificationMinutes > 0),
+          description: description
         };
         setEvents([...events, newEvent]);
-
-        // Create reminder if notification time is set
-        if (hours > 0 || minutes > 0) {
-          const notificationTime = new Date(startDate);
-          notificationTime.setHours(notificationTime.getHours() - hours);
-          notificationTime.setMinutes(notificationTime.getMinutes() - minutes);
-
-          const reminderTime = notificationTime.toTimeString().slice(0, 5); // HH:MM format
-          const reminderDate = notificationTime.toISOString().slice(0, 10); // YYYY-MM-DD format
-
-          await axios.post(`${API_URL}/api/reminders/${userId}`, {
-            text: newEventTitle,
-            title: language === 'ru' ? `Напоминание: ${newEventTitle}` : `Reminder: ${newEventTitle}`,
-            time: reminderTime,
-            date: reminderDate,
-            color: selectedColor,
-            push_enabled: true
-          });
-        }
 
         setShowEventModal(false);
         setNewEventTitle('');
@@ -251,10 +243,10 @@ const Secretary = ({ theme }) => {
         setNotificationMinutes(0);
         setShowNotificationPicker(false);
       } catch (error) {
-        console.error('Failed to create event or reminder:', error);
+        console.error('Failed to create event:', error);
       }
     }
-  }, [newEventTitle, tempSlotInfo, selectedDate, events, userId, selectedColor, language]);
+  }, [newEventTitle, tempSlotInfo, selectedDate, events, userId, selectedColor, showNotificationPicker, notificationHours, notificationMinutes]);
 
   const handleCancelEvent = useCallback(() => {
     setShowEventModal(false);
@@ -266,7 +258,7 @@ const Secretary = ({ theme }) => {
     try {
       const startDate = new Date(start);
       startDate.setHours(startDate.getHours() + 3);
-      
+
       const endDate = new Date(end);
       endDate.setHours(endDate.getHours() + 3);
 
@@ -276,7 +268,7 @@ const Secretary = ({ theme }) => {
       });
       setEvents(events.map(ev =>
         ev.id === event.id
-          ? { ...ev, start, end, completed: ev.completed }
+          ? { ...ev, start, end, completed: ev.completed, push_enabled: ev.push_enabled, description: ev.description }
           : ev
       ));
     } catch (error) {
@@ -288,7 +280,7 @@ const Secretary = ({ theme }) => {
     try {
       const startDate = new Date(start);
       startDate.setHours(startDate.getHours() + 3);
-      
+
       const endDate = new Date(end);
       endDate.setHours(endDate.getHours() + 3);
 
@@ -298,7 +290,7 @@ const Secretary = ({ theme }) => {
       });
       setEvents(events.map(ev =>
         ev.id === event.id
-          ? { ...ev, start, end, completed: ev.completed }
+          ? { ...ev, start, end, completed: ev.completed, push_enabled: ev.push_enabled, description: ev.description }
           : ev
       ));
     } catch (error) {
@@ -463,7 +455,13 @@ const Secretary = ({ theme }) => {
                       }
                     })}
                     components={{
-                      toolbar: () => null
+                      toolbar: () => null,
+                      event: ({ event }) => (
+                        <div className="flex items-center gap-1.5 h-full px-2 py-1">
+                          {event.push_enabled && <Bell size={12} className="flex-shrink-0" />}
+                          <span className="truncate">{event.title}</span>
+                        </div>
+                      )
                     }}
                     formats={{
                       timeGutterFormat: (date, culture, localizer) =>
@@ -764,21 +762,27 @@ const Secretary = ({ theme }) => {
                 <X size={24} className="text-red-500" />
               </div>
               <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2 text-center">
-                {language === 'ru' ? 'Удалить событие?' : 'Delete event?'}
+                {language === 'ru' ? 'Ваше событие' : 'Your event'}
               </h3>
-              
+
               {eventToDelete && (
                 <div className="mb-4 text-center">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {language === 'ru' ? 'Вы уверены, что хотите удалить:' : 'Are you sure you want to delete:'}
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                    {language === 'ru' ? 'Подробности' : 'Details'}
                   </p>
-                  <p className="text-lg font-medium text-gray-800 dark:text-white mt-1">
+                  <p className="text-lg font-medium text-gray-800 dark:text-white mb-2">
                     {eventToDelete.title}
                   </p>
-                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1 flex items-center justify-center gap-1">
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mb-2 flex items-center justify-center gap-1">
                     <Clock size={12} />
                     {`${moment(eventToDelete.start).format('HH:mm')} - ${moment(eventToDelete.end).format('HH:mm')}`}
                   </p>
+                  {eventToDelete.push_enabled && eventToDelete.description && (
+                    <p className="text-sm text-purple-600 dark:text-purple-400 flex items-center justify-center gap-1">
+                      <Bell size={12} />
+                      {eventToDelete.description.replace('🔔 Уведомление за ', '')}
+                    </p>
+                  )}
                 </div>
               )}
               
@@ -1001,6 +1005,56 @@ const Secretary = ({ theme }) => {
           </button>
         </div>
 
+        {/* CTA Apple-style */}
+        <button
+          onClick={handleCreateScheduleChat}
+          disabled={creatingChat}
+          className="group relative w-full text-left mb-4"
+        >
+          {/* Glow effect */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-[3rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative flex items-center gap-4 sm:gap-5 p-4 sm:p-6 bg-white dark:bg-gray-800/90 backdrop-blur-xl rounded-[3rem] border border-gray-200/60 dark:border-gray-700/40 shadow-sm hover:shadow-lg transition-all duration-300">
+            {/* Icon container */}
+            <div className="relative shrink-0 w-14 h-14 sm:w-16 sm:h-16">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/15 to-purple-500/15 dark:from-blue-500/20 dark:to-purple-500/20 rounded-[2rem] blur-md" />
+              <img
+                src="/assets/icons/agents/секретарь.svg"
+                alt=""
+                className="relative w-full h-full scale-150 animate-gentle-bounce group-hover:scale-[1.6] transition-transform duration-300"
+              />
+            </div>
+            {/* Text */}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white leading-snug">
+                {creatingChat ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    {language === 'ru' ? 'Создаём чат...' : 'Creating chat...'}
+                  </span>
+                ) : language === 'ru'
+                  ? 'Создайте своё идеальное расписание и достигайте целей'
+                  : 'Create your perfect schedule and achieve your goals'}
+              </h3>
+              {!creatingChat && (
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed mt-1.5">
+                  {language === 'ru'
+                    ? 'Поделитесь с Ixteria вашими делами или имеющимся расписанием — AI поможет расставить приоритеты и ничего не упустить'
+                    : 'Share your tasks or existing schedule with Ixteria — AI will help prioritize and never miss a thing'}
+                </p>
+              )}
+            </div>
+            {/* Chevron */}
+            {!creatingChat && (
+              <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200">
+                <ArrowRight size={18} />
+              </div>
+            )}
+          </div>
+        </button>
+
         {/* Info Banner — одноразовая подсказка */}
         {localStorage.getItem('secretary_calendar_hint') !== 'hidden' && (
           <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 dark:from-blue-500/5 dark:via-purple-500/5 dark:to-pink-500/5 rounded-[3rem] p-4 mb-4 flex items-center gap-3 border border-blue-200/30 dark:border-blue-700/30">
@@ -1134,56 +1188,6 @@ const Secretary = ({ theme }) => {
             />
           </div>
         </div>
-
-        {/* CTA Apple-style */}
-        <button
-          onClick={handleCreateScheduleChat}
-          disabled={creatingChat}
-          className="group relative w-full text-left"
-        >
-          {/* Glow effect */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-[3rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="relative flex items-center gap-4 sm:gap-5 p-4 sm:p-6 bg-white dark:bg-gray-800/90 backdrop-blur-xl rounded-[3rem] border border-gray-200/60 dark:border-gray-700/40 shadow-sm hover:shadow-lg transition-all duration-300">
-            {/* Icon container */}
-            <div className="relative shrink-0 w-14 h-14 sm:w-16 sm:h-16">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/15 to-purple-500/15 dark:from-blue-500/20 dark:to-purple-500/20 rounded-[2rem] blur-md" />
-              <img
-                src="/assets/icons/agents/секретарь.svg"
-                alt=""
-                className="relative w-full h-full scale-150 animate-gentle-bounce group-hover:scale-[1.6] transition-transform duration-300"
-              />
-            </div>
-            {/* Text */}
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white leading-snug">
-                {creatingChat ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    {language === 'ru' ? 'Создаём чат...' : 'Creating chat...'}
-                  </span>
-                ) : language === 'ru'
-                  ? 'Создайте своё идеальное расписание и достигайте целей'
-                  : 'Create your perfect schedule and achieve your goals'}
-              </h3>
-              {!creatingChat && (
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed mt-1.5">
-                  {language === 'ru'
-                    ? 'Поделитесь с Ixteria вашими делами или имеющимся расписанием — AI поможет расставить приоритеты и ничего не упустить'
-                    : 'Share your tasks or existing schedule with Ixteria — AI will help prioritize and never miss a thing'}
-                </p>
-              )}
-            </div>
-            {/* Chevron */}
-            {!creatingChat && (
-              <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200">
-                <ArrowRight size={18} />
-              </div>
-            )}
-          </div>
-        </button>
 
       </div>
       </div>

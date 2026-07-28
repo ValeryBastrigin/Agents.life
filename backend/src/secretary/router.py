@@ -16,6 +16,7 @@ class CalendarEventCreate(BaseModel):
     end_time: str    # ISO format datetime string
     color: str = "#3B82F6"
     description: Optional[str] = None
+    push_enabled: bool = False
 
 class CalendarEventUpdate(BaseModel):
     title: Optional[str] = None
@@ -23,6 +24,7 @@ class CalendarEventUpdate(BaseModel):
     end_time: Optional[str] = None
     color: Optional[str] = None
     description: Optional[str] = None
+    push_enabled: Optional[bool] = None
 
 class CalendarEventResponse(BaseModel):
     id: int
@@ -72,7 +74,8 @@ async def get_calendar_events(user_id: int, db: AsyncSession = Depends(get_db)):
             "end": event.end_time.isoformat(),
             "color": event.color,
             "description": event.description,
-            "completed": event.completed
+            "completed": event.completed,
+            "push_enabled": event.push_enabled
         }
         for event in events
     ]
@@ -87,7 +90,8 @@ async def create_calendar_event(user_id: int, event_data: CalendarEventCreate, d
         start_time=datetime.fromisoformat(event_data.start_time.replace('Z', '+00:00')),
         end_time=datetime.fromisoformat(event_data.end_time.replace('Z', '+00:00')),
         color=event_data.color,
-        description=event_data.description
+        description=event_data.description,
+        push_enabled=event_data.push_enabled
     )
     db.add(new_event)
     await db.commit()
@@ -100,7 +104,8 @@ async def create_calendar_event(user_id: int, event_data: CalendarEventCreate, d
         "start": new_event.start_time.isoformat(),
         "end": new_event.end_time.isoformat(),
         "color": new_event.color,
-        "description": new_event.description
+        "description": new_event.description,
+        "push_enabled": new_event.push_enabled
     }
 
 @router.put("/events/{event_id}")
@@ -124,6 +129,8 @@ async def update_calendar_event(event_id: int, event_data: CalendarEventUpdate, 
         update_data["color"] = event_data.color
     if event_data.description is not None:
         update_data["description"] = event_data.description
+    if event_data.push_enabled is not None:
+        update_data["push_enabled"] = event_data.push_enabled
     
     await db.execute(update(CalendarEvent).where(CalendarEvent.id == event_id).values(**update_data))
     await db.commit()
@@ -136,7 +143,8 @@ async def update_calendar_event(event_id: int, event_data: CalendarEventUpdate, 
         "start": event.start_time.isoformat(),
         "end": event.end_time.isoformat(),
         "color": event.color,
-        "description": event.description
+        "description": event.description,
+        "push_enabled": event.push_enabled
     }
 
 @router.put("/events/{event_id}/toggle")
