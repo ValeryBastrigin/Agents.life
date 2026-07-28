@@ -89,36 +89,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
 
   // ── Notifications state ──
   const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      agent: 'secretary',
-      title: 'Встреча через 15 минут',
-      message: 'Запланировано обсуждение проекта с командой в 21:00.',
-      time: 'Только что'
-    },
-    {
-      id: 2,
-      agent: 'accountant',
-      title: 'Анализ расходов за неделю',
-      message: 'Ваши расходы по карте составили 14,500 ₽. Превышение лимита на 5%.',
-      time: '1 час назад'
-    },
-    {
-      id: 3,
-      agent: 'dietitian',
-      title: 'Время выпить воды',
-      message: 'Вы выпили 1.2л воды из нормы 2.5л. Осталось еще 1.3л.',
-      time: '2 часа назад'
-    },
-    {
-      id: 4,
-      agent: 'psychologist',
-      title: 'Итоги рефлексии',
-      message: 'Завершился сеанс эмоциональной разгрузки. Резюме доступно в дневнике.',
-      time: 'Вчера'
-    }
-  ]);
+  const [notifications, setNotifications] = useState([]);
 
   const handleClearAllNotifications = () => {
     setNotifications([]);
@@ -382,7 +353,10 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
     if (!activeSession) return;
     setIsEndingSession(true);
     try {
-      await apiClient.post(`/api/user/${userId}/therapy-sessions/${activeSession.id}/force-end`);
+      const res = await apiClient.post(`/api/user/${userId}/therapy-sessions/${activeSession.id}/force-end`);
+      if (res.data?.notification) {
+        window.dispatchEvent(new CustomEvent('notifications:add', { detail: [res.data.notification] }));
+      }
       setSessionEndSuccess(true);
       // Через 3 секунды закрываем модалку и убираем виджет
       setTimeout(() => {

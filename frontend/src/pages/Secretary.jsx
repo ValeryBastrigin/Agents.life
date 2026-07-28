@@ -31,6 +31,9 @@ const Secretary = ({ theme }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
   const [events, setEvents] = useState([]);
+  const [showNotificationPicker, setShowNotificationPicker] = useState(false);
+  const [notificationHours, setNotificationHours] = useState(0);
+  const [notificationMinutes, setNotificationMinutes] = useState(0);
 
   const [dayEvents, setDayEvents] = useState([]);
   const [reminders, setReminders] = useState([]);
@@ -184,20 +187,26 @@ const Secretary = ({ theme }) => {
   }, [selectedDate]);
 
   const handleSaveEvent = useCallback(async () => {
+    await handleSaveEventWithNotification(notificationHours, notificationMinutes);
+  }, [notificationHours, notificationMinutes]);
+
+  const handleSaveEventWithNotification = useCallback(async (hours, minutes) => {
     if (newEventTitle && tempSlotInfo) {
       try {
         const startDate = new Date(tempSlotInfo.start);
         startDate.setHours(startDate.getHours() + 3);
-        
+
         const endDate = new Date(tempSlotInfo.end);
         endDate.setHours(endDate.getHours() + 3);
 
+        // Create event
         const response = await axios.post(`${API_URL}/api/events/${userId}`, {
           title: newEventTitle,
           start_time: startDate.toISOString(),
           end_time: endDate.toISOString(),
           color: selectedColor
         });
+
         const newEvent = {
           id: response.data.id,
           title: response.data.title,
@@ -207,14 +216,37 @@ const Secretary = ({ theme }) => {
           completed: false
         };
         setEvents([...events, newEvent]);
+
+        // Create reminder if notification time is set
+        if (hours > 0 || minutes > 0) {
+          const notificationTime = new Date(startDate);
+          notificationTime.setHours(notificationTime.getHours() - hours);
+          notificationTime.setMinutes(notificationTime.getMinutes() - minutes);
+
+          const reminderTime = notificationTime.toTimeString().slice(0, 5); // HH:MM format
+          const reminderDate = notificationTime.toISOString().slice(0, 10); // YYYY-MM-DD format
+
+          await axios.post(`${API_URL}/api/reminders/${userId}`, {
+            text: newEventTitle,
+            title: language === 'ru' ? `Напоминание: ${newEventTitle}` : `Reminder: ${newEventTitle}`,
+            time: reminderTime,
+            date: reminderDate,
+            color: selectedColor,
+            push_enabled: true
+          });
+        }
+
         setShowEventModal(false);
         setNewEventTitle('');
         setTempSlotInfo(null);
+        setNotificationHours(0);
+        setNotificationMinutes(0);
+        setShowNotificationPicker(false);
       } catch (error) {
-        console.error('Failed to create event:', error);
+        console.error('Failed to create event or reminder:', error);
       }
     }
-  }, [newEventTitle, tempSlotInfo, events, userId]);
+  }, [newEventTitle, tempSlotInfo, events, userId, selectedColor, language]);
 
   const handleCancelEvent = useCallback(() => {
     setShowEventModal(false);
@@ -608,7 +640,80 @@ const Secretary = ({ theme }) => {
                   </button>
                 ))}
               </div>
-              
+
+              {/* Notification Button */}
+              <button
+                type="button"
+                onClick={() => setShowNotificationPicker(!showNotificationPicker)}
+                className="w-full px-4 py-3 bg-purple-100 dark:bg-purple-900/30 rounded-[2rem] text-purple-700 dark:text-purple-300 font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors mb-4 flex items-center justify-center gap-2"
+              >
+                <Bell size={16} />
+                {language === 'ru' ? 'Создайте уведомление для события' : 'Create notification for event'}
+              </button>
+
+              {/* Notification Time Picker */}
+              {showNotificationPicker && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 text-center">
+                    {language === 'ru' ? 'Выберите время за сколько вас оповестить о начале события' : 'Select notification time before event'}
+                  </p>
+                  <div className="flex gap-4">
+                    {/* Hours Picker */}
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-500 dark:text-gray-400 mb-2 block text-center">
+                        {language === 'ru' ? 'Часы' : 'Hours'}
+                      </label>
+                      <div className="bg-gray-100 dark:bg-gray-800 rounded-[2rem] p-2">
+                        <div className="flex flex-col items-center gap-1 max-h-32 overflow-y-auto">
+                          {[...Array(24)].map((_, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setNotificationHours(i)}
+                              className={`w-full py-2 rounded-[1.5rem] text-center transition-colors ${
+                                notificationHours === i
+                                  ? 'bg-purple-500 text-white'
+                                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                              }`}
+                            >
+                              {i.toString().padStart(2, '0')}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Minutes Picker */}
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-500 dark:text-gray-400 mb-2 block text-center">
+                        {language === 'ru' ? 'Минуты' : 'Minutes'}
+                      </label>
+                      <div className="bg-gray-100 dark:bg-gray-800 rounded-[2rem] p-2">
+                        <div className="flex flex-col items-center gap-1 max-h-32 overflow-y-auto">
+                          {[0, 5, 10, 15, 30, 45].map((i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setNotificationMinutes(i)}
+                              className={`w-full py-2 rounded-[1.5rem] text-center transition-colors ${
+                                notificationMinutes === i
+                                  ? 'bg-purple-500 text-white'
+                                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                              }`}
+                            >
+                              {i.toString().padStart(2, '0')}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
+                    {language === 'ru' ? 'Выбрано:' : 'Selected:'} {notificationHours.toString().padStart(2, '0')}:{notificationMinutes.toString().padStart(2, '0')}
+                  </p>
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelEvent}

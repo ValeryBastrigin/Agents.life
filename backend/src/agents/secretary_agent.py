@@ -366,8 +366,10 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
             "start_time": "YYYY-MM-DDTHH:MM:SS" (ТОЛЬКО если указано время),
             "end_time": "YYYY-MM-DDTHH:MM:SS" (ТОЛЬКО если указано время окончания),
             "date": "YYYY-MM-DD" (дата, ОБЯЗАТЕЛЬНО),
-            "description": "подробное описание"
+            "description": "подробное описание",
+            "push_enabled": true/false (true, если пользователь просит поставить уведомление, предупредить, напомнить за N минут и т.д.)
         }}
+>>>>>>>
         
         ПРАВИЛА (строго по порядку):
         1. Если в сообщении НЕТ даты и нет слов "завтра"/"послезавтра" — верни {{"action": "none"}}
@@ -400,13 +402,25 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
                             end_dt = start_dt + timedelta(hours=1)
                             end_time_str = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
                         
+                        push_on = data.get("push_enabled", False)
+                        offset = data.get("reminder_offset_minutes", 0)
+                        desc = data.get("description", "")
+                        if push_on:
+                            notif_str = f"🔔 Уведомление: предупредить за {offset} мин." if offset > 0 else "🔔 Уведомление включено"
+                            desc = f"{notif_str}\n{desc}".strip()
+
                         new_event = CalendarEvent(
                             user_id=user_id,
                             title=data.get("title", "Встреча")[:50],
                             start_time=datetime.fromisoformat(start_time_str),
                             end_time=datetime.fromisoformat(end_time_str),
-                            description=data.get("description", "")
+                            description=desc,
+                            push_enabled=push_on
                         )
+>>>>>>>
+
+>>>>>>>
+
                         db.add(new_event)
                         await db.commit()
                         response_data = {
@@ -427,8 +441,11 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
                             text=data.get("title", "Напоминание")[:200],
                             title=data.get("title", "Напоминание")[:50],
                             time=time(9, 0),
-                            date=date.fromisoformat(date_str)
+                            date=date.fromisoformat(date_str),
+                            push_enabled=data.get("push_enabled", True)
                         )
+>>>>>>>
+
                         db.add(new_reminder)
                         await db.commit()
                         response_data = {
@@ -793,17 +810,20 @@ async def process_stream(
             extraction_prompt = f"""Проанализируй сообщение пользователя и определи, нужно ли создать событие или напоминание.
             Сообщение: "{text_content}"
             Текущая дата: {datetime.now().strftime('%Y-%m-%d')}
-            Если нужно создать, верни JSON:
-            {{
-                "action": "create",
-                "type": "event" или "reminder",
-                "title": "краткое название (макс. 50 символов)",
-                "start_time": "YYYY-MM-DDTHH:MM:SS" (ТОЛЬКО если указано время),
-                "end_time": "YYYY-MM-DDTHH:MM:SS" (ТОЛЬКО если указано время окончания),
-                "date": "YYYY-MM-DD" (дата, ОБЯЗАТЕЛЬНО),
-                "description": "подробное описание"
-            }}
-            ПРАВИЛА (строго по порядку):
+        Если нужно создать, верни JSON:
+        {{
+            "action": "create",
+            "type": "event" или "reminder",
+            "title": "краткое название (макс. 50 символов)",
+            "start_time": "YYYY-MM-DDTHH:MM:SS" (ТОЛЬКО если указано время),
+            "end_time": "YYYY-MM-DDTHH:MM:SS" (ТОЛЬКО если указано время окончания),
+            "date": "YYYY-MM-DD" (дата, ОБЯЗАТЕЛЬНО),
+            "description": "подробное описание",
+            "push_enabled": true/false (true, если просят поставить уведомление или предупредить/напомнить за N минут)
+        }}
+        ПРАВИЛА (строго по порядку):
+>>>>>>>
+
             1. Если в сообщении НЕТ даты и нет слов "завтра"/"послезавтра" — верни {{"action": "none"}}
             2. Если указано ВРЕМЯ (в 15:00, с 10 до 12, к 14:00 и т.д.) — type="event", ОБЯЗАТЕЛЬНО заполни start_time и end_time
             3. Если указана только ДАТА без времени — type="reminder"
@@ -830,13 +850,23 @@ async def process_stream(
                             start_dt = datetime.fromisoformat(start_time_str)
                             end_dt = start_dt + timedelta(hours=1)
                             end_time_str = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
+                        push_on = data.get("push_enabled", False)
+                        offset = data.get("reminder_offset_minutes", 0)
+                        desc = data.get("description", "")
+                        if push_on:
+                            notif_str = f"🔔 Уведомление: предупредить за {offset} мин." if offset > 0 else "🔔 Уведомление включено"
+                            desc = f"{notif_str}\n{desc}".strip()
+
                         new_event = CalendarEvent(
                             user_id=user_id,
                             title=data.get("title", "Встреча")[:50],
                             start_time=datetime.fromisoformat(start_time_str),
                             end_time=datetime.fromisoformat(end_time_str),
-                            description=data.get("description", "")
+                            description=desc,
+                            push_enabled=push_on
                         )
+>>>>>>>
+
                         db.add(new_event)
                         await db.commit()
                         widget = {"type": "event_created", "title": new_event.title, "date": new_event.start_time.strftime('%d.%m.%Y'), "time": f"{new_event.start_time.strftime('%H:%M')} - {new_event.end_time.strftime('%H:%M')}", "kind": "event"}

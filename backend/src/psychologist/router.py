@@ -152,9 +152,9 @@ async def create_therapy_session(user_id: int, data: TherapySessionCreate, db: A
     return session
 
 
-@router.post("/user/{user_id}/therapy-sessions/{session_id}/force-end", response_model=TherapySessionResponse)
+@router.post("/user/{user_id}/therapy-sessions/{session_id}/force-end")
 async def force_end_therapy_session(user_id: int, session_id: int, db: AsyncSession = Depends(get_db)):
-    """Force-end a therapy session and generate summary."""
+    """Force-end a therapy session and generate summary, returning session and standard notification."""
     result = await db.execute(
         select(TherapySession)
         .where(TherapySession.id == session_id)
@@ -180,7 +180,21 @@ async def force_end_therapy_session(user_id: int, session_id: int, db: AsyncSess
     
     await db.commit()
     await db.refresh(session)
-    return session
+
+    # Standard (non-push) notification for therapist summary
+    notification = {
+        "id": f"therapy-summary-{session.id}-{int(datetime.utcnow().timestamp())}",
+        "agent": "psychologist",
+        "title": "Сеанс завершен",
+        "message": "Сеанс завершен, саммери можете найти в разделе 'Ваши сеансы терапий и итоги'.",
+        "time": "Только что",
+        "type": "standard"
+    }
+
+    return {
+        "session": TherapySessionResponse.model_validate(session),
+        "notification": notification
+    }
 
 
 @router.delete("/therapy-sessions/{session_id}", status_code=204)
