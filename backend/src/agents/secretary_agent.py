@@ -41,12 +41,36 @@ def _parse_time(time_str: str) -> time | None:
         except ValueError:
             return None
 
+def _parse_date_from_text(msg_lower: str) -> tuple[date, date, str]:
+    today = datetime.now().date()
+    if "завтра" in msg_lower:
+        start_date = today + timedelta(days=1)
+        end_date = start_date + timedelta(days=1)
+        return start_date, end_date, "на завтра"
+    elif "послезавтра" in msg_lower:
+        start_date = today + timedelta(days=2)
+        end_date = start_date + timedelta(days=1)
+        return start_date, end_date, "на послезавтра"
+    elif "недел" in msg_lower:
+        start_date = today
+        end_date = today + timedelta(days=7)
+        return start_date, end_date, "на неделю"
+    else:
+        start_date = today
+        end_date = today + timedelta(days=1)
+        return start_date, end_date, "на сегодня"
+
 async def _classify_message(text_content: str, msg_lower: str, has_image: bool) -> str:
     print(f"DEBUG: Secretary _classify_message received text: '{text_content}', msg_lower: '{msg_lower}'")
     
-    if any(kw in msg_lower for kw in ["проанализируй", "проанализировать", "анализ", "оцени", "оценить", "что можешь сказать"]) and any(kw in msg_lower for kw in ["расписани", "план", "график", "день", "сегодня", "завтра", "недел"]):
+    # Check for schedule analysis FIRST (so words like "расписание" combined with "проанализируй" trigger analysis, not query)
+    if any(kw in msg_lower for kw in ["проанализируй", "проанализировать", "анализ", "оцени", "оценить", "что можешь сказать", "как тебе"]) and any(kw in msg_lower for kw in ["расписани", "план", "график", "день", "сегодня", "завтра", "недел"]):
         print(f"DEBUG: Secretary classifier matched keyword fallback for schedule_analysis!")
         return "schedule_analysis"
+
+    if any(kw in msg_lower for kw in ["какое у меня", "покажи расписание", "список задач", "что по плану", "что у меня на", "какие планы", "расписание на", "планы на"]):
+        print(f"DEBUG: Secretary classifier matched keyword fallback for schedule_query!")
+        return "schedule_query"
 
     classify_prompt = f"""Ты — классификатор сообщений для ИИ-секретаря. Определи тип сообщения пользователя.
 
@@ -55,13 +79,13 @@ async def _classify_message(text_content: str, msg_lower: str, has_image: bool) 
 
 ТИПЫ:
 1. "schedule_creation" — пользователь ОПИСЫВАЕТ СВОЙ ОБЫЧНЫЙ ДЕНЬ (распорядок, режим, дела по времени).
-2. "schedule_query" — пользователь СПРАШИВАЕТ про существующее расписание/события (просто показать).
+2. "schedule_query" — пользователь СПРАШИВАЕТ про существующее расписание/события на конкретный день (просто показать список).
 3. "schedule_analysis" — пользователь просит ПРОАНАЛИЗИРОВАТЬ расписание, оценить его, найти риски, дать предложения.
 4. "note_creation" — пользователь хочет СОЗДАТЬ ЗАМЕТКУ.
 5. "event_creation" — пользователь просит СОЗДАТЬ ОДНО событие/напоминание на конкретную дату.
 6. "general" — всё остальное.
 
-Верни ТОЛЬКО JSON с одним полем: {{"tag": "schedule_analysis"}}"""
+Верни ТОЛЬКО JSON с одним полем: {{"tag": "general"}}"""
 
     try:
         response = await client.chat.completions.create(
@@ -87,42 +111,41 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
     tag = await _classify_message(text_content, msg_lower, has_image)
     print(f"DEBUG: Secretary process classified tag as: {tag}")
     
-    if tag == "schedule_analysis":
+    if tag in ("schedule_query", "schedule_analysis"):
         try:
-            today = datetime.now().date()
-            if "завтра" in msg_lower:
-                start_date = today + timedelta(days=1)
-                end_date = start_date + timedelta(days=1)
-                period_title = "на завтра"
-            elif "недел" in msg_lower:
-                start_date = today
-                end_date = today + timedelta(days=7)
-                period_title = "на неделю"
-            else:
-                start_date = today
-                end_date = today + timedelta(days=1)
-                period_title = "на сегодня"
+            start_date, end_date, period_title = _parse_date_from_text(msg_lower)
 
-            # Fetch events reliably: first try exact/broad date range, fallback to all user events if none found
             events_result = await db.execute(
                 select(CalendarEvent).where(
-                    CalendarEvent.user_id == user_id
-                ).order_by(CalendarEvent.start_time.asc()).limit(100)
+                    CalendarEvent.user_id == user_id,
+                    cast(CalendarEvent.start_time, Date) >= start_date,
+                    cast(CalendarEvent.start_time, Date) < end_date
+                ).order_by(CalendarEvent.start_time.asc())
             )
             events = events_result.scalars().all()
 
             reminders_result = await db.execute(
                 select(Reminder).where(
-                    Reminder.user_id == user_id
-                ).limit(50)
+                    Reminder.user_id == user_id,
+                    Reminder.date >= start_date,
+                    Reminder.date < end_date
+                )
             )
             reminders = reminders_result.scalars().all()
 
-            events_list_str = "\n".join([f"- {e.start_time.strftime('%Y-%m-%d %H:%M')} – {e.end_time.strftime('%H:%M')}: {e.title} ({e.description or ''})" for e in events])
+            events_list_str = "\n".join([f"- **{e.start_time.strftime('%Y-%m-%d %H:%M')} – {e.end_time.strftime('%H:%M')}**: {e.title} {f'({e.description})' if e.description else ''}" for e in events])
             reminders_list_str = "\n".join([f"- {r.date or ''} {r.time or ''}: {r.title or r.text}" for r in reminders])
 
             if not events and not reminders:
-                return f"📋 **Анализ расписания {period_title}:**\n\nВ вашем календаре на этот период пока нет запланированных событий или напоминаний. День свободен! 😊\n\n💡 *Предложение:* Отличная возможность заняться стратегическими задачами, отдохнуть или запланировать важные активности.", 0
+                return f"📋 Расписания и событий {period_title} нет, составим?", 0
+
+            if tag == "schedule_query":
+                query_response = f"📅 **Ваше расписание {period_title}:**\n\n"
+                if events:
+                    query_response += "**События:**\n" + events_list_str + "\n\n"
+                if reminders:
+                    query_response += "**Напоминания:**\n" + reminders_list_str
+                return query_response.strip(), 0
 
             llm_eval_prompt = f"""Ты — ИИ-секретарь и эксперт по тайм-менеджменту и продуктивности. Проанализируй расписание пользователя {period_title}.
 ВАЖНО: Все данные расписания, события и напоминания пользователя УЖЕ получены из базы данных и приведены ниже. НИ В КОЕМ СЛУЧАЕ не проси у пользователя прислать скриншот или текст расписания — опирайся ТОЛЬКО на предоставленные ниже данные!
@@ -149,8 +172,8 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
             return eval_response.choices[0].message.content, 0
         except Exception as e:
             traceback.print_exc()
-            print(f"Error in schedule analysis: {e}")
-            return "Не удалось проанализировать расписание. Попробуйте еще раз.", 0
+            print(f"Error in schedule analysis/query: {e}")
+            return "Не удалось получить расписание. Попробуйте еще раз.", 0
 
     return "Пожалуйста, уточните детали вашего запроса.", 0
 
@@ -169,35 +192,39 @@ async def process_stream(
         tag = await _classify_message(text_content, msg_lower, has_image)
         print(f"DEBUG: Secretary process_stream classified tag as: {tag}")
 
-        if tag == "schedule_analysis":
-            today = datetime.now().date()
-            if "завтра" in msg_lower:
-                period_title = "на завтра"
-            elif "недел" in msg_lower:
-                period_title = "на неделю"
-            else:
-                period_title = "на сегодня"
+        if tag in ("schedule_query", "schedule_analysis"):
+            start_date, end_date, period_title = _parse_date_from_text(msg_lower)
 
-            # Reliable fetch of all user calendar events and reminders without restrictive range drops
             events_result = await db.execute(
                 select(CalendarEvent).where(
-                    CalendarEvent.user_id == user_id
-                ).order_by(CalendarEvent.start_time.asc()).limit(100)
+                    CalendarEvent.user_id == user_id,
+                    cast(CalendarEvent.start_time, Date) >= start_date,
+                    cast(CalendarEvent.start_time, Date) < end_date
+                ).order_by(CalendarEvent.start_time.asc())
             )
             events = events_result.scalars().all()
 
             reminders_result = await db.execute(
                 select(Reminder).where(
-                    Reminder.user_id == user_id
-                ).limit(50)
+                    Reminder.user_id == user_id,
+                    Reminder.date >= start_date,
+                    Reminder.date < end_date
+                )
             )
             reminders = reminders_result.scalars().all()
 
-            events_list_str = "\n".join([f"- {e.start_time.strftime('%Y-%m-%d %H:%M')} – {e.end_time.strftime('%H:%M')}: {e.title} ({e.description or ''})" for e in events])
+            events_list_str = "\n".join([f"- **{e.start_time.strftime('%Y-%m-%d %H:%M')} – {e.end_time.strftime('%H:%M')}**: {e.title} {f'({e.description})' if e.description else ''}" for e in events])
             reminders_list_str = "\n".join([f"- {r.date or ''} {r.time or ''}: {r.title or r.text}" for r in reminders])
 
             if not events and not reminders:
-                analysis_text = f"📋 **Анализ расписания {period_title}:**\n\nВ вашем календаре на этот период пока нет запланированных событий или напоминаний. День свободен! 😊\n\n💡 *Предложение:* Отличная возможность заняться стратегическими задачами, отдохнуть или запланировать важные активности."
+                analysis_text = f"📋 Расписания и событий {period_title} нет, составим?"
+            elif tag == "schedule_query":
+                analysis_text = f"📅 **Ваше расписание {period_title}:**\n\n"
+                if events:
+                    analysis_text += "**События:**\n" + events_list_str + "\n\n"
+                if reminders:
+                    analysis_text += "**Напоминания:**\n" + reminders_list_str
+                analysis_text = analysis_text.strip()
             else:
                 llm_eval_prompt = f"""Ты — ИИ-секретарь и эксперт по тайм-менеджменту и продуктивности. Проанализируй расписание пользователя {period_title}.
 ВАЖНО: Все данные расписания, события и напоминания пользователя УЖЕ получены из базы данных и приведены ниже. НИ В КОЕМ СЛУЧАЕ не проси у пользователя прислать скриншот или текст расписания — опирайся ТОЛЬКО на предоставленные ниже данные!
