@@ -452,7 +452,7 @@ async def route_to_agent(message: Any) -> str:
         return "dietitian"
 
     sec_kw = ["встреча", "запланировать", "записать", "назначить", "расписание", "календарь",
-              "событие", "напоминание", "напомни"]
+              "событие", "напоминание", "напомни", "проанализируй", "оцени расписание", "план на"]
     if any(kw in msg_lower for kw in sec_kw):
         print(f"DEBUG: Keyword fallback — routing to secretary")
         return "secretary"
