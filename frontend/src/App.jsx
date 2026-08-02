@@ -570,22 +570,52 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {/* ═══ Active Session Capsule inside header — only for the chat where session is active ═══ */}
-          {activeSession && currentChatId && activeSession.chat_id === currentChatId && (
-            <div className="bg-gradient-to-r from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-full px-1.5 py-1.5 shadow-sm flex items-center gap-0.5 animate-fade-in">
-              <Clock size={14} className="text-white animate-pulse" />
-              <span className="text-white text-xs font-semibold whitespace-nowrap">
+          {/* ═══ Active Session Capsule inside header — compact, only hides plan/notifications/profile when active in current chat ═══ */}
+          {activeSession && currentChatId && activeSession.chat_id === currentChatId ? (
+            <div className="bg-gradient-to-r from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-full px-2 py-1 shadow-sm flex items-center gap-1 animate-fade-in">
+              <Clock size={13} className="text-white animate-pulse flex-shrink-0" />
+              <span className="text-white text-[11px] font-semibold whitespace-nowrap">
                 {formatElapsed(sessionElapsed)}
               </span>
-              <span className="text-white/90 text-xs ml-1">Завершить</span>
+              <span className="text-white/90 text-[11px] ml-0.5">Завершить</span>
               <button
                 onClick={() => setShowEndConfirm(true)}
-                className="p-0.5 hover:bg-white/20 rounded-full transition-colors"
+                className="p-0.5 hover:bg-white/20 rounded-full transition-colors flex-shrink-0"
                 title="Завершить сеанс"
               >
-                <XCircle size={14} className="text-white" />
+                <XCircle size={13} className="text-white" />
               </button>
             </div>
+          ) : (
+            <>
+              {/* Plan Capsule */}
+              <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+                {userProfile && (
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    userProfile.plan === 'PRO' 
+                      ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30' 
+                      : userProfile.plan === 'UNLIMITED'
+                      ? 'bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-500/30'
+                      : 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30'
+                  }`}>
+                    {userProfile.plan === 'PRO' ? 'PRO' : userProfile.plan === 'UNLIMITED' ? 'Ultimate' : 'Free'}
+                  </span>
+                )}
+              </span>
+              {/* Notification Bell Button */}
+              <span className={`px-1 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+                <button
+                  onClick={() => setShowNotificationModal(true)}
+                  className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors relative"
+                  title="Уведомления"
+                >
+                  <Bell size={22} className="text-gray-700 dark:text-gray-300" />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900 animate-pulse" />
+                  )}
+                </button>
+              </span>
+            </>
           )}
 
           {/* ═══ Confirm End Session Modal (фирменный стиль) ═══ */}
@@ -671,41 +701,19 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
               </div>
             </div>
           )}
-          {/* Plan Capsule */}
-          <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
-            {userProfile && (
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                userProfile.plan === 'PRO' 
-                  ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30' 
-                  : userProfile.plan === 'UNLIMITED'
-                  ? 'bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-500/30'
-                  : 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30'
-              }`}>
-                {userProfile.plan === 'PRO' ? 'PRO' : userProfile.plan === 'UNLIMITED' ? 'Ultimate' : 'Free'}
-              </span>
-            )}
-          </span>
-          {/* Notification Bell Button */}
-          <span className={`px-1 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
-            <button
-              onClick={() => setShowNotificationModal(true)}
-              className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors relative"
-              title="Уведомления"
-            >
-              <Bell size={22} className="text-gray-700 dark:text-gray-300" />
-              {notifications.length > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900 animate-pulse" />
-              )}
-            </button>
-          </span>
-          <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
-          <button
-            onClick={() => navigate('/profile')}
-            className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
-          >
-            <User size={24} className="text-gray-700 dark:text-gray-300" />
-          </button>
-          </span>
+
+          {/* Profile Icon — hidden when active session is in current chat */}
+          {(!activeSession || !currentChatId || activeSession.chat_id !== currentChatId) && (
+            <span className={`px-2 py-1.5 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
+              <button
+                onClick={() => navigate('/profile')}
+                className="p-2 hover:bg-gray-200/50 dark:hover:bg-gray-800/50 rounded-full transition-colors"
+                title="Профиль"
+              >
+                <User size={24} className="text-gray-700 dark:text-gray-300" />
+              </button>
+            </span>
+          )}
         </div>
       </header>
       )}

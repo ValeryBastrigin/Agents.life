@@ -17,7 +17,12 @@ async def generate_summary(chat_id: int, db: AsyncSession) -> str:
     messages = result.scalars().all()
 
     if not messages:
-        return "Сеанс без сообщений."
+        return "- Данных со стороны пользователя не обнаружено, сеанс не состоялся"
+
+    # Проверяем, есть ли сообщения от пользователя (role == 'user')
+    user_messages = [msg for msg in messages if msg.role == "user"]
+    if not user_messages:
+        return "- Данных со стороны пользователя не обнаружено, сеанс не состоялся"
 
     conversation_text = ""
     for msg in messages[-50:]:  # last 50 messages for summary
