@@ -180,6 +180,13 @@ const DietPlanPage = () => {
 
       if (!response.ok) {
         const errorText = await response.text();
+        if (response.status === 402) {
+          console.warn('Paywall triggered (meal plan stream):', errorText);
+          window.dispatchEvent(new CustomEvent('paywall:show'));
+          setCreatingChat(false);
+          setFoodSubmitting(false);
+          return;
+        }
         throw new Error(`Server error ${response.status}: ${errorText}`);
       }
 
