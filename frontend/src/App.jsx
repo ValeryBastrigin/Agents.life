@@ -28,6 +28,7 @@ import SecretaryGuide from './pages/SecretaryGuide';
 import NotesList from './pages/NotesList';
 import NoteEditor from './pages/NoteEditor';
 import FinancialAnalyst from './pages/FinancialAnalyst';
+import ScheduleManager from './pages/ScheduleManager';
 import LoginPage from './pages/LoginPage';
 import LandingPage from './pages/LandingPage';
 import TermsWall from './pages/TermsWall';
@@ -547,7 +548,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
       />
 
       {/* Header — hidden on /terms */}
-      {location.pathname !== '/terms' && location.pathname !== '/landing' && location.pathname !== '/' && location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && location.pathname !== '/login' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && (
+      {location.pathname !== '/terms' && location.pathname !== '/landing' && location.pathname !== '/' && location.pathname !== '/profile' && location.pathname !== '/mentor/tree' && location.pathname !== '/secretary/logs' && location.pathname !== '/login' && !location.pathname.startsWith('/dietitian/plan') && !location.pathname.startsWith('/financial-analyst') && !location.pathname.startsWith('/schedule-manager') && (
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 flex-shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
           <span className={`px-1 py-1 rounded-full transition-all duration-300 ${location.pathname.startsWith('/chat') || location.pathname === '/psychologist' || location.pathname === '/accountant' || location.pathname === '/mentor' ? 'bg-transparent' : headerSolid ? 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl' : 'bg-transparent'}`}>
@@ -800,6 +801,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
         <Route path="/mentor/tree" element={<DevelopmentTree />} />
         <Route path="/mentor/habits" element={<HabitTracker />} />
         <Route path="/financial-analyst" element={<FinancialAnalyst />} />
+        <Route path="/schedule-manager" element={<ScheduleManager />} />
         <Route path="/profile" element={<Profile key="profile" userProfile={userProfile} setUserProfile={setUserProfile} theme={theme} onThemeToggle={handleThemeToggle} onLogout={handleLogout} onBack={() => {
           const lastChatId = sessionStorage.getItem('lastChatId');
           navigate(lastChatId ? `/chat/${lastChatId}` : '/chat');

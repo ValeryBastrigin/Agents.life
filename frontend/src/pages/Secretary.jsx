@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Calendar, Clock, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Check, X, Bell, Sparkles, BookOpen, ListTodo, Zap, ArrowLeft, ArrowRight, Layers } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Check, X, Bell, Sparkles, BookOpen, MessageSquare, Zap, ArrowLeft, ArrowRight, Layers } from 'lucide-react';
 import SecretaryBackground from '../components/SecretaryBackground';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
@@ -991,14 +991,22 @@ const Secretary = ({ theme }) => {
           </button>
 
           <button 
-            onClick={() => navigate('/secretary/logs')} 
-            className="flex flex-col items-center justify-center gap-2 bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent"
+            onClick={handleCreateScheduleChat} 
+            disabled={creatingChat}
+            className="flex flex-col items-center justify-center gap-2 bg-white dark:bg-surface-dark rounded-[3rem] p-4 sm:p-5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors aspect-square shadow-sm border border-gray-100 dark:border-transparent relative"
           >
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <ListTodo size={20} className="text-purple-600 dark:text-purple-400" />
+              {creatingChat ? (
+                <svg className="animate-spin w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                <MessageSquare size={20} className="text-purple-600 dark:text-purple-400" />
+              )}
             </div>
             <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center leading-tight">
-              {language === 'ru' ? 'Журнал действий' : 'Activity Log'}
+              {language === 'ru' ? 'Чат с Тайм-менеджером' : 'Time Manager Chat'}
             </span>
           </button>
 
@@ -1015,18 +1023,17 @@ const Secretary = ({ theme }) => {
           </button>
         </div>
 
-        {/* CTA Apple-style */}
+        {/* CTA Apple-style — opens ScheduleManager page */}
         <button
-          onClick={handleCreateScheduleChat}
-          disabled={creatingChat}
+          onClick={() => navigate('/schedule-manager')}
           className="group relative w-full text-left mb-4"
         >
           {/* Glow effect */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 rounded-[3rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-sky-500/20 to-blue-500/20 rounded-[3rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative flex items-center gap-4 sm:gap-5 p-4 sm:p-6 bg-white dark:bg-gray-800/90 backdrop-blur-xl rounded-[3rem] border border-gray-200/60 dark:border-gray-700/40 shadow-sm hover:shadow-lg transition-all duration-300">
             {/* Icon container */}
             <div className="relative shrink-0 w-14 h-14 sm:w-16 sm:h-16">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/15 to-purple-500/15 dark:from-blue-500/20 dark:to-purple-500/20 rounded-[2rem] blur-md" />
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/15 to-sky-500/15 dark:from-blue-500/20 dark:to-sky-500/20 rounded-[2rem] blur-md" />
               <img
                 src="/assets/icons/agents/секретарь.svg"
                 alt=""
@@ -1036,32 +1043,20 @@ const Secretary = ({ theme }) => {
             {/* Text */}
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white leading-snug">
-                {creatingChat ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    {language === 'ru' ? 'Создаём чат...' : 'Creating chat...'}
-                  </span>
-                ) : language === 'ru'
+                {language === 'ru'
                   ? 'Создайте своё идеальное расписание и достигайте целей'
                   : 'Create your perfect schedule and achieve your goals'}
               </h3>
-              {!creatingChat && (
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed mt-1.5">
-                  {language === 'ru'
-                    ? 'Поделитесь с Ixteria вашими делами или имеющимся расписанием — AI поможет расставить приоритеты и ничего не упустить'
-                    : 'Share your tasks or existing schedule with Ixteria — AI will help prioritize and never miss a thing'}
-                </p>
-              )}
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed mt-1.5">
+                {language === 'ru'
+                  ? 'Создайте расписание с нуля, добавьте готовое или запустите ИИ-анализ вашего графика'
+                  : 'Create schedule from scratch, add existing or run AI analysis'}
+              </p>
             </div>
             {/* Chevron */}
-            {!creatingChat && (
-              <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200">
-                <ArrowRight size={18} />
-              </div>
-            )}
+            <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200">
+              <ArrowRight size={18} />
+            </div>
           </div>
         </button>
 
@@ -1144,8 +1139,12 @@ const Secretary = ({ theme }) => {
                 const isToday = moment(date).isSame(moment(), 'day');
                 return {
                   style: {
-                    backgroundColor: isToday ? '#6366F1' : undefined,
-                    borderRadius: isToday ? '10px' : undefined,
+                    backgroundColor: isToday ? '#4F46E5' : undefined,
+                    color: isToday ? '#FFFFFF' : undefined,
+                    fontWeight: isToday ? '700' : undefined,
+                    borderRadius: isToday ? '12px' : undefined,
+                    boxShadow: isToday ? '0 0 10px rgba(99, 102, 241, 0.5)' : undefined,
+                    border: isToday ? '2px solid #818CF8' : undefined,
                     cursor: 'pointer',
                   },
                 };
