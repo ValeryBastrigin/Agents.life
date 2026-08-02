@@ -41,6 +41,16 @@ const Secretary = ({ theme }) => {
   const [isPlusAnimating, setIsPlusAnimating] = useState(false);
   const [isPlusAnimating2, setIsPlusAnimating2] = useState(false);
 
+  const getHintKey = (uid) => uid ? `secretary_calendar_hint_${uid}` : 'secretary_calendar_hint';
+  const [showCalendarHint, setShowCalendarHint] = useState(() => {
+    const key = getHintKey(userId);
+    return localStorage.getItem(key) !== 'hidden';
+  });
+
+  useEffect(() => {
+    const key = getHintKey(userId);
+    setShowCalendarHint(localStorage.getItem(key) !== 'hidden');
+  }, [userId]);
   // Handle plus button animation and redirect
   useEffect(() => {
     if (isPlusAnimating) {
@@ -1056,7 +1066,7 @@ const Secretary = ({ theme }) => {
         </button>
 
         {/* Info Banner — одноразовая подсказка */}
-        {localStorage.getItem('secretary_calendar_hint') !== 'hidden' && (
+        {showCalendarHint && (
           <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 dark:from-blue-500/5 dark:via-purple-500/5 dark:to-pink-500/5 rounded-[3rem] p-4 mb-4 flex items-center gap-3 border border-blue-200/30 dark:border-blue-700/30">
             <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30 shrink-0">
               <Sparkles size={18} className="text-blue-600 dark:text-blue-400" />
@@ -1067,7 +1077,11 @@ const Secretary = ({ theme }) => {
                 : 'Click on a date in the calendar to plan your schedule and events manually'}
             </p>
             <button
-              onClick={() => localStorage.setItem('secretary_calendar_hint', 'hidden')}
+              onClick={() => {
+                const key = getHintKey(userId);
+                localStorage.setItem(key, 'hidden');
+                setShowCalendarHint(false);
+              }}
               className="p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-black/20 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors shrink-0"
             >
               <X size={16} />
