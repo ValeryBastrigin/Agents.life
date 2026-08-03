@@ -52,14 +52,12 @@ def _extract_text_from_bytes(content_bytes: bytes, filename: str = "") -> str:
     for encoding in ["utf-8", "cp1251", "latin-1"]:
         try:
             text = content_bytes.decode(encoding)
-            # Check if it looks like readable text (not PDF binary)
             if not _is_pdf(content_bytes) or text.count('\n') > 10:
                 return text
             return text
         except UnicodeDecodeError:
             continue
     
-    # Last resort
     return content_bytes.decode("latin-1", errors="replace")
 
 
@@ -150,7 +148,6 @@ async def check_obligation_notifications(user_id: int, db: AsyncSession = Depend
     
     notifications = []
     
-    # 1. Financial obligations check for today
     for o in obligations:
         if o.date == current_day:
             is_expense = o.type == 'expense'
@@ -166,7 +163,6 @@ async def check_obligation_notifications(user_id: int, db: AsyncSession = Depend
                 "type": "push"
             })
             
-    # 2. Bank statement monthly check: exactly 1 calendar month since last statement
     stmt_result = await db.execute(
         select(BankStatement)
         .where(BankStatement.user_id == user_id)
@@ -176,9 +172,7 @@ async def check_obligation_notifications(user_id: int, db: AsyncSession = Depend
     latest_stmt = stmt_result.scalar_one_or_none()
     if latest_stmt and latest_stmt.created_at:
         stmt_date = latest_stmt.created_at.date() if hasattr(latest_stmt.created_at, 'date') else latest_stmt.created_at
-        # Calculate month difference
         month_diff = (today.year - stmt_date.year) * 12 + (today.month - stmt_date.month)
-        # If exactly 1 month has passed (and it's the same day or later, or exactly 30 days)
         days_diff = (today - stmt_date).days
         if month_diff >= 1 and days_diff >= 30:
             notifications.append({
@@ -250,22 +244,17 @@ async def upload_statement(
     db: AsyncSession = Depends(get_db)
 ):
     """Upload a bank statement file, process with LLM, and store results."""
-    # Проверка кредитов перед обработкой
     result_user = await db.execute(select(User).where(User.id == user_id))
     user = result_user.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    await check_billing_limit(user, estimated_cost=2, db=db)  # Обработка выписки стоит минимум 2 кредита
+    await check_billing_limit(user, estimated_cost=5, db=db)
     
-    # Read file content
     content_bytes = await file.read()
-    
-    # Extract text from file (handles PDF and plain text)
     raw_text = _extract_text_from_bytes(content_bytes, file.filename or "")
     
     if not raw_text.strip():
-        # Empty text after extraction
         statement = BankStatement(
             user_id=user_id,
             filename=file.filename or "unknown",
@@ -279,25 +268,34 @@ async def upload_statement(
     
     print(f"Processing statement: {len(raw_text)} chars extracted from {file.filename}")
     
-    # Process with LLM
+    tokens_in = len(raw_text) // 4
+    tokens_out = 500
     try:
         result, tokens_in, tokens_out = await process_statement_chunk(raw_text)
     except Exception as e:
         print(f"LLM processing error: {e}")
         result = None
-        tokens_in = 0
-        tokens_out = 0
     
-    # Deduct credits for LLM processing — считаем по реальным токенам из ответа LLM
-    if user and tokens_in > 0:
-        credits_cost = calculate_cost("gemini_2_5_flash_lite", input_tokens=tokens_in, output_tokens=tokens_out)
-        if credits_cost == 0:
-            credits_cost = 1
-        user.credits_used = (user.credits_used or 0) + credits_cost
-        user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+    if user:
+        credits_cost = calculate_cost("google/gemini-2.5-flash-lite", input_tokens=tokens_in, output_tokens=tokens_out)
+        credits_cost = max(credits_cost, 1)
+        
+        old_used = user.credits_used or 0
+        old_balance = user.token_balance or 0
+        
+        user.credits_used = old_used + credits_cost
+        user.token_balance = max(old_balance - credits_cost, 0)
+        user.last_credit_reset = date.today()
+        db.add(user)
+        await db.commit()
+        
+        print(f"[BILLING ACCOUNTANT STATEMENT] User {user.id} | Document Analysis | "
+              f"Tokens In: {tokens_in}, Out: {tokens_out} | "
+              f"Calculated Cost: {credits_cost} credits | "
+              f"credits_used: {old_used} -> {user.credits_used} | "
+              f"token_balance: {old_balance} -> {user.token_balance}")
 
     if result is None:
-        # Create failed statement record
         statement = BankStatement(
             user_id=user_id,
             filename=file.filename or "unknown",
@@ -309,7 +307,6 @@ async def upload_statement(
         await db.refresh(statement)
         return _statement_to_out(statement, [])
     
-    # Extract period
     period = result.get("period", {})
     period_start = None
     period_end = None
@@ -324,7 +321,6 @@ async def upload_statement(
         except:
             pass
     
-    # Create statement record
     statement = BankStatement(
         user_id=user_id,
         filename=file.filename or "unknown",
@@ -335,13 +331,12 @@ async def upload_statement(
         total_expense=result.get("total_expense", 0),
         categories_data=json.dumps(result.get("categories", {}), ensure_ascii=False),
         analysis_text=result.get("analysis", ""),
-        raw_content=raw_text[:50000].replace('\x00', ''),  # Store first 50K chars, remove null bytes
+        raw_content=raw_text[:50000].replace('\x00', ''),
         status="completed",
     )
     db.add(statement)
-    await db.flush()  # Get statement.id
+    await db.flush()
     
-    # Create transactions
     transactions = []
     for tx_data in result.get("transactions", []):
         tx_date = None
@@ -371,7 +366,6 @@ async def upload_statement(
 
 @router.get("/statements/{user_id}", response_model=List[StatementListItem])
 async def get_statements(user_id: int, db: AsyncSession = Depends(get_db)):
-    """Get list of all statements for a user."""
     result = await db.execute(
         select(BankStatement)
         .where(BankStatement.user_id == user_id)
@@ -405,7 +399,6 @@ async def get_statements(user_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/statements/detail/{statement_id}", response_model=StatementOut)
 async def get_statement_detail(statement_id: int, db: AsyncSession = Depends(get_db)):
-    """Get full statement details with transactions."""
     result = await db.execute(
         select(BankStatement).where(BankStatement.id == statement_id)
     )
@@ -413,7 +406,6 @@ async def get_statement_detail(statement_id: int, db: AsyncSession = Depends(get
     if not statement:
         raise HTTPException(status_code=404, detail="Statement not found")
     
-    # Get transactions
     tx_result = await db.execute(
         select(Transaction).where(Transaction.statement_id == statement_id)
     )
@@ -424,7 +416,6 @@ async def get_statement_detail(statement_id: int, db: AsyncSession = Depends(get
 
 @router.delete("/statements/{statement_id}", status_code=204)
 async def delete_statement(statement_id: int, db: AsyncSession = Depends(get_db)):
-    """Delete a statement and its transactions."""
     result = await db.execute(
         select(BankStatement).where(BankStatement.id == statement_id)
     )
@@ -436,8 +427,6 @@ async def delete_statement(statement_id: int, db: AsyncSession = Depends(get_db)
 
 
 def _statement_to_out(stmt: BankStatement, transactions: list) -> StatementOut:
-    """Convert BankStatement model to StatementOut."""
-    # Parse categories from JSON string
     try:
         categories_parsed = json.loads(stmt.categories_data) if stmt.categories_data else {}
     except (json.JSONDecodeError, TypeError):
@@ -489,7 +478,6 @@ class PortfolioAnalysisOut(BaseModel):
 
     @classmethod
     def from_orm(cls, model):
-        """Parse JSON string fields from DB to lists/dicts."""
         def _parse(val, expected_type=list):
             if isinstance(val, str):
                 try:
@@ -522,18 +510,16 @@ async def analyze_portfolio(
     from src.models import PortfolioAnalysis
     from src.agents.accountant_agent import analyze_portfolio
 
-    # Проверка кредитов перед анализом портфеля
     portfolio_user_result = await db.execute(select(User).where(User.id == user_id))
     portfolio_user = portfolio_user_result.scalar_one_or_none()
     if not portfolio_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    await check_billing_limit(portfolio_user, estimated_cost=5, db=db)  # Анализ портфеля стоит 5 кредитов
+    await check_billing_limit(portfolio_user, estimated_cost=5, db=db)
 
     if not screenshots:
         raise HTTPException(status_code=400, detail="No files uploaded")
 
-    # Convert uploaded images to base64 data URIs
     import base64
     image_urls = []
     for file in screenshots:
@@ -545,36 +531,31 @@ async def analyze_portfolio(
         data_uri = f"data:image/{ext};base64,{b64}"
         image_urls.append(data_uri)
 
-    # Analyze with LLM
-    result, input_tokens, output_tokens = await analyze_portfolio(image_urls)
+    try:
+        result, input_tokens, output_tokens = await analyze_portfolio(image_urls)
+    except Exception as e:
+        print(f"Portfolio LLM error: {e}")
+        result = {}
 
-    # Deduct credits for LLM processing (gemini_3_1_flash with images)
-    portfolio_user_result = await db.execute(select(User).where(User.id == user_id))
-    portfolio_user = portfolio_user_result.scalar_one_or_none()
     if portfolio_user:
-        image_count = len(screenshots)
-        credits_cost = calculate_cost(
-            "gemini_3_1_flash",
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            image_count=image_count,
-        )
-        # Fallback to estimation if no token data available
-        if credits_cost == 0 and (input_tokens == 0 and output_tokens == 0):
-            input_token_est = len(str(result)) // 4
-            output_token_est = 2000
-            credits_cost = calculate_cost(
-                "gemini_3_1_flash",
-                input_tokens=input_token_est,
-                output_tokens=output_token_est,
-                image_count=image_count,
-            )
-        if credits_cost == 0:
-            credits_cost = 1
-        portfolio_user.credits_used = (portfolio_user.credits_used or 0) + credits_cost
-        portfolio_user.token_balance = max((portfolio_user.token_balance or 0) - credits_cost, 0)
+        credits_cost = calculate_cost("google/gemini-2.5-flash-lite", input_tokens=input_tokens, output_tokens=output_tokens)
+        credits_cost = max(credits_cost, 1)
+        
+        old_used = portfolio_user.credits_used or 0
+        old_balance = portfolio_user.token_balance or 0
+        
+        portfolio_user.credits_used = old_used + credits_cost
+        portfolio_user.token_balance = max(old_balance - credits_cost, 0)
+        portfolio_user.last_credit_reset = date.today()
+        db.add(portfolio_user)
+        await db.commit()
+        
+        print(f"[BILLING ACCOUNTANT PORTFOLIO] User {portfolio_user.id} | Images: {len(screenshots)} | "
+              f"Tokens In: {input_tokens}, Out: {output_tokens} | "
+              f"Calculated Cost: {credits_cost} credits | "
+              f"credits_used: {old_used} -> {portfolio_user.credits_used} | "
+              f"token_balance: {old_balance} -> {portfolio_user.token_balance}")
 
-    # Save to database
     portfolio = PortfolioAnalysis(
         user_id=user_id,
         overall_score=result.get("overall_score", 5),
@@ -592,7 +573,6 @@ async def analyze_portfolio(
 
 @router.get("/portfolio/analyses/{user_id}", response_model=List[PortfolioAnalysisOut])
 async def get_portfolio_analyses(user_id: int, db: AsyncSession = Depends(get_db)):
-    """Get all portfolio analyses for a user (latest first)."""
     from src.models import PortfolioAnalysis
 
     result = await db.execute(
@@ -608,7 +588,6 @@ async def get_portfolio_analyses(user_id: int, db: AsyncSession = Depends(get_db
 
 @router.get("/portfolio/analyses/latest/{user_id}", response_model=Optional[PortfolioAnalysisOut])
 async def get_latest_portfolio_analysis(user_id: int, db: AsyncSession = Depends(get_db)):
-    """Get the latest portfolio analysis for a user."""
     from src.models import PortfolioAnalysis
 
     result = await db.execute(
@@ -626,7 +605,6 @@ async def get_latest_portfolio_analysis(user_id: int, db: AsyncSession = Depends
 
 @router.delete("/portfolio/analyses/{analysis_id}", status_code=204)
 async def delete_portfolio_analysis(analysis_id: int, db: AsyncSession = Depends(get_db)):
-    """Delete a portfolio analysis."""
     from src.models import PortfolioAnalysis
 
     result = await db.execute(

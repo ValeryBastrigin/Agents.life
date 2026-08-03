@@ -23,7 +23,7 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
             user_msg if isinstance(user_msg, dict) else {"role": "user", "content": str(user_msg)},
         ]
         response = await client.chat.completions.create(
-            model="google/gemini-3.1-flash-lite",
+            model="google/gemini-2.5-flash-lite",
             messages=messages,
             temperature=0.7,
             max_tokens=300,
@@ -123,7 +123,7 @@ async def analyze_portfolio(image_urls: list[str]) -> tuple[dict, int, int]:
         ]
 
         response = await client.chat.completions.create(
-            model="google/gemini-3.1-flash-lite",
+            model="google/gemini-2.5-flash-lite",
             messages=messages,
             temperature=0.3,
             max_tokens=2000,

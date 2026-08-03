@@ -158,12 +158,14 @@ async def get_billing_status(
         await db.commit()
         await db.refresh(user)
 
+    credits_remaining = max(daily_limit - credits_used_today, 0) if not is_infinite else 999999
+
     return {
         "user_id": user.id,
         "plan_id": plan.value,
         "plan_name": plan.display_name,
         "is_infinite": is_infinite,
-        "credits_remaining": max(user.token_balance or 0, 0),
+        "credits_remaining": credits_remaining,
         "credits_total": daily_limit,          # дневной лимит
         "credits_used_today": credits_used_today,
         "daily_limit": daily_limit,

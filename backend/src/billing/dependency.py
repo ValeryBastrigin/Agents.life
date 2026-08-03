@@ -31,6 +31,10 @@ async def _check_billing_for_user(
         plan = UserPlan.FREE
 
     credits_used_today = user.credits_used or 0
+    # Защита от зависших исторических значений (если credits_used больше суточного лимита из-за старых багов, сбрасываем в 0)
+    if plan != UserPlan.UNLIMITED and credits_used_today > plan.daily_limit:
+        user.credits_used = 0
+        credits_used_today = 0
 
     # Проверка лимита (для UNLIMITED — всегда пропускаем)
     if plan != UserPlan.UNLIMITED:

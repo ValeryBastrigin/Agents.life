@@ -544,7 +544,7 @@ async def parse_schedule_image(user_id: int, file: UploadFile = File(...), db: A
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
         if user:
-            credits_cost = calculate_cost("gemini_2_5_flash_lite", input_tokens=input_tokens, output_tokens=output_tokens)
+            credits_cost = calculate_cost("google/gemini-2.5-flash-lite", input_tokens=input_tokens, output_tokens=output_tokens)
             if credits_cost == 0:
                 credits_cost = 2
             user.credits_used = (user.credits_used or 0) + credits_cost
@@ -611,7 +611,7 @@ async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: 
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
         if user:
-            credits_cost = calculate_cost("gemini_2_5_flash_lite", input_tokens=input_tokens, output_tokens=output_tokens)
+            credits_cost = calculate_cost("google/gemini-2.5-flash-lite", input_tokens=input_tokens, output_tokens=output_tokens)
             if credits_cost == 0:
                 credits_cost = 1
             user.credits_used = (user.credits_used or 0) + credits_cost

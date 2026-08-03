@@ -24,11 +24,11 @@ def main():
     print(f"Supported models: {SUPPORTED_MODELS}\n")
 
     # 2. Cost calculations
-    cost_1 = calculate_cost("gemini_3_1_flash", 100, 50)
-    print(f"[gemini_3_1_flash] 100 in, 50 out -> {cost_1} credits")
+    cost_1 = calculate_cost("google/gemini-3.1-flash-lite", 100, 50)
+    print(f"[google/gemini-3.1-flash-lite] 100 in, 50 out -> {cost_1} credits")
 
-    cost_2 = calculate_cost("gemini_2_5_flash", 200, 100)
-    print(f"[gemini_2_5_flash] 200 in, 100 out -> {cost_2} credits")
+    cost_2 = calculate_cost("google/gemini-2.5-flash-lite", 200, 100)
+    print(f"[google/gemini-2.5-flash-lite] 200 in, 100 out -> {cost_2} credits")
 
     cost_3 = calculate_cost("openai_embedding", input_tokens=1000)
     print(f"[openai_embedding] 1000 in -> {cost_3} credits")
@@ -38,14 +38,14 @@ def main():
 
     # With cache & images
     cost_5 = calculate_cost(
-        "gemini_3_1_flash",
+        "google/gemini-3.1-flash-lite",
         input_tokens=100,
         output_tokens=50,
         cache_read_tokens=1000,
         cache_write_tokens=500,
         image_count=2,
     )
-    print(f"[gemini_3_1_flash] full features -> {cost_5} credits\n")
+    print(f"[google/gemini-3.1-flash-lite] full features -> {cost_5} credits\n")
 
     # 3. Error handling: unknown model
     try:

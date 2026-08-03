@@ -657,7 +657,7 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
 
     # Deduct credits only for LLM-generated responses (tokens_used > 0), not for pre-canned ones
     if tokens_used > 0:
-        credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=0, output_tokens=tokens_used)
+        credits_cost = calculate_cost("google/gemini-3.1-flash-lite", input_tokens=0, output_tokens=tokens_used)
         if credits_cost == 0:
             credits_cost = 1  # minimum cost for any AI interaction
         user.credits_used = (user.credits_used or 0) + credits_cost
@@ -847,7 +847,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
             if tokens_used > 0:
                 input_token_est = len(message_text) // 4
                 output_token_est = len(full_response) // 4
-                credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_token_est, output_tokens=output_token_est)
+                credits_cost = calculate_cost("google/gemini-3.1-flash-lite", input_tokens=input_token_est, output_tokens=output_token_est)
                 if credits_cost == 0:
                     credits_cost = 1  # minimum cost for any AI interaction
                 user.credits_used = (user.credits_used or 0) + credits_cost
@@ -937,7 +937,7 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         if not is_pre_canned:
             input_token_est = len(request.message) // 4
             output_token_est = len(full_response) // 4
-            credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_token_est, output_tokens=output_token_est)
+            credits_cost = calculate_cost("google/gemini-3.1-flash-lite", input_tokens=input_token_est, output_tokens=output_token_est)
             if credits_cost == 0 and (input_token_est > 0 or output_token_est > 0):
                 credits_cost = 1
             elif credits_cost == 0:
@@ -1573,7 +1573,7 @@ async def generate_food_analysis(user_id: int, db: AsyncSession = Depends(get_db
         # Calculate and deduct credits for the analysis
         input_tokens = response.usage.prompt_tokens if response.usage else len(prompt) // 4
         output_tokens = response.usage.completion_tokens if response.usage else len(ai_analysis) // 4
-        credits_cost = calculate_cost("gemini_3_1_flash", input_tokens=input_tokens, output_tokens=output_tokens)
+        credits_cost = calculate_cost("google/gemini-3.1-flash-lite", input_tokens=input_tokens, output_tokens=output_tokens)
         if credits_cost == 0:
             credits_cost = 1  # minimum cost for any AI interaction
         

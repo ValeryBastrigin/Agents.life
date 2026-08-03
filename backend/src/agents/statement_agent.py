@@ -107,8 +107,8 @@ async def _call_llm(chunk_text: str, is_summary: bool = False) -> tuple[dict, in
     )
 
     # Get actual token usage from response
-    tokens_in = response.usage.prompt_tokens if response.usage else 0
-    tokens_out = response.usage.completion_tokens if response.usage else 0
+    tokens_in = response.usage.prompt_tokens if (response and response.usage and hasattr(response.usage, 'prompt_tokens')) else max(len(prompt) // 4, 100)
+    tokens_out = response.usage.completion_tokens if (response and response.usage and hasattr(response.usage, 'completion_tokens')) else 500
 
     response_text = response.choices[0].message.content.strip()
     

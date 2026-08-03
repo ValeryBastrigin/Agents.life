@@ -11,5 +11,5 @@ print("Plan values:", [p.value for p in UserPlan])
 print("Plan daily limits:", {p.value: p.daily_limit for p in UserPlan})
 
 # Check calculator
-cost = calculate_cost("gemini_3_1_flash", input_tokens=100, output_tokens=200)
+cost = calculate_cost("google/gemini-3.1-flash-lite", input_tokens=100, output_tokens=200)
 print(f"calculate_cost(100 in, 200 out) = {cost}")

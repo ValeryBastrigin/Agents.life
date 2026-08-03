@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, FileText, TrendingUp, TrendingDown, PieChart, Check, AlertCircle, Loader, Save, RefreshCw, Wallet } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
+import { useUser } from '../contexts/UserContext';
 
 // Цвета для категорий
 const CATEGORY_COLORS = [
@@ -451,6 +452,7 @@ const StepError = ({ error, onRetry, onClose }) => (
 
 // ===== Главный компонент модалки =====
 const StatementAnalysisModal = ({ isOpen, onClose, onStatementSaved }) => {
+  const { userId } = useUser();
   const [step, setStep] = useState('intro'); // intro, upload, processing, result, error
   const [selectedFile, setSelectedFile] = useState(null);
   const [result, setResult] = useState(null);
@@ -482,17 +484,28 @@ const StatementAnalysisModal = ({ isOpen, onClose, onStatementSaved }) => {
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await apiClient.post('/api/accountant/statements/upload/1', formData, {
+      if (!userId) {
+        throw new Error('Пользователь не авторизован (ID не найден)');
+      }
+      const response = await apiClient.post(`/api/accountant/statements/upload/${userId}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 180000, // 3 минуты
       });
       
+      window.dispatchEvent(new Event('billing-updated'));
       setResult(response.data);
       setStep('result');
     } catch (err) {
       console.error('Ошибка загрузки выписки:', err);
-      if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
+      const detail = err.response?.data?.detail;
+      if (detail) {
+        if (typeof detail === 'string') {
+          setError(detail);
+        } else if (typeof detail === 'object' && detail !== null) {
+          setError(detail.message || JSON.stringify(detail));
+        } else {
+          setError(String(detail));
+        }
       } else {
         setError(err.message || 'Не удалось загрузить выписку');
       }
