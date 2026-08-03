@@ -41,24 +41,62 @@ def _parse_time(time_str: str) -> time | None:
         except ValueError:
             return None
 
-def _parse_date_from_text(msg_lower: str) -> tuple[date, date, str]:
+async def _parse_date_from_text(text_content: str) -> tuple[date, date, str]:
     today = datetime.now().date()
-    if "завтра" in msg_lower:
-        start_date = today + timedelta(days=1)
-        end_date = start_date + timedelta(days=1)
-        return start_date, end_date, "на завтра"
-    elif "послезавтра" in msg_lower:
+    msg_lower = text_content.lower()
+    
+    # Fast checks for common relative terms
+    if "послезавтра" in msg_lower:
         start_date = today + timedelta(days=2)
         end_date = start_date + timedelta(days=1)
         return start_date, end_date, "на послезавтра"
+    elif "завтра" in msg_lower:
+        start_date = today + timedelta(days=1)
+        end_date = start_date + timedelta(days=1)
+        return start_date, end_date, "на завтра"
     elif "недел" in msg_lower:
         start_date = today
         end_date = today + timedelta(days=7)
         return start_date, end_date, "на неделю"
-    else:
+    elif "сегодня" in msg_lower:
         start_date = today
         end_date = today + timedelta(days=1)
         return start_date, end_date, "на сегодня"
+
+    # Use LLM to accurately extract specific dates (e.g. "6 августа", next Tuesday, etc.) relative to today
+    try:
+        prompt = f"""Сегодняшняя дата: {today.strftime('%Y-%m-%d')} ({today.strftime('%A')}).
+Сообщение пользователя: "{text_content}"
+
+Определи целевую дату, о которой спрашивает пользователь (например, конкретное число и месяц, день недели).
+Если дата указана без года, используй текущий или ближайший будущий год.
+Верни JSON строго в формате:
+{{
+  "date": "YYYY-MM-DD",
+  "period_title": "на 6 августа"
+}}
+Если дата не распознана или не указана, верни сегодняшнюю дату ({today.strftime('%Y-%m-%d')}) и "на сегодня".
+"""
+        response = await client.chat.completions.create(
+            model="google/gemini-2.5-flash",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            response_format={"type": "json_object"}
+        )
+        res = json.loads(response.choices[0].message.content)
+        date_str = res.get("date")
+        period_title = res.get("period_title", "на указанную дату")
+        if date_str:
+            parsed_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            start_date = parsed_date
+            end_date = parsed_date + timedelta(days=1)
+            return start_date, end_date, period_title
+    except Exception as e:
+        print(f"Error parsing date via LLM: {e}")
+
+    start_date = today
+    end_date = today + timedelta(days=1)
+    return start_date, end_date, "на сегодня"
 
 async def _classify_message(text_content: str, msg_lower: str, has_image: bool) -> str:
     print(f"DEBUG: Secretary _classify_message received text: '{text_content}', msg_lower: '{msg_lower}'")
@@ -113,7 +151,7 @@ async def process(message: str, system_prompt: str, db: AsyncSession, user_id: i
     
     if tag in ("schedule_query", "schedule_analysis"):
         try:
-            start_date, end_date, period_title = _parse_date_from_text(msg_lower)
+            start_date, end_date, period_title = await _parse_date_from_text(text_content)
 
             events_result = await db.execute(
                 select(CalendarEvent).where(
@@ -193,7 +231,7 @@ async def process_stream(
         print(f"DEBUG: Secretary process_stream classified tag as: {tag}")
 
         if tag in ("schedule_query", "schedule_analysis"):
-            start_date, end_date, period_title = _parse_date_from_text(msg_lower)
+            start_date, end_date, period_title = await _parse_date_from_text(text_content)
 
             events_result = await db.execute(
                 select(CalendarEvent).where(
