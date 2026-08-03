@@ -31,10 +31,6 @@ async def _check_billing_for_user(
         plan = UserPlan.FREE
 
     credits_used_today = user.credits_used or 0
-    # Защита от зависших исторических значений (если credits_used больше суточного лимита из-за старых багов, сбрасываем в 0)
-    if plan != UserPlan.UNLIMITED and credits_used_today > plan.daily_limit:
-        user.credits_used = 0
-        credits_used_today = 0
 
     # Проверка лимита (для UNLIMITED — всегда пропускаем)
     if plan != UserPlan.UNLIMITED:
@@ -140,3 +136,38 @@ async def get_billing_status(
         await db.refresh(user)
 
     return await _check_billing_for_user(user, estimated_cost)
+
+
+async def check_billing_limit_by_user_id(
+    user_id: int,
+    estimated_cost: int = 1,
+    db: AsyncSession | None = None,
+) -> dict:
+    """
+    Проверяет лимит для user_id (используется в middleware и эндпоинтах).
+    """
+    if not db:
+        async with async_session() as session:
+            result = await session.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                return {}
+            today = date.today()
+            if user.last_credit_reset is None or user.last_credit_reset < today:
+                user.credits_used = 0
+                user.last_credit_reset = today
+                await session.commit()
+                await session.refresh(user)
+            return await _check_billing_for_user(user, estimated_cost)
+    else:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return {}
+        today = date.today()
+        if user.last_credit_reset is None or user.last_credit_reset < today:
+            user.credits_used = 0
+            user.last_credit_reset = today
+            await db.commit()
+            await db.refresh(user)
+        return await _check_billing_for_user(user, estimated_cost)

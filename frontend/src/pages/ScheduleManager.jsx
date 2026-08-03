@@ -97,6 +97,9 @@ const ScheduleManager = () => {
       console.error('Failed to parse schedule image:', error);
       setUploading(false);
       setShowUploadModal(false);
+      if (error.response?.status === 402) {
+        return;
+      }
       alert('Не удалось распознать расписание с фотографии. Попробуйте еще раз или воспользуйтесь созданием с нуля.');
     }
   };

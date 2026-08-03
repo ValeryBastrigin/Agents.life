@@ -5,7 +5,8 @@ from pydantic import BaseModel
 from datetime import time, date
 from typing import Optional
 from src.database import get_db
-from src.models import CalendarEvent, Reminder, Note
+from src.models import CalendarEvent, Reminder, Note, User
+from src.billing.dependency import check_billing_limit
 
 router = APIRouter(tags=["secretary"])
 
@@ -502,6 +503,18 @@ async def parse_schedule_image_secretary_alias(user_id: int, file: UploadFile = 
     return await parse_schedule_image(user_id, file, db)
 
 async def parse_schedule_image(user_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    # Проверка пользователя и его лимитов биллинга перед вызовом модели
+    user_res = await db.execute(select(User).where(User.id == user_id))
+    user = user_res.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Пользователь с ID {user_id} не найден."
+        )
+
+    # Проверяем лимит биллинга (выбросит 402 если лимит исчерпан)
+    await check_billing_limit(user, estimated_cost=5, db=db)
+
     import json
     import base64
     try:
@@ -562,6 +575,8 @@ async def parse_schedule_image(user_id: int, file: UploadFile = File(...), db: A
             for k, v in res_json.items():
                 if isinstance(v, list) and len(v) > 0:
                     return {"events": v}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error parsing schedule image via LLM Vision: {e}")
         import traceback
@@ -572,6 +587,12 @@ async def parse_schedule_image(user_id: int, file: UploadFile = File(...), db: A
 
 @router.post("/parse-schedule-text/{user_id}")
 async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: AsyncSession = Depends(get_db)):
+    # Проверка лимита биллинга перед вызовом модели
+    user_res = await db.execute(select(User).where(User.id == user_id))
+    user = user_res.scalar_one_or_none()
+    if user:
+        await check_billing_limit(user, estimated_cost=5, db=db)
+
     import json
     import re
     try:
@@ -627,6 +648,8 @@ async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: 
             for k, v in res_json.items():
                 if isinstance(v, list) and len(v) > 0:
                     return {"events": v}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error parsing schedule via LLM: {e}")
         import traceback

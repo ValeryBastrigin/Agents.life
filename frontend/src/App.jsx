@@ -184,6 +184,7 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
   };
 
   const checkSessionStatus = async () => {
+    if (!userId) return;
     try {
       const res = await apiClient.get(`/api/user/${userId}/therapy/active`);
       if (res.data?.active && res.data?.session) {

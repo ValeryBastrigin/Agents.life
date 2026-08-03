@@ -1,5 +1,6 @@
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from src.orchestrator.router import router as orchestrator_router
@@ -50,6 +51,21 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
     print(f"VALIDATION ERROR: {exc}")
     print(f"REQUEST BODY: {await request.body()}")
     return {"detail": exc.errors(), "body": exc.body}
+
+# Exception handler for HTTPException to ensure CORS headers are present on 402 and other errors
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Headers": "*",
+    }
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=headers
+    )
 
 upload_dir = os.path.join(os.getcwd(), "uploads")
 if not os.path.exists(upload_dir):

@@ -218,6 +218,11 @@ const ScheduleCreationModal = ({ isOpen, onClose, onSuccess }) => {
       }
     } catch (err) {
       console.error('Failed to parse schedule:', err);
+      if (err.response?.status === 402) {
+        // Paywall triggered, close modal so paywall modal is fully visible
+        onClose();
+        return;
+      }
       setParsedEvents([
         { title: 'Подъем и завтрак', time: '08:00 - 09:00', description: 'Утренние процедуры' },
         { title: 'Работа по плану', time: '09:00 - 18:00', description: scheduleText.slice(0, 100) }
