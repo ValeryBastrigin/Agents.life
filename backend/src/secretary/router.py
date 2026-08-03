@@ -486,9 +486,13 @@ class SaveParsedScheduleRequest(BaseModel):
     custom_date: Optional[str] = None
 
 @router.post("/parse-schedule-text/{user_id}")
-async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest):
+async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: AsyncSession = Depends(get_db)):
+    import json
     try:
-        from src.agents.secretary_agent import call_llm_json
+        from src.config import client
+        from src.models import User
+        from src.billing.calculator import calculate_cost
+
         prompt = f"""
 Проанализируй следующий текст пользователя с описанием его расписания, планов или идеального дня и разбей его на отдельные события с указанием времени (в формате ЧЧ:ММ - ЧЧ:ММ), названия и описания.
 Текст пользователя:
@@ -501,24 +505,57 @@ async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest):
   ]
 }}
 """
-        res_json = await call_llm_json(prompt)
-        if res_json and "events" in res_json:
+        response = await client.chat.completions.create(
+            model="google/gemini-2.5-flash",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            response_format={"type": "json_object"}
+        )
+        content = response.choices[0].message.content
+        
+        # Deduct credits for LLM processing
+        input_tokens = response.usage.prompt_tokens if response.usage else len(prompt) // 4
+        output_tokens = response.usage.completion_tokens if response.usage else len(content) // 4
+        
+        user_result = await db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if user:
+            credits_cost = calculate_cost("gemini_2_5_flash", input_tokens=input_tokens, output_tokens=output_tokens)
+            if credits_cost == 0:
+                credits_cost = 1
+            user.credits_used = (user.credits_used or 0) + credits_cost
+            user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+            user.last_credit_reset = date.today()
+            await db.commit()
+
+        res_json = json.loads(content)
+        if res_json and "events" in res_json and len(res_json["events"]) > 0:
             return res_json
     except Exception as e:
         print(f"Error parsing schedule via LLM: {e}")
+        import traceback
+        traceback.print_exc()
 
-    # Fallback default parsed events
+    # Fallback only if LLM failed or returned empty
     return {
         "events": [
-            {"title": "Утренний подъем и завтрак", "time": "08:00 - 09:00", "description": "Начало дня"},
-            {"title": "Основные задачи и работа", "time": "09:00 - 14:00", "description": "Фокус-время"},
-            {"title": "Обед и отдых", "time": "14:00 - 15:00", "description": "Перерыв"},
-            {"title": "Встречи и вечерние дела", "time": "15:00 - 19:00", "description": "Планы и задачи"}
+            {"title": "Пользовательская задача", "time": "09:00 - 10:00", "description": data.text[:100]}
         ]
     }
 
+@router.post("/secretary/parse-schedule-text/{user_id}")
+async def parse_schedule_text_alias(user_id: int, data: ScheduleTextParseRequest):
+    return await parse_schedule_text(user_id, data)
+
 @router.post("/save-parsed-schedule/{user_id}")
 async def save_parsed_schedule(user_id: int, data: SaveParsedScheduleRequest, db: AsyncSession = Depends(get_db)):
+    return await save_parsed_schedule_inner(user_id, data, db)
+
+@router.post("/secretary/save-parsed-schedule/{user_id}")
+async def save_parsed_schedule_alias(user_id: int, data: SaveParsedScheduleRequest, db: AsyncSession = Depends(get_db)):
+    return await save_parsed_schedule_inner(user_id, data, db)
+
+async def save_parsed_schedule_inner(user_id: int, data: SaveParsedScheduleRequest, db: AsyncSession = Depends(get_db)):
     from datetime import datetime, timedelta
     
     base_date = date.today()
