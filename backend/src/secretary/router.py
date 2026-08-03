@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, update, func, desc
 from pydantic import BaseModel
@@ -485,44 +485,68 @@ class SaveParsedScheduleRequest(BaseModel):
     period: str  # 'today' | 'week' | 'month' | 'custom'
     custom_date: Optional[str] = None
 
-@router.post("/parse-schedule-text/{user_id}")
-async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: AsyncSession = Depends(get_db)):
+@router.post("/parse-schedule/{user_id}")
+async def parse_schedule_legacy(user_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    return await parse_schedule_image(user_id, file, db)
+
+@router.post("/secretary/parse-schedule/{user_id}")
+async def parse_schedule_secretary_alias(user_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    return await parse_schedule_image(user_id, file, db)
+
+@router.post("/parse-schedule-image/{user_id}")
+async def parse_schedule_image_primary(user_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    return await parse_schedule_image(user_id, file, db)
+
+@router.post("/secretary/parse-schedule-image/{user_id}")
+async def parse_schedule_image_secretary_alias(user_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    return await parse_schedule_image(user_id, file, db)
+
+async def parse_schedule_image(user_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
     import json
+    import base64
     try:
         from src.config import client
         from src.models import User
         from src.billing.calculator import calculate_cost
 
-        prompt = f"""
-Проанализируй следующий текст пользователя с описанием его расписания, планов или идеального дня и разбей его на отдельные события с указанием времени (в формате ЧЧ:ММ - ЧЧ:ММ), названия и описания.
-Текст пользователя:
-\"{data.text}\"
+        contents = await file.read()
+        b64_img = base64.b64encode(contents).decode("utf-8")
+        data_uri = f"data:{file.content_type or 'image/jpeg'};base64,{b64_img}"
 
-Верни JSON строго в формате:
-{{
+        prompt = """ВНИМАНИЕ: Внимательно проанализируй прикрепленное изображение с расписанием пользователя. Извлеки все реальные события, встречи, занятия и задачи, указанные на этой картинке, с их временем (например, 09:00 - 10:00) и названиями.
+Верни результат СТРОГО в формате JSON:
+{
   "events": [
-    {{"title": "Название события", "time": "09:00 - 10:00", "description": "Описание"}}
+    {"title": "Название события с картинки", "time": "09:00 - 10:00", "description": "Детали с картинки"}
   ]
-}}
-"""
+}"""
+
         response = await client.chat.completions.create(
-            model="google/gemini-2.5-flash",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
+            model="google/gemini-2.5-flash-lite",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": data_uri}}
+                    ]
+                }
+            ],
+            temperature=0.1,
             response_format={"type": "json_object"}
         )
         content = response.choices[0].message.content
-        
-        # Deduct credits for LLM processing
-        input_tokens = response.usage.prompt_tokens if response.usage else len(prompt) // 4
-        output_tokens = response.usage.completion_tokens if response.usage else len(content) // 4
-        
+        print(f"DEBUG: OCR Schedule Vision Result: {content}")
+
+        input_tokens = response.usage.prompt_tokens if response.usage else 500
+        output_tokens = response.usage.completion_tokens if response.usage else 500
+
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
         if user:
-            credits_cost = calculate_cost("gemini_2_5_flash", input_tokens=input_tokens, output_tokens=output_tokens)
+            credits_cost = calculate_cost("gemini_2_5_flash_lite", input_tokens=input_tokens, output_tokens=output_tokens)
             if credits_cost == 0:
-                credits_cost = 1
+                credits_cost = 2
             user.credits_used = (user.credits_used or 0) + credits_cost
             user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
             user.last_credit_reset = date.today()
@@ -531,21 +555,89 @@ async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: 
         res_json = json.loads(content)
         if res_json and "events" in res_json and len(res_json["events"]) > 0:
             return res_json
+        elif res_json and isinstance(res_json, list):
+            return {"events": res_json}
+        elif res_json and isinstance(res_json, dict):
+            # If model returned events under another key
+            for k, v in res_json.items():
+                if isinstance(v, list) and len(v) > 0:
+                    return {"events": v}
+    except Exception as e:
+        print(f"Error parsing schedule image via LLM Vision: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to parse schedule image: {str(e)}")
+
+    raise HTTPException(status_code=400, detail="Could not parse events from image")
+
+@router.post("/parse-schedule-text/{user_id}")
+async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: AsyncSession = Depends(get_db)):
+    import json
+    import re
+    try:
+        from src.config import client
+        from src.models import User
+        from src.billing.calculator import calculate_cost
+
+        prompt = f"""ВНИМАНИЕ: Проанализируй текст пользователя с описанием его расписания, встреч и планов. Извлеки все события и разбей их на отдельные блоки с указанием времени (в формате ЧЧ:ММ - ЧЧ:ММ), названия и описания.
+Текст пользователя:
+\"{data.text}\"
+
+Верни JSON СТРОГО в следующем формате (без лишнего текста и без обертки markdown вроде ```json):
+{{
+  "events": [
+    {{"title": "Название события", "time": "09:00 - 10:00", "description": "Описание"}}
+  ]
+}}"""
+
+        response = await client.chat.completions.create(
+            model="google/gemini-2.5-flash-lite",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2
+        )
+        content = response.choices[0].message.content.strip()
+        print(f"DEBUG: Parse text schedule response: {content}")
+
+        # Clean markdown code blocks if any
+        if content.startswith("```"):
+            content = re.sub(r"^```(?:json)?\s*", "", content)
+            content = re.sub(r"\s*```$", "", content)
+
+        res_json = json.loads(content)
+
+        input_tokens = response.usage.prompt_tokens if response.usage else len(prompt) // 4
+        output_tokens = response.usage.completion_tokens if response.usage else len(content) // 4
+        
+        user_result = await db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if user:
+            credits_cost = calculate_cost("gemini_2_5_flash_lite", input_tokens=input_tokens, output_tokens=output_tokens)
+            if credits_cost == 0:
+                credits_cost = 1
+            user.credits_used = (user.credits_used or 0) + credits_cost
+            user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+            user.last_credit_reset = date.today()
+            await db.commit()
+
+        if res_json and "events" in res_json and len(res_json["events"]) > 0:
+            return res_json
+        elif res_json and isinstance(res_json, list):
+            return {"events": res_json}
+        elif res_json and isinstance(res_json, dict):
+            for k, v in res_json.items():
+                if isinstance(v, list) and len(v) > 0:
+                    return {"events": v}
     except Exception as e:
         print(f"Error parsing schedule via LLM: {e}")
         import traceback
         traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to parse schedule text: {str(e)}")
 
-    # Fallback only if LLM failed or returned empty
-    return {
-        "events": [
-            {"title": "Пользовательская задача", "time": "09:00 - 10:00", "description": data.text[:100]}
-        ]
-    }
+    raise HTTPException(status_code=400, detail="Could not parse events from text")
 
 @router.post("/secretary/parse-schedule-text/{user_id}")
-async def parse_schedule_text_alias(user_id: int, data: ScheduleTextParseRequest):
-    return await parse_schedule_text(user_id, data)
+async def parse_schedule_text_alias(user_id: int, data: ScheduleTextParseRequest, db: AsyncSession = Depends(get_db)):
+    return await parse_schedule_text(user_id, data, db)
 
 @router.post("/save-parsed-schedule/{user_id}")
 async def save_parsed_schedule(user_id: int, data: SaveParsedScheduleRequest, db: AsyncSession = Depends(get_db)):

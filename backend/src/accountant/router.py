@@ -290,7 +290,7 @@ async def upload_statement(
     
     # Deduct credits for LLM processing — считаем по реальным токенам из ответа LLM
     if user and tokens_in > 0:
-        credits_cost = calculate_cost("gemini_2_5_flash", input_tokens=tokens_in, output_tokens=tokens_out)
+        credits_cost = calculate_cost("gemini_2_5_flash_lite", input_tokens=tokens_in, output_tokens=tokens_out)
         if credits_cost == 0:
             credits_cost = 1
         user.credits_used = (user.credits_used or 0) + credits_cost

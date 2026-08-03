@@ -78,7 +78,7 @@ async def _parse_date_from_text(text_content: str) -> tuple[date, date, str]:
 Если дата не распознана или не указана, верни сегодняшнюю дату ({today.strftime('%Y-%m-%d')}) и "на сегодня".
 """
         response = await client.chat.completions.create(
-            model="google/gemini-2.5-flash",
+            model="google/gemini-2.5-flash-lite",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"}

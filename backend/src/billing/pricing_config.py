@@ -26,6 +26,15 @@ class ModelPricing(TypedDict, total=False):
 
 # Pricing Data (USD per 1M units, except per_minute)
 MODELS_PRICING: Dict[str, ModelPricing] = {
+    "google/gemini-3.1-flash-lite": {
+        "input_price": 0.313,
+        "output_price": 1.945,
+        "cache_read": 0.0325,
+        "cache_write": 0.104,
+        "image": 0.00026,
+        "audio": 0.639,
+        "thought": 1.950,
+    },
     "gemini_3_1_flash": {
         "input_price": 0.313,
         "output_price": 1.945,
@@ -34,6 +43,24 @@ MODELS_PRICING: Dict[str, ModelPricing] = {
         "image": 0.00026,
         "audio": 0.639,
         "thought": 1.950,
+    },
+    "google/gemini-2.5-flash-lite": {
+        "input_price": 0.1175,
+        "output_price": 0.5090,
+        "cache_read": 0.0130,
+        "cache_write": 0.1044,
+        "image": 0.00013,
+        "audio": 0.3785,
+        "thought": 0.5200,
+    },
+    "gemini_2_5_flash_lite": {
+        "input_price": 0.1175,
+        "output_price": 0.5090,
+        "cache_read": 0.0130,
+        "cache_write": 0.1044,
+        "image": 0.00013,
+        "audio": 0.3785,
+        "thought": 0.5200,
     },
     "gemini_2_5_flash": {
         "input_price": 0.1175,
@@ -54,7 +81,10 @@ MODELS_PRICING: Dict[str, ModelPricing] = {
 
 # Список поддерживаемых model_id для быстрой проверки
 ModelId = Literal[
+    "google/gemini-3.1-flash-lite",
     "gemini_3_1_flash",
+    "google/gemini-2.5-flash-lite",
+    "gemini_2_5_flash_lite",
     "gemini_2_5_flash",
     "openai_embedding",
     "x-ai/grok-stt-1.0",

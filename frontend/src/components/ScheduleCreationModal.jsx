@@ -29,6 +29,20 @@ const ScheduleCreationModal = ({ isOpen, onClose, onSuccess }) => {
 
   useEffect(() => {
     if (isOpen) {
+      const pending = sessionStorage.getItem('pending_parsed_events');
+      if (pending) {
+        try {
+          const events = JSON.parse(pending);
+          if (events && events.length > 0) {
+            setParsedEvents(events);
+            setStep('verify');
+            sessionStorage.removeItem('pending_parsed_events');
+            return;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
@@ -41,6 +55,7 @@ const ScheduleCreationModal = ({ isOpen, onClose, onSuccess }) => {
       setSelectedPeriod('today');
       setCustomDate('');
       setValidationError('');
+      sessionStorage.removeItem('pending_parsed_events');
     }
   }, [isOpen]);
 
@@ -218,7 +233,13 @@ const ScheduleCreationModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const handleConfirmEdit = () => {
-    setStep('input');
+    const isImageSource = sessionStorage.getItem('is_image_source') === 'true';
+    if (isImageSource) {
+      onClose();
+      window.dispatchEvent(new CustomEvent('reopen-upload-modal'));
+    } else {
+      setStep('input');
+    }
   };
 
   const handleSaveToCalendar = async () => {

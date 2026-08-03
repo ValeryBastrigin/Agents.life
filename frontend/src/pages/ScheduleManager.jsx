@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, ArrowLeft, ArrowRight, Plus, Sparkles, Upload, FileText, CheckCircle } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import ScheduleCreationModal from '../components/ScheduleCreationModal';
+import ScheduleVerifyModal from '../components/ScheduleVerifyModal';
+import { apiClient } from '../utils/apiClient';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:8001';
@@ -16,6 +18,8 @@ const ScheduleManager = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [showScheduleCreationModal, setShowScheduleCreationModal] = useState(false);
+  const [showScheduleVerifyModal, setShowScheduleVerifyModal] = useState(false);
+  const [parsedEvents, setParsedEvents] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
@@ -48,6 +52,16 @@ const ScheduleManager = () => {
     },
   ];
 
+  useEffect(() => {
+    const handleReopenUpload = () => {
+      setShowUploadModal(true);
+    };
+    window.addEventListener('reopen-upload-modal', handleReopenUpload);
+    return () => {
+      window.removeEventListener('reopen-upload-modal', handleReopenUpload);
+    };
+  }, []);
+
   const handleCardClick = async (card) => {
     if (card.action === 'chat_create') {
       setShowScheduleCreationModal(true);
@@ -64,20 +78,26 @@ const ScheduleManager = () => {
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      // Send to secretary or schedule endpoint
-      const response = await axios.post(`${API_URL}/api/secretary/parse-schedule/${userId}`, formData, {
+      const response = await apiClient.post(`/api/secretary/parse-schedule-image/${userId}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setUploading(false);
       setShowUploadModal(false);
+      if (response.data?.events) {
+        window.dispatchEvent(new Event('billing-updated'));
+        sessionStorage.removeItem('pending_parsed_events');
+        sessionStorage.removeItem('is_image_source');
+        setParsedEvents(response.data.events);
+        setShowScheduleVerifyModal(true);
+      } else {
+        navigate('/secretary');
+      }
       setSelectedFile(null);
-      navigate('/secretary');
     } catch (error) {
-      console.error('Failed to parse schedule:', error);
-      // Fallback: create chat with secretary attached
+      console.error('Failed to parse schedule image:', error);
       setUploading(false);
       setShowUploadModal(false);
-      navigate('/secretary');
+      alert('Не удалось распознать расписание с фотографии. Попробуйте еще раз или воспользуйтесь созданием с нуля.');
     }
   };
 
@@ -168,6 +188,18 @@ const ScheduleManager = () => {
         isOpen={showScheduleCreationModal}
         onClose={() => setShowScheduleCreationModal(false)}
         onSuccess={() => navigate('/secretary')}
+      />
+
+      {/* Модальное окно верификации расписания по фото (изолированная воронка) */}
+      <ScheduleVerifyModal
+        isOpen={showScheduleVerifyModal}
+        onClose={() => setShowScheduleVerifyModal(false)}
+        events={parsedEvents}
+        onSuccess={() => navigate('/secretary')}
+        onEdit={() => {
+          setShowScheduleVerifyModal(false);
+          setShowUploadModal(true);
+        }}
       />
 
       {/* Модальное окно загрузки существующего расписания */}
