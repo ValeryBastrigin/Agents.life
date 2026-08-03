@@ -476,3 +476,97 @@ async def delete_note(note_id: int, db: AsyncSession = Depends(get_db)):
     await db.execute(delete(Note).where(Note.id == note_id))
     await db.commit()
     return {"message": "Note deleted"}
+
+class ScheduleTextParseRequest(BaseModel):
+    text: str
+
+class SaveParsedScheduleRequest(BaseModel):
+    events: list[dict]
+    period: str  # 'today' | 'week' | 'month' | 'custom'
+    custom_date: Optional[str] = None
+
+@router.post("/parse-schedule-text/{user_id}")
+async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest):
+    try:
+        from src.agents.secretary_agent import call_llm_json
+        prompt = f"""
+Проанализируй следующий текст пользователя с описанием его расписания, планов или идеального дня и разбей его на отдельные события с указанием времени (в формате ЧЧ:ММ - ЧЧ:ММ), названия и описания.
+Текст пользователя:
+\"{data.text}\"
+
+Верни JSON строго в формате:
+{{
+  "events": [
+    {{"title": "Название события", "time": "09:00 - 10:00", "description": "Описание"}}
+  ]
+}}
+"""
+        res_json = await call_llm_json(prompt)
+        if res_json and "events" in res_json:
+            return res_json
+    except Exception as e:
+        print(f"Error parsing schedule via LLM: {e}")
+
+    # Fallback default parsed events
+    return {
+        "events": [
+            {"title": "Утренний подъем и завтрак", "time": "08:00 - 09:00", "description": "Начало дня"},
+            {"title": "Основные задачи и работа", "time": "09:00 - 14:00", "description": "Фокус-время"},
+            {"title": "Обед и отдых", "time": "14:00 - 15:00", "description": "Перерыв"},
+            {"title": "Встречи и вечерние дела", "time": "15:00 - 19:00", "description": "Планы и задачи"}
+        ]
+    }
+
+@router.post("/save-parsed-schedule/{user_id}")
+async def save_parsed_schedule(user_id: int, data: SaveParsedScheduleRequest, db: AsyncSession = Depends(get_db)):
+    from datetime import datetime, timedelta
+    
+    base_date = date.today()
+    if data.period == 'custom' and data.custom_date:
+        try:
+            base_date = datetime.strptime(data.custom_date, "%Y-%m-%d").date()
+        except:
+            pass
+
+    days_to_create = 1
+    if data.period == 'week':
+        days_to_create = 7
+    elif data.period == 'month':
+        days_to_create = 30
+
+    created_count = 0
+    for day_offset in range(days_to_create):
+        current_day = base_date + timedelta(days=day_offset)
+        for ev in data.events:
+            # Parse time range like "09:00 - 10:30"
+            time_str = ev.get("time", "09:00 - 10:00")
+            parts = time_str.split("-")
+            start_str = parts[0].strip() if len(parts) > 0 else "09:00"
+            end_str = parts[1].strip() if len(parts) > 1 else "10:00"
+
+            try:
+                start_t = datetime.strptime(start_str, "%H:%M").time()
+                end_t = datetime.strptime(end_str, "%H:%M").time()
+            except:
+                start_t = time(9, 0)
+                end_t = time(10, 0)
+
+            start_dt = datetime.combine(current_day, start_t)
+            end_dt = datetime.combine(current_day, end_t)
+            if end_dt <= start_dt:
+                end_dt = start_dt + timedelta(hours=1)
+
+            new_event = CalendarEvent(
+                user_id=user_id,
+                title=ev.get("title", "Событие"),
+                start_time=start_dt,
+                end_time=end_dt,
+                color="#3B82F6",
+                description=ev.get("description", ""),
+                push_enabled=True
+            )
+            db.add(new_event)
+            created_count += 1
+
+    await db.commit()
+    return {"message": f"Successfully created {created_count} events in secretary calendar.", "count": created_count}

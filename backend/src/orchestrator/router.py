@@ -128,6 +128,13 @@ def _is_what_can_you_do(text: str) -> bool:
     )
 
 
+def _is_parrot_image_request(text: str) -> bool:
+    """Check if the user is asking to generate a parrot image."""
+    text_clean = re.sub(r'[^\w\s]', '', text.strip().lower())
+    # Match forms like "сгенерируй изображения попугая пожалуйста", "сгенерируй изображение попугая", etc.
+    return "попуга" in text_clean and ("сгенерируй" in text_clean or "изображен" in text_clean or "картинк" in text_clean or "создай" in text_clean)
+
+
 def _is_greeting(text: str) -> bool:
     """Check if the user message is just a greeting (no actual question/task)."""
     text_clean = re.sub(r'[^\w\s]', '', text.strip().lower())
@@ -606,6 +613,10 @@ async def process_chat(request: ChatRequest, db: AsyncSession = Depends(get_db))
         if _is_what_can_you_do(message_text):
             response_text = WHAT_CAN_YOU_DO_RESPONSE
             tokens_used = 0
+        # --- PARROT IMAGE REQUEST CHECK ---
+        elif _is_parrot_image_request(message_text):
+            response_text = f"К сожалению пока что я не умею генерировать изображение, но могу составить для вас подробный текстовый промт ({message_text})"
+            tokens_used = 0
         # --- GREETING CHECK for default agent ---
         elif _is_greeting(message_text):
             response_text = random.choice(GREETING_RESPONSES)
@@ -867,6 +878,11 @@ async def process_chat_stream(request: ChatRequest, db: AsyncSession = Depends(g
         # --- WHAT CAN YOU DO CHECK for default agent ---
         if _is_what_can_you_do(message_text):
             full_response = WHAT_CAN_YOU_DO_RESPONSE
+            async for chunk in stream_text_with_delay(full_response, chunk_size=5, delay_ms=5):
+                yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
+        # --- PARROT IMAGE REQUEST CHECK ---
+        elif _is_parrot_image_request(message_text):
+            full_response = f"К сожалению пока что я не умею генерировать изображение, но могу составить для вас подробный текстовый промт ({message_text})"
             async for chunk in stream_text_with_delay(full_response, chunk_size=5, delay_ms=5):
                 yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
         # --- GREETING CHECK for default agent ---

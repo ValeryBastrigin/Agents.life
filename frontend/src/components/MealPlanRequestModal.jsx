@@ -1,8 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Sparkles, X, Lightbulb, Mic, StopCircle, Loader2 } from 'lucide-react';
 import { apiClient } from '../utils/apiClient';
+import { useUser } from '../contexts/UserContext';
 
 const MealPlanRequestModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
+  const { userId } = useUser();
   const [preferences, setPreferences] = useState('');
   const [validationError, setValidationError] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -14,6 +16,7 @@ const MealPlanRequestModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
   const chunksRef = useRef([]);
   const analyserRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const startTimeRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -84,6 +87,7 @@ const MealPlanRequestModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
         await transcribeAudio(blob);
       };
 
+      startTimeRef.current = Date.now();
       mediaRecorder.start(250);
       setIsRecording(true);
       setAudioLevels(new Array(20).fill(0));
@@ -116,12 +120,21 @@ const MealPlanRequestModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
   const transcribeAudio = async (blob) => {
     setIsTranscribing(true);
     try {
+      const durationSeconds = startTimeRef.current
+        ? Math.round((Date.now() - startTimeRef.current) / 1000)
+        : 0;
+      startTimeRef.current = null;
+
       const formData = new FormData();
       formData.append('file', blob, 'recording.webm');
+      formData.append('user_id', String(userId));
+      formData.append('duration_seconds', String(durationSeconds));
+
       const result = await apiClient.post('/api/transcribe', formData);
       if (result.data?.text) {
         const trimmed = result.data.text.trim();
         if (trimmed) {
+          window.dispatchEvent(new Event('billing-updated'));
           setPreferences((prev) => {
             const newVal = prev ? prev + ' ' + trimmed : trimmed;
             if (newVal.length > 2000) return prev;

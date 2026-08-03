@@ -71,6 +71,8 @@ const DreamInputModal = ({ isOpen, onClose }) => {
     return '';
   };
 
+  const startTimeRef = useRef(null);
+
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -119,6 +121,7 @@ const DreamInputModal = ({ isOpen, onClose }) => {
         await transcribeAudio(blob);
       };
 
+      startTimeRef.current = Date.now();
       mediaRecorder.start(250);
       setIsRecording(true);
       setAudioLevels(new Array(20).fill(0));
@@ -151,12 +154,21 @@ const DreamInputModal = ({ isOpen, onClose }) => {
   const transcribeAudio = async (blob) => {
     setIsTranscribing(true);
     try {
+      const durationSeconds = startTimeRef.current
+        ? Math.round((Date.now() - startTimeRef.current) / 1000)
+        : 0;
+      startTimeRef.current = null;
+
       const formData = new FormData();
       formData.append('file', blob, 'recording.webm');
+      formData.append('user_id', String(userId));
+      formData.append('duration_seconds', String(durationSeconds));
+
       const result = await apiClient.post('/api/transcribe', formData);
       if (result.data?.text) {
         const trimmed = result.data.text.trim();
         if (trimmed) {
+          window.dispatchEvent(new Event('billing-updated'));
           setDream((prev) => {
             const newVal = prev ? prev + ' ' + trimmed : trimmed;
             if (newVal.length > 2000) return prev;

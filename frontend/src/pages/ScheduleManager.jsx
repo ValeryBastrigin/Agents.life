@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Calendar, ArrowLeft, ArrowRight, Plus, Sparkles, Upload, FileText, CheckCircle } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import ScheduleCreationModal from '../components/ScheduleCreationModal';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:8001';
@@ -14,6 +15,7 @@ const ScheduleManager = () => {
   const [creatingChat, setCreatingChat] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [showScheduleCreationModal, setShowScheduleCreationModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
@@ -48,21 +50,7 @@ const ScheduleManager = () => {
 
   const handleCardClick = async (card) => {
     if (card.action === 'chat_create') {
-      setCreatingChat(true);
-      try {
-        const welcomeMessage = "Привет! 👋 Я помогу составить идеальное расписание с нуля. Расскажите, как обычно проходит ваш день, во сколько вы просыпаетесь и какие главные задачи нужно выполнить?";
-        const response = await axios.post(`${API_URL}/api/chats`, {
-          user_id: userId,
-          agent_type: "secretary",
-          title: "Создание расписания с нуля",
-          welcome_message: welcomeMessage
-        });
-        const newChatId = response.data.chat_id || response.data.id;
-        navigate(`/chat/${newChatId}`);
-      } catch (error) {
-        console.error('Failed to create chat:', error);
-        setCreatingChat(false);
-      }
+      setShowScheduleCreationModal(true);
     } else if (card.action === 'upload') {
       setShowUploadModal(true);
     } else if (card.action === 'analyze') {
@@ -174,6 +162,13 @@ const ScheduleManager = () => {
           </p>
         </div>
       </div>
+
+      {/* Модальное окно создания расписания с нуля (синий фирменный стиль) */}
+      <ScheduleCreationModal
+        isOpen={showScheduleCreationModal}
+        onClose={() => setShowScheduleCreationModal(false)}
+        onSuccess={() => navigate('/secretary')}
+      />
 
       {/* Модальное окно загрузки существующего расписания */}
       {showUploadModal && (
