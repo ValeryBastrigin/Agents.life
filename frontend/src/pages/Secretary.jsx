@@ -1152,36 +1152,46 @@ const Secretary = ({ theme }) => {
               }}
               components={{
                 toolbar: () => null,
-                dateCellWrapper: ({ children, value }) => (
-                  <div
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleDayClick(value);
-                    }}
-                    onTouchEnd={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleDayClick(value);
-                    }}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    style={{ 
-                      cursor: 'pointer', 
-                      height: '100%', 
-                      width: '100%',
-                      position: 'relative',
-                      zIndex: 10
-                    }}
-                  >
-                    {children}
-                  </div>
-                ),
+                dateCellWrapper: ({ children, value }) => {
+                  let touchStartX = 0;
+                  let touchStartY = 0;
+                  return (
+                    <div
+                      onTouchStart={(e) => {
+                        touchStartX = e.touches[0].clientX;
+                        touchStartY = e.touches[0].clientY;
+                      }}
+                      onTouchEnd={(e) => {
+                        const touchEndX = e.changedTouches[0].clientX;
+                        const touchEndY = e.changedTouches[0].clientY;
+                        const diffX = Math.abs(touchEndX - touchStartX);
+                        const diffY = Math.abs(touchEndY - touchStartY);
+                        // Only trigger if movement was minimal (< 10px), i.e. a true tap/click, not a scroll swipe
+                        if (diffX < 10 && diffY < 10) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDayClick(value);
+                        }
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDayClick(value);
+                      }}
+                      style={{ 
+                        cursor: 'pointer', 
+                        height: '100%', 
+                        width: '100%',
+                        position: 'relative',
+                        zIndex: 10
+                      }}
+                    >
+                      {children}
+                    </div>
+                  );
+                },
                 dayWrapper: ({ children, value }) => (
                   <div
-                    onClick={() => handleDayClick(value)}
                     style={{ 
                       cursor: 'pointer', 
                       height: '100%', 
