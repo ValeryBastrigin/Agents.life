@@ -564,24 +564,28 @@ async def parse_schedule_image(user_id: int, file: UploadFile = File(...), db: A
             await db.commit()
 
         res_json = json.loads(content)
-        if res_json and "events" in res_json and len(res_json["events"]) > 0:
-            return res_json
+        events_list = []
+        if res_json and "events" in res_json and isinstance(res_json["events"], list):
+            events_list = res_json["events"]
         elif res_json and isinstance(res_json, list):
-            return {"events": res_json}
+            events_list = res_json
         elif res_json and isinstance(res_json, dict):
-            # If model returned events under another key
             for k, v in res_json.items():
-                if isinstance(v, list) and len(v) > 0:
-                    return {"events": v}
+                if isinstance(v, list):
+                    events_list = v
+                    break
+
+        if events_list and len(events_list) > 0:
+            return {"events": events_list}
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error parsing schedule image via LLM Vision: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to parse schedule image: {str(e)}")
+        raise HTTPException(status_code=500, detail="К сожалению не смог распознать расписание, попробуйте еще раз.")
 
-    raise HTTPException(status_code=400, detail="Could not parse events from image")
+    raise HTTPException(status_code=400, detail="К сожалению не смог распознать расписание, попробуйте еще раз.")
 
 @router.post("/parse-schedule-text/{user_id}")
 async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: AsyncSession = Depends(get_db)):
@@ -637,23 +641,28 @@ async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: 
             user.last_credit_reset = date.today()
             await db.commit()
 
-        if res_json and "events" in res_json and len(res_json["events"]) > 0:
-            return res_json
+        events_list = []
+        if res_json and "events" in res_json and isinstance(res_json["events"], list):
+            events_list = res_json["events"]
         elif res_json and isinstance(res_json, list):
-            return {"events": res_json}
+            events_list = res_json
         elif res_json and isinstance(res_json, dict):
             for k, v in res_json.items():
-                if isinstance(v, list) and len(v) > 0:
-                    return {"events": v}
+                if isinstance(v, list):
+                    events_list = v
+                    break
+
+        if events_list and len(events_list) > 0:
+            return {"events": events_list}
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error parsing schedule via LLM: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to parse schedule text: {str(e)}")
+        raise HTTPException(status_code=500, detail="К сожалению не смог распознать расписание, попробуйте еще раз.")
 
-    raise HTTPException(status_code=400, detail="Could not parse events from text")
+    raise HTTPException(status_code=400, detail="К сожалению не смог распознать расписание, попробуйте еще раз.")
 
 @router.post("/secretary/parse-schedule-text/{user_id}")
 async def parse_schedule_text_alias(user_id: int, data: ScheduleTextParseRequest, db: AsyncSession = Depends(get_db)):

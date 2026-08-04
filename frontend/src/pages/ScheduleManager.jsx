@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, ArrowLeft, ArrowRight, Plus, Sparkles, Upload, FileText, CheckCircle } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
@@ -22,6 +22,7 @@ const ScheduleManager = () => {
   const [parsedEvents, setParsedEvents] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [analysisResult, setAnalysisResult] = useState(null);
 
   const cards = [
@@ -96,11 +97,11 @@ const ScheduleManager = () => {
     } catch (error) {
       console.error('Failed to parse schedule image:', error);
       setUploading(false);
-      setShowUploadModal(false);
       if (error.response?.status === 402) {
+        setShowUploadModal(false);
         return;
       }
-      alert('Не удалось распознать расписание с фотографии. Попробуйте еще раз или воспользуйтесь созданием с нуля.');
+      setUploadError(error.response?.data?.detail || 'К сожалению не смог распознать расписание, попробуйте еще раз.');
     }
   };
 
@@ -229,10 +230,20 @@ const ScheduleManager = () => {
                   type="file" 
                   className="hidden" 
                   accept="image/*,.pdf"
-                  onChange={(e) => setSelectedFile(e.target.files[0])}
+                  onChange={(e) => {
+                    setSelectedFile(e.target.files[0]);
+                    setUploadError('');
+                  }}
                 />
               </label>
             </div>
+
+            {uploadError && (
+              <div className="mb-4 p-3 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-start gap-2">
+                <span className="text-red-500 font-bold">⚠️</span>
+                <p className="text-xs text-red-700 dark:text-red-300">{uploadError}</p>
+              </div>
+            )}
 
             <div className="flex gap-3">
               <button

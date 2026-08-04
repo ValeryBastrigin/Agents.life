@@ -223,11 +223,7 @@ const ScheduleCreationModal = ({ isOpen, onClose, onSuccess }) => {
         onClose();
         return;
       }
-      setParsedEvents([
-        { title: 'Подъем и завтрак', time: '08:00 - 09:00', description: 'Утренние процедуры' },
-        { title: 'Работа по плану', time: '09:00 - 18:00', description: scheduleText.slice(0, 100) }
-      ]);
-      setStep('verify');
+      setValidationError(err.response?.data?.detail || 'К сожалению не смог распознать расписание, попробуйте еще раз.');
     } finally {
       setLoading(false);
     }
