@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, Clock, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Check, X, Bell, Sparkles, BookOpen, MessageSquare, Zap, ArrowLeft, ArrowRight, Layers } from 'lucide-react';
 import SecretaryBackground from '../components/SecretaryBackground';
+import ScheduleAnalysisWidget from '../components/ui/widgets/ScheduleAnalysisWidget';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
 import moment from 'moment';
@@ -1201,6 +1202,9 @@ const Secretary = ({ theme }) => {
             />
           </div>
         </div>
+
+        {/* Schedule Analysis Widget (placed below calendar) */}
+        <ScheduleAnalysisWidget />
 
       </div>
       </div>

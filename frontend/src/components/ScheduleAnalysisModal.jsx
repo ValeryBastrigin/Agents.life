@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Sparkles, Loader2, ChevronLeft, ChevronRight, CheckCircle, Info } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Sparkles, Loader2, ChevronLeft, ChevronRight, Activity, Clock, AlertTriangle, Lightbulb, Trophy } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { apiClient } from '../utils/apiClient';
 
 const ScheduleAnalysisModal = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   const { userId } = useUser();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [startDate, setStartDate] = useState(null);
@@ -13,7 +15,9 @@ const ScheduleAnalysisModal = ({ isOpen, onClose }) => {
   const [reminders, setReminders] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState('');
+  const [analysisResult, setAnalysisResult] = useState(null); // Parsed JSON or raw text
+  const [rawAnalysisText, setRawAnalysisText] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -21,7 +25,7 @@ const ScheduleAnalysisModal = ({ isOpen, onClose }) => {
     } else {
       setStartDate(null);
       setEndDate(null);
-      setAnalysisResult('');
+      setAnalysisResult(null);
     }
   }, [isOpen, userId]);
 
@@ -41,7 +45,6 @@ const ScheduleAnalysisModal = ({ isOpen, onClose }) => {
     }
   };
 
-  // Helper to check what exists on a specific date (YYYY-MM-DD)
   const getDateStatus = (dateStr) => {
     const hasEvents = events.some(e => {
       const eDate = e.start ? e.start.split('T')[0] : '';
@@ -78,35 +81,114 @@ const ScheduleAnalysisModal = ({ isOpen, onClose }) => {
     const finalEnd = endDate || startDate;
 
     setAnalyzing(true);
-    setAnalysisResult('');
+    setAnalysisResult(null);
+    setRawAnalysisText('');
     try {
       const res = await apiClient.post(`/api/secretary/analyze-schedule-range/${userId}`, {
         start_date: finalStart,
         end_date: finalEnd
       });
       window.dispatchEvent(new Event('billing-updated'));
-      setAnalysisResult(res.data?.analysis || 'Анализ завершен успешно.');
+      const text = res.data?.analysis || '';
+      setRawAnalysisText(text);
+      
+      // Try to parse structured blocks or fallback to clean formatting
+      setAnalysisResult(parseAnalysisText(text));
     } catch (err) {
       console.error('Analysis error:', err);
       if (err.response?.status === 402) {
         onClose();
         return;
       }
-      setAnalysisResult(err.response?.data?.detail || 'Не удалось выполнить анализ расписания. Попробуйте еще раз.');
+      setAnalysisResult({
+        general: err.response?.data?.detail || 'Не удалось выполнить анализ расписания. Попробуйте еще раз.'
+      });
+      setRawAnalysisText('Ошибка анализа');
     } finally {
       setAnalyzing(false);
     }
   };
 
+  const handleSave = async () => {
+    if (!rawAnalysisText) return;
+    setSaving(true);
+    try {
+      const finalStart = startDate;
+      const finalEnd = endDate || startDate;
+      await apiClient.post(`/api/secretary/save-analysis/${userId}`, {
+        analysis_data: rawAnalysisText,
+        start_date: finalStart,
+        end_date: finalEnd
+      });
+      onClose();
+      navigate('/secretary');
+    } catch (err) {
+      console.error('Failed to save schedule analysis:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const parseAnalysisText = (rawText) => {
+    // Clean up markdown bold/stars if needed and split into logical sections
+    const cleaned = rawText.replace(/\*\*/g, '').replace(/###/g, '').replace(/##/g, '');
+    
+    // We can categorize paragraphs into blocks
+    const sections = {
+      general: '',
+      balance: '',
+      overloads: '',
+      tips: [],
+      motivation: ''
+    };
+
+    const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
+    let currentKey = 'general';
+    let tipsList = [];
+
+    for (let line of lines) {
+      const lower = line.toLowerCase();
+      if (lower.includes('оценка') || lower.includes('график выглядит')) {
+        currentKey = 'general';
+        sections.general += ' ' + line.replace(/^(общая оценка графика:|оценка графика:)\s*/i, '');
+      } else if (lower.includes('баланс') || lower.includes('работа и отдых')) {
+        currentKey = 'balance';
+        sections.balance += ' ' + line.replace(/^(баланс работы и отдыха:|баланс:)\s*/i, '');
+      } else if (lower.includes('перегрузк') || lower.includes('напряжен')) {
+        currentKey = 'overloads';
+        sections.overloads += ' ' + line.replace(/^(наличие перегрузок:|перегрузки:)\s*/i, '');
+      } else if (lower.includes('совет') || lower.includes('рекомендац') || lower.includes('тайм-менеджмент')) {
+        currentKey = 'tips';
+      } else if (lower.includes('мотивац') || lower.includes('успехов') || lower.includes('продолжайте')) {
+        currentKey = 'motivation';
+        sections.motivation += ' ' + line;
+      } else {
+        if (currentKey === 'tips') {
+          // Clean number bullets like "1. "
+          const tipText = line.replace(/^\d+[\.\)]\s*/, '');
+          if (tipText) tipsList.push(tipText);
+        } else if (sections[currentKey]) {
+          sections[currentKey] += ' ' + line;
+        } else {
+          sections[currentKey] = line;
+        }
+      }
+    }
+
+    sections.tips = tipsList.length > 0 ? tipsList : [cleaned];
+    if (!sections.general) sections.general = cleaned;
+    
+    return sections;
+  };
+
   if (!isOpen) return null;
 
-  // Calendar generation logic
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const firstDayOfMonth = new Date(year, month, 1);
   const lastDayOfMonth = new Date(year, month + 1, 0);
   
-  let startingDayOfWeek = firstDayOfMonth.getDay() - 1; // Monday start
+  let startingDayOfWeek = firstDayOfMonth.getDay() - 1;
   if (startingDayOfWeek === -1) startingDayOfWeek = 6;
 
   const daysInMonth = lastDayOfMonth.getDate();
@@ -152,21 +234,95 @@ const ScheduleAnalysisModal = ({ isOpen, onClose }) => {
         <div className="overflow-y-auto p-6 space-y-6">
           {analysisResult ? (
             <div className="space-y-4">
-              <div className="p-5 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles size={20} className="text-blue-600 dark:text-blue-400" />
-                  <h3 className="font-bold text-gray-800 dark:text-white text-base">Рецензия ИИ-секретаря</h3>
-                </div>
-                <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                  {analysisResult}
-                </div>
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={22} className="text-blue-600 dark:text-blue-400" />
+                <h3 className="font-bold text-gray-800 dark:text-white text-lg">Рецензия ИИ-секретаря</h3>
               </div>
-              <button
-                onClick={() => setAnalysisResult('')}
-                className="w-full py-3.5 rounded-[2rem] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-all text-sm"
-              >
-                Выбрать другие даты
-              </button>
+
+              {/* Block 1: General Assessment */}
+              {analysisResult.general && (
+                <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 flex items-start gap-3">
+                  <Activity size={20} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-gray-800 dark:text-white text-sm mb-1">Общая оценка</h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{analysisResult.general}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Block 2: Work & Rest Balance */}
+              {analysisResult.balance && (
+                <div className="p-4 rounded-2xl bg-cyan-50/80 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/60 flex items-start gap-3">
+                  <Clock size={20} className="text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-gray-800 dark:text-white text-sm mb-1">Баланс работы и отдыха</h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{analysisResult.balance}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Block 3: Overloads */}
+              {analysisResult.overloads && (
+                <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3">
+                  <AlertTriangle size={20} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-gray-800 dark:text-white text-sm mb-1">Перегрузки и напряжение</h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{analysisResult.overloads}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Block 4: Tips */}
+              {analysisResult.tips && analysisResult.tips.length > 0 && (
+                <div className="p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex items-start gap-3">
+                  <Lightbulb size={20} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                  <div className="w-full">
+                    <h4 className="font-semibold text-gray-800 dark:text-white text-sm mb-2">Советы по тайм-менеджменту</h4>
+                    <ul className="space-y-1.5">
+                      {analysisResult.tips.map((tip, idx) => (
+                        <li key={idx} className="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-2">
+                          <span className="font-bold text-indigo-500">•</span>
+                          <span className="leading-relaxed">{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* Block 5: Motivation */}
+              {analysisResult.motivation && (
+                <div className="p-4 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-3">
+                  <Trophy size={20} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-gray-800 dark:text-white text-sm mb-1">Мотивация</h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{analysisResult.motivation}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setAnalysisResult(null)}
+                  className="flex-1 py-3.5 rounded-[2rem] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-all text-sm"
+                >
+                  Другие даты
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 py-3.5 rounded-[2rem] bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl transition-all text-sm flex items-center justify-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Сохранение...</span>
+                    </>
+                  ) : (
+                    <span>Сохранить в виджет</span>
+                  )}
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -219,7 +375,7 @@ const ScheduleAnalysisModal = ({ isOpen, onClose }) => {
                     >
                       <span className="text-sm font-semibold">{dayNum}</span>
                       
-                      {/* Indicators: Orange dot for calendar events, Blue dot for reminders, both if both */}
+                      {/* Indicators */}
                       <div className="flex items-center gap-1 mt-1">
                         {hasEvents && (
                           <div className={`w-1.5 h-1.5 rounded-full ${selected ? 'bg-amber-300' : 'bg-amber-500'}`} title="Есть расписание" />

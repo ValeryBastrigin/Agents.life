@@ -430,3 +430,18 @@ class DailyFoodAnalysis(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
+
+
+class ScheduleAnalysis(Base):
+    """Хранит последнюю сохраненную рецензию расписания для пользователя."""
+    __tablename__ = "schedule_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
+    analysis_data = Column(Text, nullable=False)  # JSON or text of analysis
+    start_date = Column(String(20), nullable=True)
+    end_date = Column(String(20), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")

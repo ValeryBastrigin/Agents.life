@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from datetime import time, date, datetime
 from typing import Optional, List
 from src.database import get_db
-from src.models import CalendarEvent, Reminder, Note, User
+from src.models import CalendarEvent, Reminder, Note, User, ScheduleAnalysis
 from src.billing.dependency import check_billing_limit
 
 router = APIRouter(tags=["secretary"])
@@ -713,6 +713,42 @@ async def save_parsed_schedule_inner(user_id: int, data: SaveParsedScheduleReque
 # ============================================================
 # Analyze Schedule Range endpoint (for 3rd card in ScheduleManager)
 # ============================================================
+class SaveScheduleAnalysisRequest(BaseModel):
+    analysis_data: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+@router.get("/saved-analysis/{user_id}")
+@router.get("/secretary/saved-analysis/{user_id}")
+async def get_saved_schedule_analysis(user_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(ScheduleAnalysis).where(ScheduleAnalysis.user_id == user_id))
+    record = result.scalar_one_or_none()
+    if not record:
+        return {"exists": False}
+    return {
+        "exists": True,
+        "analysis_data": record.analysis_data,
+        "start_date": record.start_date,
+        "end_date": record.end_date,
+        "updated_at": record.updated_at.isoformat() if record.updated_at else None
+    }
+
+@router.post("/save-analysis/{user_id}")
+@router.post("/secretary/save-analysis/{user_id}")
+async def save_schedule_analysis(user_id: int, data: SaveScheduleAnalysisRequest, db: AsyncSession = Depends(get_db)):
+    # Delete existing if any (keep only the latest one)
+    await db.execute(delete(ScheduleAnalysis).where(ScheduleAnalysis.user_id == user_id))
+    
+    new_record = ScheduleAnalysis(
+        user_id=user_id,
+        analysis_data=data.analysis_data,
+        start_date=data.start_date,
+        end_date=data.end_date
+    )
+    db.add(new_record)
+    await db.commit()
+    return {"status": "success", "message": "Analysis saved successfully"}
+
 @router.post("/analyze-schedule-range/{user_id}")
 @router.post("/secretary/analyze-schedule-range/{user_id}")
 async def analyze_schedule_range(user_id: int, data: AnalyzeScheduleRangeRequest, db: AsyncSession = Depends(get_db)):
