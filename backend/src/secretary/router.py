@@ -519,9 +519,7 @@ async def parse_schedule_image(user_id: int, file: UploadFile = File(...), db: A
     import base64
     try:
         from src.config import client
-        from src.models import User
         from src.billing.calculator import calculate_cost
-
         contents = await file.read()
         b64_img = base64.b64encode(contents).decode("utf-8")
         data_uri = f"data:{file.content_type or 'image/jpeg'};base64,{b64_img}"
@@ -597,7 +595,6 @@ async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: 
     import re
     try:
         from src.config import client
-        from src.models import User
         from src.billing.calculator import calculate_cost
 
         prompt = f"""ВНИМАНИЕ: Проанализируй текст пользователя с описанием его расписания, встреч и планов. Извлеки все события и разбей их на отдельные блоки с указанием времени (в формате ЧЧ:ММ - ЧЧ:ММ), названия и описания.
