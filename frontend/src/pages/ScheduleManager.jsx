@@ -5,6 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import ScheduleCreationModal from '../components/ScheduleCreationModal';
 import ScheduleVerifyModal from '../components/ScheduleVerifyModal';
+import ScheduleAnalysisModal from '../components/ScheduleAnalysisModal';
 import { apiClient } from '../utils/apiClient';
 import axios from 'axios';
 
@@ -23,7 +24,6 @@ const ScheduleManager = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [analysisResult, setAnalysisResult] = useState(null);
 
   const cards = [
     {
@@ -102,19 +102,6 @@ const ScheduleManager = () => {
         return;
       }
       setUploadError(error.response?.data?.detail || 'К сожалению не смог распознать расписание, попробуйте еще раз.');
-    }
-  };
-
-  const handleRunAnalysis = async () => {
-    setUploading(true);
-    try {
-      const response = await axios.post(`${API_URL}/api/secretary/analyze-schedule/${userId}`);
-      setAnalysisResult(response.data.analysis || "Ваше расписание проанализировано. Перегрузок не обнаружено, баланс соблюден.");
-      setUploading(false);
-    } catch (error) {
-      console.error('Failed to analyze schedule:', error);
-      setAnalysisResult("Анализ расписания завершен: у вас отличный баланс активности и отдыха!");
-      setUploading(false);
     }
   };
 
@@ -206,6 +193,12 @@ const ScheduleManager = () => {
         }}
       />
 
+      {/* Интерактивное модальное окно анализа расписания с календарем и индикаторами */}
+      <ScheduleAnalysisModal
+        isOpen={showAnalysisModal}
+        onClose={() => setShowAnalysisModal(false)}
+      />
+
       {/* Модальное окно загрузки существующего расписания */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -247,7 +240,7 @@ const ScheduleManager = () => {
 
             <div className="flex gap-3">
               <button
-                onClick={() => { setShowUploadModal(false); setSelectedFile(null); }}
+                onClick={() => { setShowUploadModal(false); setSelectedFile(null); setUploadError(''); }}
                 className="flex-1 px-5 py-3 bg-gray-100 dark:bg-gray-800 rounded-[2rem] text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm"
               >
                 Отмена
@@ -259,54 +252,6 @@ const ScheduleManager = () => {
               >
                 {uploading ? 'Распознавание...' : 'Загрузить'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Модальное окно анализа расписания */}
-      {showAnalysisModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-6 md:p-8 w-full max-w-md shadow-2xl border border-gray-100 dark:border-gray-800">
-            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
-              Анализ расписания
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              Ixteria проанализирует ваши запланированные задачи, события и привычки.
-            </p>
-
-            {analysisResult ? (
-              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-[1.8rem] border border-blue-200/50 dark:border-blue-800/30">
-                <div className="flex items-start gap-3">
-                  <CheckCircle size={20} className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {analysisResult}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="mb-6 text-center py-6">
-                <Calendar size={48} className="mx-auto text-blue-500 mb-3 animate-pulse" />
-                <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">Готовы оценить ваш тайм-менеджмент?</p>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setShowAnalysisModal(false); setAnalysisResult(null); }}
-                className="flex-1 px-5 py-3 bg-gray-100 dark:bg-gray-800 rounded-[2rem] text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm"
-              >
-                Закрыть
-              </button>
-              {!analysisResult && (
-                <button
-                  onClick={handleRunAnalysis}
-                  disabled={uploading}
-                  className="flex-1 px-5 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-[2rem] font-medium transition-colors text-sm"
-                >
-                  {uploading ? 'Анализ...' : 'Запустить анализ'}
-                </button>
-              )}
             </div>
           </div>
         </div>

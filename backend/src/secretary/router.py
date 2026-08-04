@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, update, func, desc
 from pydantic import BaseModel
-from datetime import time, date
-from typing import Optional
+from datetime import time, date, datetime
+from typing import Optional, List
 from src.database import get_db
 from src.models import CalendarEvent, Reminder, Note, User
 from src.billing.dependency import check_billing_limit
@@ -83,8 +83,6 @@ async def get_calendar_events(user_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/events/{user_id}")
 async def create_calendar_event(user_id: int, event_data: CalendarEventCreate, db: AsyncSession = Depends(get_db)):
-    from datetime import datetime
-    
     new_event = CalendarEvent(
         user_id=user_id,
         title=event_data.title,
@@ -111,8 +109,6 @@ async def create_calendar_event(user_id: int, event_data: CalendarEventCreate, d
 
 @router.put("/events/{event_id}")
 async def update_calendar_event(event_id: int, event_data: CalendarEventUpdate, db: AsyncSession = Depends(get_db)):
-    from datetime import datetime
-    
     result = await db.execute(select(CalendarEvent).where(CalendarEvent.id == event_id))
     event = result.scalar_one_or_none()
     
@@ -222,8 +218,6 @@ async def get_reminders(user_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/reminders/{user_id}")
 async def create_reminder(user_id: int, reminder_data: ReminderCreate, db: AsyncSession = Depends(get_db)):
-    from datetime import datetime
-    
     parsed_time = datetime.strptime(reminder_data.time, "%H:%M").time()
     parsed_date = date.fromisoformat(reminder_data.date) if reminder_data.date else None
     
@@ -252,8 +246,6 @@ async def create_reminder(user_id: int, reminder_data: ReminderCreate, db: Async
 
 @router.put("/reminders/{reminder_id}")
 async def update_reminder(reminder_id: int, reminder_data: ReminderUpdate, db: AsyncSession = Depends(get_db)):
-    from datetime import datetime
-    
     result = await db.execute(select(Reminder).where(Reminder.id == reminder_id))
     reminder = result.scalar_one_or_none()
     
@@ -299,7 +291,8 @@ async def delete_reminder(reminder_id: int, db: AsyncSession = Depends(get_db)):
     
     await db.execute(delete(Reminder).where(Reminder.id == reminder_id))
     await db.commit()
-    
+    return {"message": "Reminder deleted successfully"}
+
 
 # ============================================================
 # Activity Log endpoint — агрегирует все действия секретаря
@@ -311,17 +304,8 @@ async def get_secretary_logs(
     page_size: int = 20,
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Возвращает ленту действий AI-секретаря:
-    – созданные события календаря
-    – созданные напоминания
-    – сообщения из чатов с агентом Secretary
-    """
-    from datetime import datetime as dt_module
-
     logs = []
 
-    # --- 1. Calendar Events ---
     events_result = await db.execute(
         select(CalendarEvent)
         .where(CalendarEvent.user_id == user_id)
@@ -334,7 +318,7 @@ async def get_secretary_logs(
             "action_type": "calendar",
             "title": f"Создал событие: {e.title}",
             "status": "success",
-            "timestamp": e.created_at.isoformat() if e.created_at else dt_module.utcnow().isoformat(),
+            "timestamp": e.created_at.isoformat() if e.created_at else datetime.utcnow().isoformat(),
             "payload": {
                 "id": e.id,
                 "title": e.title,
@@ -346,7 +330,6 @@ async def get_secretary_logs(
             }
         })
 
-    # --- 2. Reminders ---
     reminders_result = await db.execute(
         select(Reminder)
         .where(Reminder.user_id == user_id)
@@ -359,7 +342,7 @@ async def get_secretary_logs(
             "action_type": "task",
             "title": f"Создал напоминание: {r.text[:60]}{'...' if len(r.text) > 60 else ''}",
             "status": "success" if not r.completed else "completed",
-            "timestamp": r.created_at.isoformat() if r.created_at else dt_module.utcnow().isoformat(),
+            "timestamp": r.created_at.isoformat() if r.created_at else datetime.utcnow().isoformat(),
             "payload": {
                 "id": r.id,
                 "text": r.text,
@@ -372,7 +355,6 @@ async def get_secretary_logs(
             }
         })
 
-    # --- 3. Notes ---
     notes_result = await db.execute(
         select(Note).where(Note.user_id == user_id).order_by(desc(Note.created_at))
     )
@@ -383,7 +365,7 @@ async def get_secretary_logs(
             "action_type": "note",
             "title": "Создал заметку: " + (n.title[:60] + ("..." if len(n.title) > 60 else "")),
             "status": "success",
-            "timestamp": n.created_at.isoformat() if n.created_at else dt_module.utcnow().isoformat(),
+            "timestamp": n.created_at.isoformat() if n.created_at else datetime.utcnow().isoformat(),
             "payload": {
                 "id": n.id,
                 "title": n.title,
@@ -394,10 +376,8 @@ async def get_secretary_logs(
             }
         })
 
-    # --- Сортировка всех логов по времени (новые сверху) ---
     logs.sort(key=lambda x: x["timestamp"], reverse=True)
 
-    # --- Пагинация ---
     total = len(logs)
     start = (page - 1) * page_size
     end = start + page_size
@@ -478,6 +458,10 @@ async def delete_note(note_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return {"message": "Note deleted"}
 
+
+# ============================================================
+# Schedule Parsing & Analysis
+# ============================================================
 class ScheduleTextParseRequest(BaseModel):
     text: str
 
@@ -485,6 +469,10 @@ class SaveParsedScheduleRequest(BaseModel):
     events: list[dict]
     period: str  # 'today' | 'week' | 'month' | 'custom'
     custom_date: Optional[str] = None
+
+class AnalyzeScheduleRangeRequest(BaseModel):
+    start_date: str  # YYYY-MM-DD
+    end_date: str    # YYYY-MM-DD
 
 @router.post("/parse-schedule/{user_id}")
 async def parse_schedule_legacy(user_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
@@ -503,16 +491,11 @@ async def parse_schedule_image_secretary_alias(user_id: int, file: UploadFile = 
     return await parse_schedule_image(user_id, file, db)
 
 async def parse_schedule_image(user_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
-    # Проверка пользователя и его лимитов биллинга перед вызовом модели
     user_res = await db.execute(select(User).where(User.id == user_id))
     user = user_res.scalar_one_or_none()
     if not user:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Пользователь с ID {user_id} не найден."
-        )
+        raise HTTPException(status_code=404, detail=f"Пользователь с ID {user_id} не найден.")
 
-    # Проверяем лимит биллинга (выбросит 402 если лимит исчерпан)
     await check_billing_limit(user, estimated_cost=5, db=db)
 
     import json
@@ -589,7 +572,6 @@ async def parse_schedule_image(user_id: int, file: UploadFile = File(...), db: A
 
 @router.post("/parse-schedule-text/{user_id}")
 async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: AsyncSession = Depends(get_db)):
-    # Проверка лимита биллинга перед вызовом модели
     user_res = await db.execute(select(User).where(User.id == user_id))
     user = user_res.scalar_one_or_none()
     if user:
@@ -620,7 +602,6 @@ async def parse_schedule_text(user_id: int, data: ScheduleTextParseRequest, db: 
         content = response.choices[0].message.content.strip()
         print(f"DEBUG: Parse text schedule response: {content}")
 
-        # Clean markdown code blocks if any
         if content.startswith("```"):
             content = re.sub(r"^```(?:json)?\s*", "", content)
             content = re.sub(r"\s*```$", "", content)
@@ -677,7 +658,7 @@ async def save_parsed_schedule_alias(user_id: int, data: SaveParsedScheduleReque
     return await save_parsed_schedule_inner(user_id, data, db)
 
 async def save_parsed_schedule_inner(user_id: int, data: SaveParsedScheduleRequest, db: AsyncSession = Depends(get_db)):
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     
     base_date = date.today()
     if data.period == 'custom' and data.custom_date:
@@ -696,7 +677,6 @@ async def save_parsed_schedule_inner(user_id: int, data: SaveParsedScheduleReque
     for day_offset in range(days_to_create):
         current_day = base_date + timedelta(days=day_offset)
         for ev in data.events:
-            # Parse time range like "09:00 - 10:30"
             time_str = ev.get("time", "09:00 - 10:00")
             parts = time_str.split("-")
             start_str = parts[0].strip() if len(parts) > 0 else "09:00"
@@ -728,3 +708,102 @@ async def save_parsed_schedule_inner(user_id: int, data: SaveParsedScheduleReque
 
     await db.commit()
     return {"message": f"Successfully created {created_count} events in secretary calendar.", "count": created_count}
+
+
+# ============================================================
+# Analyze Schedule Range endpoint (for 3rd card in ScheduleManager)
+# ============================================================
+@router.post("/analyze-schedule-range/{user_id}")
+@router.post("/secretary/analyze-schedule-range/{user_id}")
+async def analyze_schedule_range(user_id: int, data: AnalyzeScheduleRangeRequest, db: AsyncSession = Depends(get_db)):
+    user_res = await db.execute(select(User).where(User.id == user_id))
+    user = user_res.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"Пользователь с ID {user_id} не найден.")
+
+    await check_billing_limit(user, estimated_cost=5, db=db)
+
+    try:
+        start_d = date.fromisoformat(data.start_date)
+        end_d = date.fromisoformat(data.end_date)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Неверный формат даты.")
+
+    # Fetch calendar events in range
+    start_dt = datetime.combine(start_d, time.min)
+    end_dt = datetime.combine(end_d, time.max)
+
+    events_res = await db.execute(
+        select(CalendarEvent)
+        .where(CalendarEvent.user_id == user_id)
+        .where(CalendarEvent.start_time >= start_dt)
+        .where(CalendarEvent.start_time <= end_dt)
+    )
+    events = events_res.scalars().all()
+
+    # Fetch reminders in range
+    reminders_res = await db.execute(
+        select(Reminder)
+        .where(Reminder.user_id == user_id)
+        .where(Reminder.date >= start_d)
+        .where(Reminder.date <= end_d)
+    )
+    reminders = reminders_res.scalars().all()
+
+    events_data = [
+        {
+            "title": e.title,
+            "start": e.start_time.isoformat(),
+            "end": e.end_time.isoformat(),
+            "description": e.description
+        }
+        for e in events
+    ]
+
+    reminders_data = [
+        {
+            "text": r.text,
+            "title": r.title,
+            "time": r.time.strftime("%H:%M") if r.time else None,
+            "date": r.date.isoformat() if r.date else None,
+            "completed": r.completed
+        }
+        for r in reminders
+    ]
+
+    if not events_data and not reminders_data:
+        return {"analysis": f"На период с {data.start_date} по {data.end_date} не найдено ни событий, ни задач/напоминаний. График абсолютно свободен!"}
+
+    try:
+        from src.config import client
+        from src.billing.calculator import calculate_cost
+
+        prompt = f"""Проанализируй расписание и задачи пользователя за период с {data.start_date} по {data.end_date}.
+События календаря: {events_data}
+Напоминания и задачи: {reminders_data}
+
+Дай конструктивную, мотивирующую и профессиональную рецензию на график пользователя (оцени баланс работы и отдыха, наличие перегрузок, дай полезные советы по тайм-менеджменту). Отвечай на русском языке в дружелюбном, экспертном стиле."""
+
+        response = await client.chat.completions.create(
+            model="google/gemini-2.5-flash-lite",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
+        )
+        analysis_text = response.choices[0].message.content.strip()
+
+        input_tokens = response.usage.prompt_tokens if response.usage else 500
+        output_tokens = response.usage.completion_tokens if response.usage else 500
+        credits_cost = calculate_cost("google/gemini-2.5-flash-lite", input_tokens=input_tokens, output_tokens=output_tokens)
+        if credits_cost == 0:
+            credits_cost = 2
+        user.credits_used = (user.credits_used or 0) + credits_cost
+        user.token_balance = max((user.token_balance or 0) - credits_cost, 0)
+        user.last_credit_reset = date.today()
+        await db.commit()
+
+        return {"analysis": analysis_text}
+    except Exception as e:
+        print(f"Error analyzing schedule range via LLM: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Ошибка при анализе расписания через ИИ.")
