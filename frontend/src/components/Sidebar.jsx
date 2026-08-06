@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageSquare, Plus, MoreVertical, Share, Pin, PinOff, Edit, Trash2, Settings } from 'lucide-react';
+import { MessageSquare, Plus, MoreVertical, Share, Pin, PinOff, Edit, Trash2, Settings, Search } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../contexts/LanguageContext';
 import AgentManagerModal from './AgentManagerModal';
@@ -212,6 +212,20 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                   </div>
                 </Link>
               ))}
+            </div>
+
+            {/* Search Chats Button (Gemini style) */}
+            <div className="mb-4 px-2">
+              <Link
+                to="/chat-search"
+                onClick={() => onClose()}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[2rem] bg-surface-light dark:bg-surface-dark/80 border border-gray-200/50 dark:border-gray-700/50 hover:border-primary-500/50 text-gray-700 dark:text-gray-300 transition-all hover:shadow-md group"
+              >
+                <div className="p-1.5 bg-primary-500/10 text-primary-500 rounded-xl group-hover:scale-110 transition-transform">
+                  <Search size={16} />
+                </div>
+                <span className="text-sm font-medium">{language === 'ru' ? 'Поиск по чатам' : 'Search chats'}</span>
+              </Link>
             </div>
 
             {/* Chats Section */}

@@ -1071,6 +1071,50 @@ async def get_user_chats(user_id: int, db: AsyncSession = Depends(get_db)):
     chats = result.scalars().all()
     return [{"id": chat.id, "title": chat.title, "agent_name": chat.agent.name if chat.agent else "agents", "created_at": chat.created_at, "is_pinned": chat.is_pinned} for chat in chats]
 
+@router.get("/chats/search")
+async def search_chats(user_id: int, q: str = "", db: AsyncSession = Depends(get_db)):
+    """Search chats and messages by query string for a specific user."""
+    if not q or not q.strip():
+        return []
+    
+    query_str = q.strip().lower()
+    
+    chats_result = await db.execute(
+        select(Chat)
+        .where(Chat.user_id == user_id)
+        .options(selectinload(Chat.agent), selectinload(Chat.messages))
+    )
+    chats = chats_result.scalars().all()
+    
+    matched_results = []
+    for chat in chats:
+        chat_title = chat.title or ""
+        title_match = query_str in chat_title.lower()
+        
+        matching_messages = []
+        for msg in chat.messages:
+            content_text = str(msg.content or "")
+            if content_text.lower().find(query_str) != -1:
+                matching_messages.append({
+                    "id": msg.id,
+                    "role": msg.role,
+                    "content": content_text[:300],
+                    "created_at": msg.created_at.isoformat() if msg.created_at else None
+                })
+        
+        if title_match or matching_messages:
+            matched_results.append({
+                "chat_id": chat.id,
+                "chat_title": chat_title,
+                "agent_name": chat.agent.name if chat.agent else "default",
+                "is_pinned": chat.is_pinned,
+                "updated_at": chat.updated_at.isoformat() if chat.updated_at else None,
+                "title_match": title_match,
+                "matching_messages": matching_messages
+            })
+            
+    return matched_results
+
 
 @router.put("/chats/{chat_id}/pin")
 async def pin_chat(chat_id: int, db: AsyncSession = Depends(get_db)):
