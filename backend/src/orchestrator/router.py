@@ -1066,10 +1066,25 @@ async def get_agents(db: AsyncSession = Depends(get_db)):
 @router.get("/user-chats")
 async def get_user_chats(user_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Chat).where(Chat.user_id == user_id).options(selectinload(Chat.agent)).order_by(Chat.created_at.desc())
+        select(Chat).where(Chat.user_id == user_id).options(selectinload(Chat.agent)).order_by(Chat.is_pinned.desc(), Chat.created_at.desc())
     )
     chats = result.scalars().all()
     return [{"id": chat.id, "title": chat.title, "agent_name": chat.agent.name if chat.agent else "agents", "created_at": chat.created_at, "is_pinned": chat.is_pinned} for chat in chats]
+
+
+@router.put("/chats/{chat_id}/pin")
+async def pin_chat(chat_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Chat).where(Chat.id == chat_id))
+    chat = result.scalar_one_or_none()
+
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    chat.is_pinned = not chat.is_pinned
+    await db.commit()
+    await db.refresh(chat)
+
+    return {"message": "Chat pin status updated successfully", "chat": {"id": chat.id, "is_pinned": chat.is_pinned}}
 
 @router.get("/user/{user_id}", response_model=UserProfile)
 async def get_user_profile(user_id: int, db: AsyncSession = Depends(get_db)):

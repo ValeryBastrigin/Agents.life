@@ -518,12 +518,13 @@ function AppContent({ theme, sidebarOpen, setSidebarOpen, setTheme }) {
 
   return (
       <div className={`${location.pathname === '/landing' || location.pathname === '/' || location.pathname === '/terms' ? 'min-h-screen' : 'h-screen'} flex flex-col bg-background-light dark:bg-background-dark ${theme} relative ${location.pathname === '/landing' || location.pathname === '/' || location.pathname === '/terms' ? '' : 'overflow-hidden'}`}>
-      {/* Animated Background - Only visible on chat pages */}
-      {!location.pathname.startsWith('/profile') && !location.pathname.startsWith('/secretary') && !location.pathname.startsWith('/accountant') && !location.pathname.startsWith('/dietitian') && !location.pathname.startsWith('/psychologist') && !location.pathname.startsWith('/mentor') && location.pathname !== '/login' && location.pathname !== '/landing' && location.pathname !== '/' && location.pathname !== '/terms' && (
+      {/* Animated Background */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <AnimatedBackground theme={theme} isLoading={false} />
+      </div>
         <div className="absolute inset-0 pointer-events-none z-0">
           <AnimatedBackground theme={theme} isLoading={false} />
         </div>
-      )}
 
       {/* Global agent backgrounds - behind header too */}
       {location.pathname.startsWith('/secretary') && (

@@ -249,6 +249,10 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                         {new Date(chat.created_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' })}
                       </div>
                     </div>
+                  <div className="flex items-center gap-1">
+                    {chat.is_pinned && (
+                      <Pin size={13} className="text-primary-500 fill-current rotate-45" />
+                    )}
                     <button
                       ref={menuButtonRef}
                       onClick={(e) => handleChatOptions(e, chat.id)}
@@ -256,6 +260,7 @@ const Sidebar = ({ isOpen, onClose, theme, chats, onSelectChat, onNewChat, onDel
                     >
                       <MoreVertical size={14} className="text-gray-400" />
                     </button>
+                  </div>
                   </button>
                 ))
               ) : (
