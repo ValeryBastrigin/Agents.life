@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="LifeAgent - Your AI Assistant Platform" />
+    <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/assets/icons/agents/ixteria.svg" />
+    <link rel="icon" type="image/png" href="%PUBLIC_URL%/assets/icons/agents/ixteria.png" />
+    <title>LifeAgent</title>
+    <style>
+      /* Dark theme is now the default for the entire app */
+      body, #root {
+        background-color: #131314;
+        transition: background-color 0.3s ease;
+      }
+      /* Light theme override (when user explicitly chooses light) */
+      html:not(.dark) body,
+      html:not(.dark) #root {
+        background-color: #f9f9f9;
+      }
+    </style>
+    <script>
+      // Dark theme is the default for new users
+      (function() {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark' || !savedTheme) {
+          document.documentElement.classList.add('dark');
+          // Save dark as default preference for new users
+          if (!savedTheme) {
+            localStorage.setItem('theme', 'dark');
+          }
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

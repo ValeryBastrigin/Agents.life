@@ -1,0 +1,91 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: lifeagent-db
+    environment:
+      POSTGRES_USER: lifeagent
+      POSTGRES_PASSWORD: lifeagent_password
+      POSTGRES_DB: lifeagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lifeagent -d lifeagent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: lifeagent-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@lifeagent.com
+      PGADMIN_DEFAULT_PASSWORD: pgadmin_password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ""
+    container_name: lifeagent-frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lifeagent-app
+    env_file:
+      - backend/.env
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://lifeagent:lifeagent_password@db:5432/lifeagent
+      FRONTEND_URL: http://localhost:3001
+      BACKEND_URL: http://localhost:8001
+      REACT_APP_API_URL: http://localhost:8001
+      PYTHONPATH: /app
+      STATEMENT_MODEL: google/gemini-2.5-flash-lite
+    volumes:
+      - ./uploads:/app/uploads
+      - ./backend/src:/app/src
+      - ./backend/main.py:/app/backend/main.py
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db-backup:
+    build:
+      context: ./backup_service
+      dockerfile: Dockerfile
+    container_name: lifeagent-backup
+    env_file:
+      - backend/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: lifeagent
+      DB_USER: lifeagent
+      DB_PASSWORD: lifeagent_password
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  postgres_data:
+  pgadmin_data:
